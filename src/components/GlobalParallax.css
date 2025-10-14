@@ -15,3 +15,21 @@
   opacity: 0.28;
   animation: cloudDrift 140s linear infinite;
 }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+@keyframes cloudDrift {
+  0% { background-position: 0% 0%; transform: scale(1.03); }
+  50% { background-position: -50% 2%; transform: scale(1.05); }
+  100% { background-position: -100% 0%; transform: scale(1.03); }
+}
+
+@media (max-width: 768px) {
+  .clouds { opacity: 0.22; }
+  .overlay { background: rgba(0, 0, 0, 0.88); }
+}
