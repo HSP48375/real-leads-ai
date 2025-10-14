@@ -4,9 +4,9 @@ import MicroParallax from "./MicroParallax";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center">
       {/* Radial accent overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
       <div className="container relative z-10 px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto space-y-8">

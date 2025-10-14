@@ -53,7 +53,7 @@ const tiers = [
 
 const Pricing = () => {
   return (
-    <section id="pricing" className="py-20 bg-background">
+    <section id="pricing" className="py-20 bg-background/30 backdrop-blur-sm relative z-10">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
