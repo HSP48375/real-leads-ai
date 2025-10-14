@@ -64,13 +64,13 @@ const ParallaxDust = () => {
               width: `${particle.size}px`,
               height: `${particle.size}px`,
               backgroundColor: particle.color,
-              opacity: 0.2,
-              filter: `blur(${particle.size * 0.5}px)`,
+              opacity: 0.6, // Increased from 0.2 to make visible
+              filter: `blur(${particle.size * 0.8}px)`,
             }}
             animate={{
-              y: [-20, -80],
-              x: [0, Math.random() * 6 - 3, 0],
-              opacity: [0.15, 0.25, 0.15],
+              y: [-20, -120], // Increased movement
+              x: [0, Math.random() * 10 - 5, 0], // More horizontal sway
+              opacity: [0.4, 0.7, 0.4], // More visible range
             }}
             transition={{
               duration: particle.duration,
