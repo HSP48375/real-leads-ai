@@ -1,1 +1,17 @@
-/* GlobalParallax styles - waiting for content */
+.global-parallax {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: #000;
+}
+
+.clouds {
+  position: absolute;
+  inset: -10vh -10vw;
+  background-image: url("https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?q=80&w=2000");
+  background-size: cover;
+  background-repeat: repeat-x;
+  opacity: 0.28;
+  animation: cloudDrift 140s linear infinite;
+}
