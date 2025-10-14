@@ -111,19 +111,28 @@ All colors MUST be HSL.
     position: fixed;
     right: -10%;
     top: calc(-10% + var(--scroll-offset));
-    z-index: 0;
-    opacity: 0.6;
-    filter: blur(40px) saturate(1.5);
-    mix-blend-mode: plus-lighter;
-    background: conic-gradient(
-      from -45deg at center,
-      transparent 0%,
-      hsl(var(--hue1), 95%, 60%),
-      transparent 50%
-    ) border-box;
-    mask: linear-gradient(transparent), linear-gradient(black);
-    mask-clip: padding-box, border-box;
-    mask-composite: subtract;
+    z-index: 9999;
+    opacity: 1;
+    filter: blur(20px);
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, transparent 70%);
+  }
+
+  body::after {
+    content: '';
+    pointer-events: none;
+    border-bottom-left-radius: 300px;
+    border: 60px solid transparent;
+    width: 50%;
+    height: 50%;
+    aspect-ratio: 1;
+    display: block;
+    position: fixed;
+    left: -10%;
+    bottom: calc(-10% + calc(var(--scroll-offset) * -0.7));
+    z-index: 9999;
+    opacity: 1;
+    filter: blur(20px);
+    background: radial-gradient(circle, rgba(255, 0, 0, 0.9) 0%, transparent 70%);
   }
 
   h1, h2, h3, h4, h5, h6 {
