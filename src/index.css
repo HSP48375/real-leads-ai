@@ -98,23 +98,22 @@ All colors MUST be HSL.
   body::after {
     content: '';
     position: fixed;
-    width: 1px;
+    width: 100px;
     height: 200%;
-    background: linear-gradient(180deg, transparent, rgba(255, 215, 0, 0.15), transparent);
+    background: rgba(255, 215, 0, 0.9);
     pointer-events: none;
-    z-index: 0;
+    z-index: 9999;
   }
 
   body::before {
     left: 20%;
     transform: rotate(15deg);
-    animation: beamShift1 40s ease-in-out infinite;
   }
 
   body::after {
     right: 30%;
     transform: rotate(-15deg);
-    animation: beamShift2 35s ease-in-out infinite;
+    background: rgba(255, 0, 0, 0.9);
   }
 
   h1, h2, h3, h4, h5, h6 {
