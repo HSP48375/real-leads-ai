@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import ParallaxDust from "./ParallaxDust";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient effect */}
-      <div className="absolute inset-0 bg-gradient-dark"></div>
+      {/* Parallax Background Layers */}
+      <ParallaxDust />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.1),transparent_50%)]"></div>
       
       <div className="container relative z-10 px-4 py-20 text-center">
