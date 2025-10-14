@@ -22,12 +22,22 @@ const OrderForm = () => {
     setIsSubmitting(true);
 
     try {
-      // TODO: Replace with actual API call when backend is ready
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/process-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to process order");
+      }
       
       toast({
         title: "Order Received!",
-        description: "Your leads will be delivered within 24 hours. Check your email for confirmation.",
+        description: "Your verified leads are being generated and will be emailed to you shortly.",
       });
       
       // Reset form
@@ -35,7 +45,7 @@ const OrderForm = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {

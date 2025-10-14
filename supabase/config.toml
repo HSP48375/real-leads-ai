@@ -1,1 +1,7 @@
 project_id = "vnuvhreveoyclasgtnpr"
+
+[functions.scrape-leads]
+verify_jwt = false
+
+[functions.process-order]
+verify_jwt = false
