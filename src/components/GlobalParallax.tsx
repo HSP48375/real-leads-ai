@@ -33,7 +33,7 @@ const GlobalParallax = () => {
   const meshOpacity = useTransform(
     scrollY, 
     [0, 800, 1600, 2400, 3200, 4000], 
-    [0.08, 0.04, 0.09, 0.03, 0.08, 0.04]
+    [0.04, 0.02, 0.045, 0.015, 0.04, 0.02]
   );
   
   // Layer 3: Dust particles with density modulation (18% scroll speed)
@@ -75,46 +75,6 @@ const GlobalParallax = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {/* Layer 0: Subtle Moving Clouds (Behind Everything) */}
-      <div className="absolute inset-0 hidden md:block">
-        {/* Cloud Layer 1 - Deeper, slower */}
-        <motion.div
-          className="absolute inset-0 w-full h-[250vh] will-change-transform"
-          style={{
-            y: cloudY1,
-            x: cloudX1,
-            backgroundImage: `url(${cloudsLayer1})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "repeat",
-            mixBlendMode: "soft-light",
-            opacity: 0.4,
-          }}
-        />
-        
-        {/* Cloud Layer 2 - Lighter, faster */}
-        <motion.div
-          className="absolute inset-0 w-full h-[250vh] will-change-transform"
-          style={{
-            y: cloudY2,
-            x: cloudX2,
-            backgroundImage: `url(${cloudsLayer2})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "repeat",
-            mixBlendMode: "overlay",
-            opacity: 0.3,
-          }}
-        />
-        
-        {/* Dark overlay to keep clouds subtle and cinematic */}
-        <div 
-          className="absolute inset-0 bg-black/80"
-          style={{ mixBlendMode: "normal" }}
-        />
-      </div>
-      
-      {/* Layer 1: Animated Gradient with Morphing Hue */}
       <motion.div 
         className="absolute inset-0 w-full h-[250vh] will-change-transform"
         style={{ 
@@ -138,6 +98,42 @@ const GlobalParallax = () => {
           }}
         />
       </motion.div>
+
+      {/* Cloud Layer: Subtle Moving Clouds (between gradient and mesh) */}
+      <div className="absolute inset-0 hidden md:block">
+        {/* Cloud Layer 1 - deeper, slower */}
+        <motion.div
+          className="absolute inset-0 w-full h-[250vh] will-change-transform"
+          style={{
+            y: cloudY1,
+            x: cloudX1,
+            backgroundImage: `url(${cloudsLayer1})`,
+            backgroundSize: "160% 160%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            mixBlendMode: "soft-light",
+            opacity: 0.35,
+          }}
+        />
+
+        {/* Cloud Layer 2 - lighter, opposite drift */}
+        <motion.div
+          className="absolute inset-0 w-full h-[250vh] will-change-transform"
+          style={{
+            y: cloudY2,
+            x: cloudX2,
+            backgroundImage: `url(${cloudsLayer2})`,
+            backgroundSize: "160% 160%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            mixBlendMode: "overlay",
+            opacity: 0.3,
+          }}
+        />
+
+        {/* Dark translucent overlay to keep clouds subtle */}
+        <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+      </div>
       
       {/* Layer 2: Diagonal Mesh with Rotation */}
       <motion.div 
