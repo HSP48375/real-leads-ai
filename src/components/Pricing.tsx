@@ -107,7 +107,7 @@ const Pricing = () => {
                 <Button 
                   className={`w-full transition-all duration-300 ${
                     tier.featured
-                      ? 'bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground shadow-gold'
+                      ? 'bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-[0_0_80px_hsl(43_74%_66%_/_0.6),0_0_40px_hsl(43_74%_66%_/_0.4)]'
                       : 'bg-secondary text-secondary-foreground hover:bg-gradient-gold hover:text-primary-foreground hover:shadow-gold-glow'
                   }`}
                   size="lg"
