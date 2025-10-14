@@ -5,8 +5,9 @@ import { Check } from "lucide-react";
 const tiers = [
   {
     name: "Starter",
-    price: "$99",
+    price: "$97",
     leads: "15-25 leads",
+    costPerLead: "$3.88–$6.47 per verified lead",
     description: "Perfect for testing the waters with verified FSBO leads.",
     features: [
       "15-25 verified leads",
@@ -18,8 +19,9 @@ const tiers = [
   },
   {
     name: "Growth",
-    price: "$199",
+    price: "$197",
     leads: "40-60 leads",
+    costPerLead: "$3.28–$4.93 per verified lead",
     description: "Great for small agencies and independent agents.",
     featured: true,
     features: [
@@ -33,8 +35,9 @@ const tiers = [
   },
   {
     name: "Pro",
-    price: "$399",
+    price: "$397",
     leads: "100-150 leads",
+    costPerLead: "$2.65–$3.97 per verified lead",
     description: "Full city coverage, best for serious realtors and broker teams.",
     features: [
       "100-150 verified leads",
@@ -58,22 +61,23 @@ const Pricing = () => {
             <span className="bg-gradient-gold bg-clip-text text-transparent"> Sense</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            All plans include fresh, geo-verified leads with no recycled data. Choose what fits your business.
+            All plans include fresh, geo-verified leads with no recycled data. Real homeowners, verified and ready within 24 hours.
           </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {tiers.map((tier) => (
+          {tiers.map((tier, index) => (
             <Card 
               key={tier.name}
-              className={`relative ${
+              className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in group ${
                 tier.featured 
-                  ? 'border-primary shadow-gold scale-105' 
-                  : 'border-border'
+                  ? 'border-primary shadow-gold-glow scale-105 bg-card/60' 
+                  : 'border-border/50 bg-card/40 hover:border-primary/50'
               }`}
+              style={{ animationDelay: `${index * 150}ms` }}
             >
               {tier.featured && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-gold rounded-full">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-gold rounded-full shadow-gold">
                   <span className="text-sm font-semibold text-primary-foreground">Most Popular</span>
                 </div>
               )}
@@ -84,6 +88,7 @@ const Pricing = () => {
                   <span className="text-4xl font-bold">{tier.price}</span>
                 </div>
                 <CardDescription className="text-base mt-2">{tier.leads}</CardDescription>
+                <p className="text-xs text-primary/80 mt-1 font-medium">{tier.costPerLead}</p>
                 <p className="text-sm text-muted-foreground mt-4">{tier.description}</p>
               </CardHeader>
 
@@ -100,12 +105,13 @@ const Pricing = () => {
 
               <CardFooter>
                 <Button 
-                  className={`w-full ${
+                  className={`w-full transition-all duration-300 ${
                     tier.featured
-                      ? 'bg-gradient-gold hover:opacity-90 text-primary-foreground shadow-gold'
-                      : 'bg-secondary hover:bg-secondary/80'
+                      ? 'bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground shadow-gold'
+                      : 'bg-secondary hover:bg-secondary/80 hover:shadow-gold'
                   }`}
                   size="lg"
+                  onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Get Started
                 </Button>
