@@ -5,15 +5,11 @@ import OrderForm from "@/components/OrderForm";
 import Testimonials from "@/components/Testimonials";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
-import GlobalParallax from "@/components/GlobalParallax";
 
 const Index = () => {
   return (
     <div className="min-h-screen relative">
-      {/* Site-wide parallax background */}
-      <GlobalParallax />
-      
-      {/* All content on same background - no section parallax */}
+      {/* All content */}
       <div className="relative z-10">
         <Hero />
         <Features />
