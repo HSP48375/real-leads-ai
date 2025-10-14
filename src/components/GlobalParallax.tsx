@@ -66,125 +66,39 @@ const GlobalParallax = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      <motion.div 
-        className="absolute inset-0 w-full h-[250vh] will-change-transform"
-        style={{ 
-          y: gradientY,
-          x: gradientX,
-        }}
-      >
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background: useTransform(
-              gradientHue,
-              (hue) => `linear-gradient(135deg, 
-                hsl(0, 0%, 0%) 0%, 
-                hsl(${43 + hue}, 20%, 8%) 25%,
-                hsl(0, 0%, 0%) 50%,
-                hsl(${43 + hue}, 20%, 8%) 75%,
-                hsl(0, 0%, 0%) 100%
-              )`
-            )
-          }}
-        />
-      </motion.div>
-
-      {/* Cloud Layer: Cinematic Moving Clouds (main parallax background) */}
-      <div className="absolute inset-0">
-        {/* Cloud Layer 1 - deeper, slower */}
-        <motion.div
-          className="absolute inset-0 w-full h-[250vh] will-change-transform"
-          style={{
-            y: cloudY1,
-            x: cloudX1,
-            backgroundImage: `url(${cloudsLayer1})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center center",
-            backgroundRepeat: "no-repeat",
-            mixBlendMode: "screen",
-            opacity: 0.5,
-          }}
-        />
-
-        {/* Cloud Layer 2 - lighter, opposite drift */}
-        <motion.div
-          className="absolute inset-0 w-full h-[250vh] will-change-transform"
-          style={{
-            y: cloudY2,
-            x: cloudX2,
-            backgroundImage: `url(${cloudsLayer2})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center center",
-            backgroundRepeat: "no-repeat",
-            mixBlendMode: "screen",
-            opacity: 0.4,
-          }}
-        />
-
-        {/* Dark gradient overlay for subtle cinematic atmosphere */}
-        <div className="absolute inset-0 bg-black/60 pointer-events-none" />
-      </div>
-      
-      {/* Layer 3: Gold Dust with Density Modulation */}
-      <motion.div 
-        className="absolute inset-0 w-full h-[250vh] will-change-transform"
-        style={{ 
-          y: particleY,
-          opacity: particleDensity,
-        }}
-      >
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute rounded-full will-change-transform"
-            style={{
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              background: `radial-gradient(circle, hsl(43, 74%, 66%) 0%, hsl(43, 74%, 56%) 100%)`,
-              filter: `blur(${particle.size * 1.2}px)`,
-            }}
-            animate={{
-              y: [-50, -250],
-              x: [0, Math.random() * 25 - 12.5, 0],
-              opacity: [0, 0.35, 0],
-              scale: [0.5, 1.5, 0.5],
-            }}
-            transition={{
-              duration: particle.duration,
-              delay: particle.delay,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </motion.div>
-
-      {/* Layer 4: Ambient Diagonal Light Beam */}
+    <div className="fixed inset-0 pointer-events-none overflow-hidden bg-black">
+      {/* Cloud Layer 1 - deeper, slower */}
       <motion.div
-        className="absolute w-[150%] h-[200vh] will-change-transform"
+        className="absolute inset-0 w-full h-[250vh] will-change-transform"
         style={{
-          y: lightY,
-          x: lightX,
-          opacity: lightOpacity,
-          background: `linear-gradient(
-            135deg,
-            transparent 0%,
-            hsl(43, 74%, 66%, 0.15) 45%,
-            hsl(43, 74%, 66%, 0.25) 50%,
-            hsl(43, 74%, 66%, 0.15) 55%,
-            transparent 100%
-          )`,
-          transform: "rotate(-25deg)",
-          transformOrigin: "center",
+          y: cloudY1,
+          x: cloudX1,
+          backgroundImage: `url(${cloudsLayer1})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+          mixBlendMode: "screen",
+          opacity: 0.3,
         }}
       />
 
-      {/* Subtle vignette for depth */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_45%,hsl(0,0%,0%,0.5)_100%)]" />
+      {/* Cloud Layer 2 - lighter, opposite drift */}
+      <motion.div
+        className="absolute inset-0 w-full h-[250vh] will-change-transform"
+        style={{
+          y: cloudY2,
+          x: cloudX2,
+          backgroundImage: `url(${cloudsLayer2})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+          mixBlendMode: "screen",
+          opacity: 0.25,
+        }}
+      />
+
+      {/* Dark overlay for depth and contrast */}
+      <div className="absolute inset-0 bg-black/80 pointer-events-none" />
     </div>
   );
 };
