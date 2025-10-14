@@ -17,7 +17,7 @@ const testimonials = [
     rating: 5
   },
   {
-    name: "Jennifer Lopez",
+    name: "Kathleen B.",
     role: "Broker",
     location: "Bloomfield Hills, MI",
     content: "My team was wasting hours searching for leads. Now we get them delivered, verified, and ready to call. Game changer for our business.",
