@@ -20,12 +20,12 @@ const tiers = [
   {
     name: "Growth",
     price: "$197",
-    leads: "40-60 leads",
-    costPerLead: "$3.28–$4.93 per verified lead",
+    leads: "25-35 leads",
+    costPerLead: "$5.63–$7.88 per verified lead",
     description: "Great for small agencies and independent agents.",
     featured: true,
     features: [
-      "40-60 verified leads",
+      "25-35 verified leads",
       "Multiple city options",
       "Delivered within 24 hours",
       "Clean Google Sheet",
@@ -36,11 +36,11 @@ const tiers = [
   {
     name: "Pro",
     price: "$397",
-    leads: "100-150 leads",
-    costPerLead: "$2.65–$3.97 per verified lead",
+    leads: "50-70 leads",
+    costPerLead: "$5.67–$7.94 per verified lead",
     description: "Full city coverage, best for serious realtors and broker teams.",
     features: [
-      "100-150 verified leads",
+      "50-70 verified leads",
       "Unlimited city targeting",
       "Delivered within 12 hours",
       "Clean Google Sheet",

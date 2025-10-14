@@ -68,7 +68,7 @@ serve(async (req) => {
     logStep("Order retrieved", { tier: order.tier, city: order.city });
 
     // Determine lead quota based on tier
-    const leadQuota = order.tier === "starter" ? 15 : order.tier === "growth" ? 35 : 75;
+    const leadQuota = order.tier === "starter" ? 25 : order.tier === "growth" ? 35 : 70;
     logStep("Lead quota", { quota: leadQuota });
 
     // Run all scrapers in parallel
