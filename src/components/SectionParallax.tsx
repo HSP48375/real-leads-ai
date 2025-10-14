@@ -3,7 +3,7 @@ import { useRef, ReactNode } from "react";
 
 interface SectionParallaxProps {
   children: ReactNode;
-  speed?: "slow" | "medium" | "fast" | "static";
+  speed?: "slow" | "medium" | "fast" | "static" | "rest";
   className?: string;
 }
 
@@ -14,21 +14,25 @@ const SectionParallax = ({ children, speed = "static", className = "" }: Section
     offset: ["start end", "end start"]
   });
 
-  // Different parallax speeds for variety
+  // Alternating parallax speeds inspired by Bonatour
   const speedMap = {
     static: 0,
-    slow: 50,
-    medium: 100,
-    fast: 150
+    rest: 0, // No motion for testimonials/CTA
+    slow: 40, // Hero section
+    medium: 80, // Features, CTA
+    fast: 130, // Pricing
   };
 
   const y = useTransform(scrollYProgress, [0, 1], [0, speedMap[speed]]);
+  const opacity = speed === "rest" 
+    ? useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [0.85, 1, 1, 0.85])
+    : 1;
 
   return (
     <motion.div 
       ref={ref} 
       className={`relative ${className}`}
-      style={speed !== "static" ? { y } : {}}
+      style={speed !== "static" && speed !== "rest" ? { y } : { opacity }}
     >
       {children}
     </motion.div>

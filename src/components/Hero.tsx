@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import MicroParallax from "./MicroParallax";
 
 const Hero = () => {
   return (
@@ -9,13 +10,15 @@ const Hero = () => {
       
       <div className="container relative z-10 px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></div>
-            <span className="text-xs font-medium text-foreground uppercase tracking-wider">
-              Trusted by 500+ Real Estate Professionals
-            </span>
-          </div>
+          {/* Badge with micro-parallax */}
+          <MicroParallax offset={20}>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></div>
+              <span className="text-xs font-medium text-foreground uppercase tracking-wider">
+                Trusted by 500+ Real Estate Professionals
+              </span>
+            </div>
+          </MicroParallax>
 
           {/* Main heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">

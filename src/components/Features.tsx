@@ -1,4 +1,5 @@
 import { Shield, Clock, Target, Database } from "lucide-react";
+import MicroParallax from "./MicroParallax";
 
 const features = [
   {
@@ -38,11 +39,13 @@ const Features = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div key={feature.title} className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-gold">
-                <feature.icon className="w-8 h-8 text-primary-foreground" />
-              </div>
+              <MicroParallax offset={12 + index * 3}>
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-gold">
+                  <feature.icon className="w-8 h-8 text-primary-foreground" />
+                </div>
+              </MicroParallax>
               <h3 className="text-xl font-semibold">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.description}</p>
             </div>

@@ -14,25 +14,35 @@ const Index = () => {
       {/* Site-wide parallax background */}
       <GlobalParallax />
       
-      {/* Content with relative positioning */}
+      {/* Content with alternating parallax speeds */}
       <div className="relative z-10">
-        <Hero />
         <SectionParallax speed="slow">
+          <Hero />
+        </SectionParallax>
+        
+        <SectionParallax speed="medium">
           <Features />
         </SectionParallax>
-        <SectionParallax speed="medium">
+        
+        <SectionParallax speed="fast">
           <Pricing />
         </SectionParallax>
+        
         <SectionParallax speed="static">
           <OrderForm />
         </SectionParallax>
-        <SectionParallax speed="slow">
+        
+        <SectionParallax speed="rest">
           <Testimonials />
         </SectionParallax>
+        
         <SectionParallax speed="medium">
           <CTA />
         </SectionParallax>
-        <Footer />
+        
+        <SectionParallax speed="static">
+          <Footer />
+        </SectionParallax>
       </div>
     </div>
   );
