@@ -51,7 +51,7 @@ const ParallaxDust = () => {
       
       {/* Layer 2: Gold Dust Particles */}
       <motion.div 
-        className="absolute inset-0 overflow-hidden pointer-events-none"
+        className="absolute inset-0 overflow-hidden pointer-events-none z-[1] mix-blend-screen"
         style={{ y: particleY }}
       >
         {particles.map((particle) => (
