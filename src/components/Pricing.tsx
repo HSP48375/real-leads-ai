@@ -108,7 +108,7 @@ const Pricing = () => {
                   className={`w-full transition-all duration-300 ${
                     tier.featured
                       ? 'bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground shadow-gold'
-                      : 'bg-secondary hover:bg-secondary/80 hover:shadow-gold'
+                      : 'bg-secondary text-secondary-foreground hover:bg-gradient-gold hover:text-primary-foreground hover:shadow-gold-glow'
                   }`}
                   size="lg"
                   onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
