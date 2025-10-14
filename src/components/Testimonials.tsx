@@ -19,7 +19,7 @@ const testimonials = [
   {
     name: "Kathleen B.",
     role: "Team Leader",
-    location: "Bloomfield Hills, MI",
+    location: "Birmingham, MI",
     content: "My team was wasting hours searching for leads. Now we get them delivered, verified, and ready to call. Game changer for our business.",
     rating: 5
   }
