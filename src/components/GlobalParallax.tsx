@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import cloudsLayer1 from "@/assets/clouds-layer-1.jpg";
+import cloudsLayer2 from "@/assets/clouds-layer-2.jpg";
 
 interface Particle {
   id: number;
@@ -13,6 +15,12 @@ interface Particle {
 const GlobalParallax = () => {
   const [particles, setParticles] = useState<Particle[]>([]);
   const { scrollY } = useScroll();
+  
+  // Layer 0: Slow-moving cloud layers (15% scroll speed)
+  const cloudY1 = useTransform(scrollY, [0, 5000], [0, 750]);
+  const cloudX1 = useTransform(scrollY, [0, 5000], [0, 300]);
+  const cloudY2 = useTransform(scrollY, [0, 5000], [0, 650]);
+  const cloudX2 = useTransform(scrollY, [0, 5000], [0, -250]);
   
   // Layer 1: Background gradient with morphing hue (10% scroll speed)
   const gradientY = useTransform(scrollY, [0, 5000], [0, 500]);
@@ -67,6 +75,45 @@ const GlobalParallax = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
+      {/* Layer 0: Subtle Moving Clouds (Behind Everything) */}
+      <div className="absolute inset-0 hidden md:block">
+        {/* Cloud Layer 1 - Deeper, slower */}
+        <motion.div
+          className="absolute inset-0 w-full h-[250vh] will-change-transform"
+          style={{
+            y: cloudY1,
+            x: cloudX1,
+            backgroundImage: `url(${cloudsLayer1})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "repeat",
+            mixBlendMode: "soft-light",
+            opacity: 0.4,
+          }}
+        />
+        
+        {/* Cloud Layer 2 - Lighter, faster */}
+        <motion.div
+          className="absolute inset-0 w-full h-[250vh] will-change-transform"
+          style={{
+            y: cloudY2,
+            x: cloudX2,
+            backgroundImage: `url(${cloudsLayer2})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "repeat",
+            mixBlendMode: "overlay",
+            opacity: 0.3,
+          }}
+        />
+        
+        {/* Dark overlay to keep clouds subtle and cinematic */}
+        <div 
+          className="absolute inset-0 bg-black/80"
+          style={{ mixBlendMode: "normal" }}
+        />
+      </div>
+      
       {/* Layer 1: Animated Gradient with Morphing Hue */}
       <motion.div 
         className="absolute inset-0 w-full h-[250vh] will-change-transform"
