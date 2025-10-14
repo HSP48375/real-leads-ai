@@ -41,7 +41,7 @@ const Testimonials = () => {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {testimonials.map((testimonial) => (
-            <Card key={testimonial.name} className="border-border">
+            <Card key={testimonial.name} className="border-border transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_hsl(43_74%_66%_/_0.3)] hover:-translate-y-1">
               <CardContent className="pt-6">
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
