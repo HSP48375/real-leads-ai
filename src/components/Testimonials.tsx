@@ -35,7 +35,7 @@ const Testimonials = () => {
             <span className="bg-gradient-gold bg-clip-text text-transparent"> Real Professionals</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            Join hundreds of realtors who've ditched cold lists for verified leads.
+            Join thousands of realtors who've ditched cold lists for verified leads.
           </p>
         </div>
 
