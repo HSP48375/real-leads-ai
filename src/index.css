@@ -99,6 +99,33 @@ All colors MUST be HSL.
     overflow-x: hidden;
   }
 
+  body::before {
+    content: '';
+    pointer-events: none;
+    border-top-right-radius: 300px;
+    border: 60px solid transparent;
+    width: 50%;
+    height: 50%;
+    aspect-ratio: 1;
+    display: block;
+    position: fixed;
+    right: -10%;
+    top: calc(-10% + var(--scroll-offset));
+    z-index: 0;
+    opacity: 0.6;
+    filter: blur(40px) saturate(1.5);
+    mix-blend-mode: plus-lighter;
+    background: conic-gradient(
+      from -45deg at center,
+      transparent 0%,
+      hsl(var(--hue1), 95%, 60%),
+      transparent 50%
+    ) border-box;
+    mask: linear-gradient(transparent), linear-gradient(black);
+    mask-clip: padding-box, border-box;
+    mask-composite: subtract;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
