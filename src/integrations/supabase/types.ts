@@ -14,7 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leads: {
+        Row: {
+          address: string
+          city: string | null
+          contact: string | null
+          created_at: string
+          date_listed: string | null
+          id: string
+          order_id: string
+          price: string | null
+          seller_name: string | null
+          source: string
+          state: string | null
+          url: string | null
+          zip: string | null
+        }
+        Insert: {
+          address: string
+          city?: string | null
+          contact?: string | null
+          created_at?: string
+          date_listed?: string | null
+          id?: string
+          order_id: string
+          price?: string | null
+          seller_name?: string | null
+          source: string
+          state?: string | null
+          url?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string | null
+          contact?: string | null
+          created_at?: string
+          date_listed?: string | null
+          id?: string
+          order_id?: string
+          price?: string | null
+          seller_name?: string | null
+          source?: string
+          state?: string | null
+          url?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          city: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          delivered_at: string | null
+          id: string
+          leads_count: number | null
+          sheet_url: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          stripe_payment_intent_id: string | null
+          tier: Database["public"]["Enums"]["pricing_tier"]
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          delivered_at?: string | null
+          id?: string
+          leads_count?: number | null
+          sheet_url?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          stripe_payment_intent_id?: string | null
+          tier: Database["public"]["Enums"]["pricing_tier"]
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          delivered_at?: string | null
+          id?: string
+          leads_count?: number | null
+          sheet_url?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          stripe_payment_intent_id?: string | null
+          tier?: Database["public"]["Enums"]["pricing_tier"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +123,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      order_status: "pending" | "processing" | "completed" | "failed"
+      pricing_tier: "starter" | "growth" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +251,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      order_status: ["pending", "processing", "completed", "failed"],
+      pricing_tier: ["starter", "growth", "pro"],
+    },
   },
 } as const
