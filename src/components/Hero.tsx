@@ -15,7 +15,7 @@ const Hero = () => {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></div>
               <span className="text-xs font-medium text-foreground uppercase tracking-wider">
-                Trusted by 500+ Real Estate Professionals
+                Trusted by thousands of realtors nationwide
               </span>
             </div>
           </MicroParallax>
