@@ -54,7 +54,7 @@ const OrderForm = () => {
   };
 
   return (
-    <section id="order-form" className="py-20 bg-background">
+    <section id="order-form" className="py-20 relative">
       <div className="container px-4">
         <div className="max-w-2xl mx-auto">
           <Card className="backdrop-blur-glass bg-card/40 border-primary/30 shadow-[0_0_80px_hsl(43_74%_66%_/_0.5),0_20px_60px_-15px_hsl(43_74%_66%_/_0.4),0_-10px_40px_-10px_hsl(43_74%_66%_/_0.3),15px_15px_50px_-10px_hsl(43_74%_66%_/_0.35),-15px_15px_50px_-10px_hsl(43_74%_66%_/_0.35)] animate-fade-in">

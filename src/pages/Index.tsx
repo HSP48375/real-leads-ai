@@ -5,7 +5,6 @@ import OrderForm from "@/components/OrderForm";
 import Testimonials from "@/components/Testimonials";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
-import SectionParallax from "@/components/SectionParallax";
 import GlobalParallax from "@/components/GlobalParallax";
 
 const Index = () => {
@@ -14,35 +13,15 @@ const Index = () => {
       {/* Site-wide parallax background */}
       <GlobalParallax />
       
-      {/* Content with alternating parallax speeds */}
+      {/* All content on same background - no section parallax */}
       <div className="relative z-10">
-        <SectionParallax speed="slow">
-          <Hero />
-        </SectionParallax>
-        
-        <SectionParallax speed="medium">
-          <Features />
-        </SectionParallax>
-        
-        <SectionParallax speed="fast">
-          <Pricing />
-        </SectionParallax>
-        
-        <SectionParallax speed="static">
-          <OrderForm />
-        </SectionParallax>
-        
-        <SectionParallax speed="rest">
-          <Testimonials />
-        </SectionParallax>
-        
-        <SectionParallax speed="medium">
-          <CTA />
-        </SectionParallax>
-        
-        <SectionParallax speed="static">
-          <Footer />
-        </SectionParallax>
+        <Hero />
+        <Features />
+        <Pricing />
+        <OrderForm />
+        <Testimonials />
+        <CTA />
+        <Footer />
       </div>
     </div>
   );
