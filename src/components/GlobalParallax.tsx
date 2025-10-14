@@ -27,14 +27,6 @@ const GlobalParallax = () => {
   const gradientX = useTransform(scrollY, [0, 5000], [0, 150]);
   const gradientHue = useTransform(scrollY, [0, 1500, 3000, 4500], [0, 10, 5, 15]); // Subtle hue shift
   
-  // Layer 2: Geometric mesh with rotation (25% scroll speed)
-  const meshY = useTransform(scrollY, [0, 5000], [0, 1250]);
-  const meshRotation = useTransform(scrollY, [0, 5000], [0, 15]); // Gentle rotation
-  const meshOpacity = useTransform(
-    scrollY, 
-    [0, 800, 1600, 2400, 3200, 4000], 
-    [0.04, 0.02, 0.045, 0.015, 0.04, 0.02]
-  );
   
   // Layer 3: Dust particles with density modulation (18% scroll speed)
   const particleY = useTransform(scrollY, [0, 5000], [0, 900]);
@@ -99,8 +91,8 @@ const GlobalParallax = () => {
         />
       </motion.div>
 
-      {/* Cloud Layer: Subtle Moving Clouds (between gradient and mesh) */}
-      <div className="absolute inset-0 hidden md:block">
+      {/* Cloud Layer: Cinematic Moving Clouds (main parallax background) */}
+      <div className="absolute inset-0">
         {/* Cloud Layer 1 - deeper, slower */}
         <motion.div
           className="absolute inset-0 w-full h-[250vh] will-change-transform"
@@ -112,7 +104,7 @@ const GlobalParallax = () => {
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
             mixBlendMode: "soft-light",
-            opacity: 0.35,
+            opacity: 0.3,
           }}
         />
 
@@ -127,47 +119,14 @@ const GlobalParallax = () => {
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
             mixBlendMode: "overlay",
-            opacity: 0.3,
+            opacity: 0.25,
           }}
         />
 
-        {/* Dark translucent overlay to keep clouds subtle */}
-        <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+        {/* Dark gradient overlay for subtle cinematic atmosphere */}
+        <div className="absolute inset-0 bg-black/80 pointer-events-none" />
       </div>
       
-      {/* Layer 2: Diagonal Mesh with Rotation */}
-      <motion.div 
-        className="absolute inset-0 w-full h-[250vh] will-change-transform"
-        style={{ 
-          y: meshY,
-          opacity: meshOpacity,
-          rotate: meshRotation,
-          transformOrigin: "center center",
-        }}
-      >
-        <div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 90px,
-                hsl(43, 74%, 66%) 90px,
-                hsl(43, 74%, 66%) 91px
-              ),
-              repeating-linear-gradient(
-                -45deg,
-                transparent,
-                transparent 90px,
-                hsl(43, 74%, 66%) 90px,
-                hsl(43, 74%, 66%) 91px
-              )
-            `,
-          }}
-        />
-      </motion.div>
-
       {/* Layer 3: Gold Dust with Density Modulation */}
       <motion.div 
         className="absolute inset-0 w-full h-[250vh] will-change-transform"
