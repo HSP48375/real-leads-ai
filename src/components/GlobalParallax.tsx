@@ -103,8 +103,8 @@ const GlobalParallax = () => {
             backgroundSize: "160% 160%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
-            mixBlendMode: "soft-light",
-            opacity: 0.3,
+            mixBlendMode: "screen",
+            opacity: 0.5,
           }}
         />
 
@@ -118,13 +118,13 @@ const GlobalParallax = () => {
             backgroundSize: "160% 160%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
-            mixBlendMode: "overlay",
-            opacity: 0.25,
+            mixBlendMode: "screen",
+            opacity: 0.4,
           }}
         />
 
         {/* Dark gradient overlay for subtle cinematic atmosphere */}
-        <div className="absolute inset-0 bg-black/80 pointer-events-none" />
+        <div className="absolute inset-0 bg-black/60 pointer-events-none" />
       </div>
       
       {/* Layer 3: Gold Dust with Density Modulation */}
