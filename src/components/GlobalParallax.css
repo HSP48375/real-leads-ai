@@ -12,14 +12,16 @@
   background-image: url("https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?q=80&w=2000");
   background-size: cover;
   background-repeat: repeat-x;
-  opacity: 0.28;
+  opacity: 0.45;
   animation: cloudDrift 140s linear infinite;
+  will-change: transform, background-position;
+  transform: translateZ(0);
 }
 
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.65);
   pointer-events: none;
 }
 
