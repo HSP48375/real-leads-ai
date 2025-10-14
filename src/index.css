@@ -107,12 +107,12 @@ All colors MUST be HSL.
     height: 150%;
     background: linear-gradient(180deg, 
       transparent,
-      rgba(255, 215, 0, 0.4) 20%,
-      rgba(255, 215, 0, 0.6) 50%,
-      rgba(255, 215, 0, 0.4) 80%,
+      rgba(255, 215, 0, 0.15) 20%,
+      rgba(255, 215, 0, 0.15) 50%,
+      rgba(255, 215, 0, 0.15) 80%,
       transparent
     );
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
     pointer-events: none;
     z-index: -1;
   }
@@ -129,15 +129,19 @@ All colors MUST be HSL.
     transform: rotate(-25deg);
     background: linear-gradient(180deg, 
       transparent,
-      rgba(255, 255, 255, 0.3) 20%,
-      rgba(255, 255, 255, 0.5) 50%,
-      rgba(255, 255, 255, 0.3) 80%,
+      rgba(255, 255, 255, 0.12) 20%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.12) 80%,
       transparent
     );
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
+  }
+
+  h1, h2, h3 {
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
   }
 }
