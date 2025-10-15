@@ -205,7 +205,9 @@ const Pricing = () => {
                     <p className="text-[10px] text-primary font-semibold mt-2 opacity-80">{(tier as any).savings}</p>
                   )}
                   <CardDescription className="text-sm mt-3">{tier.subtext}</CardDescription>
-                  {tier.costPerLead && <p className="text-[9px] text-primary/60 mt-1.5 font-medium opacity-60">{tier.costPerLead}</p>}
+                  <div className="min-h-[14px] mt-1.5">
+                    {tier.costPerLead && <p className="text-[9px] text-primary/60 font-medium opacity-60">{tier.costPerLead}</p>}
+                  </div>
                   <p className="text-sm text-muted-foreground mt-4 min-h-[40px]">{tier.description}</p>
                 </CardHeader>
 
