@@ -64,7 +64,7 @@ const HowItWorks = () => {
 
             {/* Single yellow ribbon - no double line */}
             <motion.path
-              d="M 200 50 Q 600 70, 850 150 Q 950 190, 850 230 Q 500 330, 150 400 Q 50 440, 150 470"
+              d="M 200 50 Q 600 70, 850 150 Q 950 190, 850 230 Q 500 330, 150 400 Q 200 440, 500 470"
               stroke="#FFD700"
               strokeWidth="20"
               fill="none"
@@ -83,10 +83,10 @@ const HowItWorks = () => {
           {steps.map((step, index) => {
             // Positions matching the condensed SVG ribbon path
             const positions = [
-              { left: "20%", top: "10%", cardLeft: true },    // Step 1
-              { left: "85%", top: "30%", cardLeft: false },   // Step 2
-              { left: "15%", top: "70%", cardLeft: false },   // Step 3
-              { left: "15%", top: "92%", cardLeft: true },    // Step 4
+              { left: "20%", top: "10%" },   // Step 1
+              { left: "85%", top: "30%" },   // Step 2
+              { left: "15%", top: "70%" },   // Step 3
+              { left: "50%", top: "92%" },   // Step 4 - moved more to the right
             ];
 
             return (
@@ -96,6 +96,7 @@ const HowItWorks = () => {
                 style={{
                   left: positions[index].left,
                   top: positions[index].top,
+                  transform: "translateX(-50%)",
                   zIndex: 10,
                 }}
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -105,10 +106,10 @@ const HowItWorks = () => {
                 onMouseEnter={() => setHoveredRibbon(index)}
                 onMouseLeave={() => setHoveredRibbon(null)}
               >
-                <div className={`flex items-start gap-6 ${positions[index].cardLeft ? 'flex-row-reverse' : ''}`}>
+                <div className="flex flex-col items-center text-center max-w-xs">
                   {/* Step Number Badge ON the ribbon */}
                   <motion.div
-                    className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold relative flex-shrink-0"
+                    className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold relative flex-shrink-0 mb-3"
                     whileHover={{ scale: 1.1 }}
                     transition={{ duration: 0.2 }}
                   >
@@ -117,19 +118,15 @@ const HowItWorks = () => {
                     </span>
                   </motion.div>
 
-                  {/* Content card */}
-                  <motion.div
-                    className="bg-background/90 backdrop-blur-sm border border-border rounded-lg p-4 max-w-xs shadow-lg"
-                    whileHover={{ y: -5, boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <h3 className="text-lg md:text-xl font-bold text-foreground mb-1.5">
+                  {/* Description directly under number - center aligned */}
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">
                       {step.title}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
                       {step.description}
                     </p>
-                  </motion.div>
+                  </div>
                 </div>
               </motion.div>
             );
