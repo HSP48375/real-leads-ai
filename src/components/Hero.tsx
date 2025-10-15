@@ -1,10 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import MicroParallax from "./MicroParallax";
+import ParallaxBackground from "./ParallaxBackground";
+import heroImage from "@/assets/hero-home-sunset.jpg";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center">
+      {/* Parallax background image */}
+      <ParallaxBackground imageSrc={heroImage} />
       {/* Radial accent overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
