@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
+import Header from '@/components/Header';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -59,12 +60,14 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground">Sign in to access your dashboard</p>
-        </div>
+    <>
+      <Header />
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-primary mb-2">Welcome Back</h1>
+            <p className="text-muted-foreground">Sign in to access your dashboard</p>
+          </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-8">
           {/* OAuth Buttons */}
@@ -143,8 +146,9 @@ const Login = () => {
             </Link>
           </p>
         </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

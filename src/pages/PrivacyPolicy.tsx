@@ -1,21 +1,24 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/Header";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border py-6">
-        <div className="container px-4">
-          <Link to="/">
-            <Button variant="ghost" className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-      </header>
+    <>
+      <Header />
+      <div className="min-h-screen bg-background pt-20">
+        {/* Header */}
+        <header className="border-b border-border py-6">
+          <div className="container px-4">
+            <Link to="/">
+              <Button variant="ghost" className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Home
+              </Button>
+            </Link>
+          </div>
+        </header>
 
       {/* Content */}
       <main className="py-12 md:py-20">
@@ -310,6 +313,7 @@ const PrivacyPolicy = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };
 

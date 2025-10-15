@@ -2,17 +2,20 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
+import Header from "@/components/Header";
 
 const TermsOfService = () => {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container px-4 py-8">
-        <Link to="/">
-          <Button variant="ghost" className="mb-8">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
+    <>
+      <Header />
+      <div className="min-h-screen bg-background text-foreground pt-20">
+        <div className="container px-4 py-8">
+          <Link to="/">
+            <Button variant="ghost" className="mb-8">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
 
         <div className="max-w-[900px] mx-auto">
           <h1 className="text-4xl font-bold mb-4">Terms of Service</h1>
@@ -314,7 +317,8 @@ const TermsOfService = () => {
         </div>
       </div>
       <Footer />
-    </div>
+      </div>
+    </>
   );
 };
 

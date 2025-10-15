@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import Header from '@/components/Header';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -122,8 +123,10 @@ const Signup = () => {
 
   if (showSuccess) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
+      <>
+        <Header />
+        <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
+          <div className="w-full max-w-md">
           <div ref={glowCardRef} className="glow-card">
             <span className="glow"></span>
             <div className="card-inner bg-card border border-border rounded-lg p-8 text-center space-y-6">
@@ -174,12 +177,15 @@ const Signup = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+    <>
+      <Header />
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-primary mb-2">Create Account</h1>
@@ -291,7 +297,8 @@ const Signup = () => {
           </Link>
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
