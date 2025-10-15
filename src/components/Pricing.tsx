@@ -148,7 +148,10 @@ const Pricing = () => {
     <section id="pricing" className="py-20 relative">
       <div className="container px-4">
         <div className="text-center max-w-4xl mx-auto mb-12">
-          <p className="text-lg md:text-xl text-foreground mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">
+            Choose Your Plan
+          </h2>
+          <p className="text-lg md:text-xl text-muted-foreground mb-10">
             All plans include fresh, geo-verified leads with no recycled data. Real homeowners, verified and ready within 24 hours.
           </p>
           
