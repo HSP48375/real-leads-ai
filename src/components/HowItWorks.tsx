@@ -1,38 +1,39 @@
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { MapPin, Search, FileCheck, Trophy } from "lucide-react";
 
 const steps = [
   {
     number: 1,
+    icon: MapPin,
     title: "Choose Your City",
     description: "Select your target market and how many leads you need. We cover any city nationwide.",
   },
   {
     number: 2,
+    icon: Search,
     title: "We Scrape & Verify",
     description: "Our system finds active FSBO sellers across multiple platforms and verifies all contact information.",
   },
   {
     number: 3,
+    icon: FileCheck,
     title: "Delivered in 24 Hours",
     description: "Receive a clean Google Sheet with verified names, phone numbers, addresses, and property details.",
   },
   {
     number: 4,
+    icon: Trophy,
     title: "Start Closing Deals",
     description: "Reach homeowners before your competition. Real leads, real conversations, real commissions.",
   },
 ];
 
 const HowItWorks = () => {
-  const [hoveredRibbon, setHoveredRibbon] = useState<number | null>(null);
-
   return (
-    <section className="py-20 md:py-24 relative bg-background overflow-hidden">
+    <section className="py-20 md:py-24 relative bg-background">
       <div className="container px-4">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-3">
             How It Works
           </h2>
@@ -41,123 +42,44 @@ const HowItWorks = () => {
           </p>
         </div>
 
-        {/* Steps with Arrow Ribbons */}
-        <div className="relative max-w-6xl mx-auto min-h-[600px]">
-          {/* SVG Arrow Ribbons - Desktop Only */}
-          <svg
-            className="absolute inset-0 w-full h-full hidden md:block"
-            style={{ zIndex: 1 }}
-            viewBox="0 0 1200 600"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <defs>
-              {/* Glow filter matching pricing cards */}
-              <filter id="ribbon-glow" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur"/>
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 0.84 0 0 0  0 0 0 0 0  0 0 0 0.6 0" result="glow"/>
-                <feMerge>
-                  <feMergeNode in="glow"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
+        {/* Vertical Timeline */}
+        <div className="relative max-w-3xl mx-auto">
+          {/* Vertical yellow line */}
+          <div className="absolute left-[30px] top-[30px] bottom-[30px] w-[3px] bg-primary hidden md:block" />
 
-            {/* Single yellow ribbon - smooth fluid S-curve from 1 to 3 */}
-            <motion.path
-              d="M 250 80 Q 700 100, 1050 220 Q 1100 280, 1000 340 Q 700 430, 250 520"
-              stroke="#FFD700"
-              strokeWidth="20"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition-all duration-300 cursor-pointer"
-              style={{
-                filter: hoveredRibbon !== null ? "url(#ribbon-glow) drop-shadow(0 0 40px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))" : "none",
-              }}
-              onMouseEnter={() => setHoveredRibbon(0)}
-              onMouseLeave={() => setHoveredRibbon(null)}
-            />
-          </svg>
-
-          {/* Steps positioned along the path */}
-          {steps.map((step, index) => {
-            // Better spread positions - 4 is separate on the right
-            const positions = [
-              { left: "20%", top: "13%" },   // Step 1 - top left
-              { left: "87%", top: "37%" },   // Step 2 - right side
-              { left: "20%", top: "87%" },   // Step 3 - bottom left
-              { left: "80%", top: "87%" },   // Step 4 - bottom right (separate)
-            ];
-
-            return (
-              <motion.div
-                key={step.number}
-                className="absolute hidden md:block"
-                style={{
-                  left: positions[index].left,
-                  top: positions[index].top,
-                  transform: "translateX(-50%)",
-                  zIndex: 10,
-                }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.15 }}
-                onMouseEnter={() => setHoveredRibbon(index)}
-                onMouseLeave={() => setHoveredRibbon(null)}
-              >
-                <div className="flex flex-col items-center text-center max-w-xs">
-                  {/* Step Number Badge ON the ribbon */}
-                  <motion.div
-                    className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold relative flex-shrink-0 mb-3"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <span className="text-2xl font-bold text-primary-foreground">
-                      {step.number}
-                    </span>
-                  </motion.div>
-
-                  {/* Description directly under number - center aligned */}
-                  <div>
-                    <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">
-                      {step.title}
-                    </h3>
-                    <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-
-          {/* Mobile simplified view */}
-          <div className="md:hidden space-y-8">
-            {steps.map((step) => (
-              <div key={step.number} className="relative">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold flex-shrink-0">
+          {/* Steps */}
+          <div className="space-y-24 md:space-y-32">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.number} className="relative flex items-start gap-8">
+                  {/* Numbered dot on the line */}
+                  <div className="flex-shrink-0 w-[60px] h-[60px] rounded-full bg-primary flex items-center justify-center shadow-gold relative z-10">
                     <span className="text-2xl font-bold text-primary-foreground">
                       {step.number}
                     </span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-2">
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+
+                  {/* Content */}
+                  <div className="flex-1 pt-2">
+                    <div className="flex items-center gap-4 mb-3">
+                      <Icon className="w-10 h-10 text-primary" strokeWidth={2} />
+                      <h3 className="text-2xl font-bold text-foreground">
+                        {step.title}
+                      </h3>
+                    </div>
+                    <p className="text-base text-muted-foreground leading-relaxed">
                       {step.description}
                     </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Bottom CTA */}
-        <div className="text-center mt-16">
+        <div className="text-center mt-20">
           <p className="text-base md:text-lg text-muted-foreground mb-5">
             Ready to get started?
           </p>
