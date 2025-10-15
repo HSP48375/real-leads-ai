@@ -3,8 +3,28 @@ import { ArrowRight } from "lucide-react";
 import MicroParallax from "./MicroParallax";
 import ParallaxBackground from "./ParallaxBackground";
 import heroImage from "@/assets/hero-home-sunset.jpg";
+import { useRef, useEffect } from "react";
 
 const Hero = () => {
+  const glowCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const glowCard = glowCardRef.current;
+    if (!glowCard) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = glowCard.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      glowCard.style.setProperty('--pointer-x', `${x}px`);
+      glowCard.style.setProperty('--pointer-y', `${y}px`);
+    };
+
+    glowCard.addEventListener('pointermove', handlePointerMove);
+    return () => glowCard.removeEventListener('pointermove', handlePointerMove);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center">
       {/* Parallax background image */}
@@ -60,16 +80,21 @@ const Hero = () => {
           </div>
 
           {/* CTA Button */}
-          <div className="pt-4">
-            <Button 
-              size="lg" 
-              className="bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground font-semibold px-8 py-6 text-lg shadow-gold transition-all duration-300 group relative overflow-hidden"
-              onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              <span className="relative z-10">Get Verified Leads</span>
-              <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            </Button>
+          <div className="pt-4 flex justify-center">
+            <div ref={glowCardRef} className="glow-card inline-block">
+              <span className="glow"></span>
+              <div className="card-inner">
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  <span className="relative z-10">Get Verified Leads</span>
+                  <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
