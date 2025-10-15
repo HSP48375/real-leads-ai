@@ -1,78 +1,77 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import MicroParallax from "./MicroParallax";
-import ScrollingText from "./ScrollingText";
+import ParallaxBackground from "./ParallaxBackground";
+import heroImage from "@/assets/hero-home-sunset.jpg";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center pt-20">
-      {/* Radial green glow overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,hsl(68,100%,70%,0.15),transparent_70%)] pointer-events-none"></div>
+    <section className="relative min-h-screen flex items-center justify-center">
+      {/* Parallax background image */}
+      <ParallaxBackground imageSrc={heroImage} />
+      {/* Radial accent overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
-      <div className="container relative z-10 px-4 py-20 text-center flex-1 flex items-center">
-        <div className="max-w-5xl mx-auto space-y-8 w-full">
+      <div className="container relative z-10 px-4 py-20 text-center">
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Badge with micro-parallax */}
           <MicroParallax offset={20}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-primary/40 shadow-lime">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></div>
-              <span className="text-xs font-medium text-white uppercase tracking-wider">
+              <span className="text-xs font-medium text-foreground uppercase tracking-wider">
                 Trusted by thousands of realtors nationwide
               </span>
             </div>
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="font-black leading-[0.9] tracking-tighter">
-            <span className="block text-5xl md:text-7xl lg:text-8xl text-white uppercase">
-              REAL LEADS
+          <h1 className="font-bold leading-tight">
+            <span className="block text-6xl md:text-8xl lg:text-9xl text-[hsl(var(--headline))]">
+              REAL Leads
             </span>
-            <span className="block text-2xl md:text-4xl lg:text-5xl text-white uppercase mt-4">
+            <span className="block text-3xl md:text-4xl lg:text-5xl text-[hsl(var(--headline))] mt-2">
               You Can Rely On
             </span>
           </h1>
 
           {/* Subheading */}
-          <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto font-medium">
+          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
             Stop chasing bad leads. Start connecting with real homeowners — fast.
           </p>
 
           {/* Value props */}
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-white/80 pt-6">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground pt-6">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span className="font-medium">Real People</span>
+              <span>Real People</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span className="font-medium">Real Listings</span>
+              <span>Real Listings</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span className="font-medium">Sent in under 24 hours</span>
+              <span>Sent in under 24 hours</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span className="font-medium">No recycled data</span>
+              <span>No recycled data</span>
             </div>
           </div>
 
           {/* CTA Button */}
-          <div className="pt-8">
+          <div className="pt-4">
             <Button 
               size="lg" 
-              className="bg-primary hover:bg-primary text-primary-foreground font-bold px-10 py-7 text-lg transition-all duration-300 group uppercase tracking-wide hover:shadow-[0_0_60px_hsl(68_100%_70%_/_0.6),0_0_30px_hsl(68_100%_70%_/_0.4),0_0_15px_hsl(68_100%_70%_/_0.3)]"
+              className="bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground font-semibold px-8 py-6 text-lg shadow-gold transition-all duration-300 group relative overflow-hidden"
               onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
             >
               <span className="relative z-10">Get Verified Leads</span>
               <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* Scrolling text marquee */}
-      <div className="w-full py-6 border-t border-white/10">
-        <ScrollingText text="REALTYLEADSAI" />
       </div>
     </section>
   );
