@@ -21,14 +21,17 @@ const Hero = () => {
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-            <span className="bg-gradient-gold bg-clip-text text-transparent">
-              REAL Leads You Can Rely On.
+          <h1 className="font-bold leading-tight">
+            <span className="block text-6xl md:text-8xl lg:text-9xl bg-gradient-gold bg-clip-text text-transparent">
+              REAL Leads
+            </span>
+            <span className="block text-3xl md:text-4xl lg:text-5xl bg-gradient-gold bg-clip-text text-transparent mt-2">
+              You Can Rely On
             </span>
           </h1>
 
           {/* Subheading */}
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
             Stop chasing bad leads. Start connecting with real homeowners — fast.
           </p>
 
