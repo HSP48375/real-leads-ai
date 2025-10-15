@@ -196,15 +196,17 @@ const Pricing = () => {
                 )}
                 
                 <CardHeader className="pb-8 pt-10 px-6">
-                  <CardTitle className="text-xl">{tier.name}</CardTitle>
-                  <div className="mt-4">
+                  <CardTitle className="text-xl min-h-[28px]">{tier.name}</CardTitle>
+                  <div className="mt-4 min-h-[44px]">
                     <span className="text-3xl font-bold">{tier.price}</span>
                     {('period' in tier) && <span className="text-lg text-muted-foreground">{(tier as any).period}</span>}
                   </div>
-                  {('savings' in tier) && (
-                    <p className="text-[10px] text-primary font-semibold mt-2 opacity-80">{(tier as any).savings}</p>
+                  {('savings' in tier) ? (
+                    <p className="text-[10px] text-primary font-semibold mt-2 opacity-80 min-h-[16px]">{(tier as any).savings}</p>
+                  ) : (
+                    <div className="min-h-[16px] mt-2"></div>
                   )}
-                  <CardDescription className="text-sm mt-3">{tier.subtext}</CardDescription>
+                  <CardDescription className="text-sm mt-3 min-h-[20px]">{tier.subtext}</CardDescription>
                   <div className="min-h-[14px] mt-1.5">
                     {tier.costPerLead && <p className="text-[9px] text-primary/60 font-medium opacity-60">{tier.costPerLead}</p>}
                   </div>
@@ -214,7 +216,7 @@ const Pricing = () => {
                 <CardContent className="flex-grow px-6">
                   <ul className="space-y-5" style={{ lineHeight: '2.0' }}>
                     {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
+                      <li key={feature} className="flex items-start gap-3 min-h-[28px]">
                         <Check className="w-4 h-4 text-primary flex-shrink-0 mt-1" />
                         <span className="text-[13px] text-foreground leading-relaxed">{feature}</span>
                       </li>
