@@ -42,12 +42,12 @@ const HowItWorks = () => {
         </div>
 
         {/* Steps with Arrow Ribbons */}
-        <div className="relative max-w-5xl mx-auto min-h-[500px]">{/* Changed from 1100px to 500px */}
+        <div className="relative max-w-6xl mx-auto min-h-[600px]">
           {/* SVG Arrow Ribbons - Desktop Only */}
           <svg
             className="absolute inset-0 w-full h-full hidden md:block"
             style={{ zIndex: 1 }}
-            viewBox="0 0 1000 500"
+            viewBox="0 0 1200 600"
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
@@ -62,9 +62,9 @@ const HowItWorks = () => {
               </filter>
             </defs>
 
-            {/* Single yellow ribbon - no double line */}
+            {/* Single yellow ribbon - smooth fluid S-curve from 1 to 3 */}
             <motion.path
-              d="M 200 50 Q 600 70, 850 150 Q 950 190, 850 230 Q 500 330, 150 400 Q 200 440, 500 470"
+              d="M 250 80 Q 700 100, 1050 220 Q 1100 280, 1000 340 Q 700 430, 250 520"
               stroke="#FFD700"
               strokeWidth="20"
               fill="none"
@@ -81,12 +81,12 @@ const HowItWorks = () => {
 
           {/* Steps positioned along the path */}
           {steps.map((step, index) => {
-            // Positions matching the condensed SVG ribbon path
+            // Better spread positions - 4 is separate on the right
             const positions = [
-              { left: "20%", top: "10%" },   // Step 1
-              { left: "85%", top: "30%" },   // Step 2
-              { left: "15%", top: "70%" },   // Step 3
-              { left: "50%", top: "92%" },   // Step 4 - moved more to the right
+              { left: "20%", top: "13%" },   // Step 1 - top left
+              { left: "87%", top: "37%" },   // Step 2 - right side
+              { left: "20%", top: "87%" },   // Step 3 - bottom left
+              { left: "80%", top: "87%" },   // Step 4 - bottom right (separate)
             ];
 
             return (
