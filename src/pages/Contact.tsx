@@ -1,5 +1,7 @@
 import Navigation from "@/components/flowvia/Navigation";
 import Footer from "@/components/flowvia/Footer";
+import ParallaxChevrons from "@/components/ParallaxChevrons";
+import StarField from "@/components/StarField";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +16,8 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen relative">
+      <ParallaxChevrons />
+      <StarField />
       <Navigation />
 
       {/* Hero Section */}
@@ -101,7 +105,7 @@ const Contact = () => {
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
             >
-              <div className="backdrop-blur-glass bg-card/50 border border-white/10 rounded-2xl p-8">
+              <div className="backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div>
@@ -141,7 +145,7 @@ const Contact = () => {
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300"
+                    className="w-full"
                   >
                     Send Message
                   </Button>

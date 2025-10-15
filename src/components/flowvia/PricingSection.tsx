@@ -84,10 +84,10 @@ const PricingSection = () => {
                 </div>
               )}
               <div
-                className={`backdrop-blur-glass border rounded-2xl p-8 h-full flex flex-col ${
+                className={`backdrop-blur-xl border-2 rounded-3xl p-8 h-full flex flex-col ${
                   plan.featured
-                    ? "bg-card/80 border-primary/50 shadow-glow"
-                    : "bg-card/50 border-white/10"
+                    ? "bg-card/60 border-primary/50 shadow-card"
+                    : "bg-card/40 border-primary/20"
                 }`}
               >
                 <h3 className="text-2xl font-heading font-bold mb-2">{plan.name}</h3>

@@ -15,7 +15,7 @@ const CTASection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="max-w-4xl mx-auto text-center"
+          className="max-w-4xl mx-auto backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-12 text-center"
         >
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
             Questions?{" "}
@@ -30,7 +30,6 @@ const CTASection = () => {
 
           <Button
             size="lg"
-            className="bg-gradient-primary hover:shadow-glow transition-all duration-300 text-lg px-8 py-6 group"
             asChild
           >
             <Link to="/contact">

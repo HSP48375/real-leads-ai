@@ -1,11 +1,15 @@
 import Navigation from "@/components/flowvia/Navigation";
 import Footer from "@/components/flowvia/Footer";
 import PricingSection from "@/components/flowvia/PricingSection";
+import ParallaxChevrons from "@/components/ParallaxChevrons";
+import StarField from "@/components/StarField";
 import { motion } from "framer-motion";
 
 const Pricing = () => {
   return (
     <div className="min-h-screen relative">
+      <ParallaxChevrons />
+      <StarField />
       <Navigation />
 
       {/* Hero Section */}

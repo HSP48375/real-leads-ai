@@ -1,5 +1,7 @@
 import Navigation from "@/components/flowvia/Navigation";
 import Footer from "@/components/flowvia/Footer";
+import ParallaxChevrons from "@/components/ParallaxChevrons";
+import StarField from "@/components/StarField";
 import { motion } from "framer-motion";
 import { Monitor, Users, Target, Puzzle, Zap, Shield } from "lucide-react";
 
@@ -42,6 +44,8 @@ const Features = () => {
 
   return (
     <div className="min-h-screen relative">
+      <ParallaxChevrons />
+      <StarField />
       <Navigation />
 
       {/* Hero Section */}
@@ -96,7 +100,7 @@ const Features = () => {
                 transition={{ duration: 0.6, delay: index * 0.2 }}
                 viewport={{ once: true }}
               >
-                <div className="backdrop-blur-glass bg-card/50 border border-white/10 rounded-2xl p-8 hover:border-primary/50 transition-all duration-300 hover:shadow-glow h-full">
+                <div className="backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 hover:shadow-card h-full">
                   <div className="w-14 h-14 rounded-xl bg-gradient-primary flex items-center justify-center mb-6">
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
@@ -139,7 +143,7 @@ const Features = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
                 viewport={{ once: true }}
-                className="backdrop-blur-glass bg-card/50 border border-white/10 rounded-2xl p-8 hover:border-primary/50 transition-all duration-300 hover:shadow-glow"
+                className="backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 hover:shadow-card"
               >
                 <div className="w-14 h-14 rounded-xl bg-gradient-primary/10 flex items-center justify-center mb-6">
                   <item.icon className="w-7 h-7 text-primary" />

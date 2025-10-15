@@ -11,52 +11,50 @@ All colors MUST be HSL.
     --font-family: 'Inter', sans-serif;
     --font-family-heading: 'Poppins', sans-serif;
 
-    /* 2026 Futuristic Dark Theme - Premium Blue/Purple Gradient */
-    --background: 220 40% 6%;
-    --foreground: 210 40% 98%;
+    /* Flowvia Reference Design - Deep Navy with Cyan Accents */
+    --background: 210 60% 8%;
+    --foreground: 0 0% 100%;
 
-    --card: 220 35% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 215 45% 12%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 220 35% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 215 45% 12%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 217 91% 60%;
+    --primary: 199 89% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 260 60% 65%;
+    --secondary: 215 25% 20%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 30% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 215 25% 20%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 195 100% 50%;
-    --accent-foreground: 220 40% 6%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 30% 18%;
-    --input: 220 30% 18%;
-    --ring: 217 91% 60%;
+    --border: 199 89% 48%;
+    --input: 215 25% 20%;
+    --ring: 199 89% 48%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Gradients - Cinematic and Layered */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(260 60% 65%));
-    --gradient-secondary: linear-gradient(180deg, hsl(220 40% 6%), hsl(220 35% 8%));
-    --gradient-accent: linear-gradient(90deg, hsl(195 100% 50%), hsl(217 91% 60%));
-    --gradient-hero: radial-gradient(ellipse at top, hsl(217 91% 60% / 0.3), transparent 50%),
-                      radial-gradient(ellipse at bottom right, hsl(260 60% 65% / 0.2), transparent 50%);
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(199 89% 48%), hsl(199 89% 58%));
+    --gradient-hero-bg: radial-gradient(ellipse at top, hsl(215 50% 15% / 0.6), transparent 70%),
+                        radial-gradient(ellipse at bottom, hsl(210 60% 8%), hsl(215 50% 10%));
 
     /* Glassmorphism */
-    --glass-bg: hsl(220 35% 8% / 0.6);
-    --glass-border: hsl(210 40% 98% / 0.1);
+    --glass-bg: hsl(215 45% 12% / 0.4);
+    --glass-border: hsl(199 89% 48% / 0.3);
     --glass-blur: blur(20px);
 
-    /* Shadows - Elevated and Glowing */
-    --shadow-glow: 0 0 60px hsl(217 91% 60% / 0.4);
-    --shadow-glow-secondary: 0 0 60px hsl(260 60% 65% / 0.3);
+    /* Shadows - Neon Glow */
+    --shadow-glow: 0 0 40px hsl(199 89% 48% / 0.5);
+    --shadow-card: 0 4px 20px hsl(199 89% 48% / 0.2);
   }
 
 }
@@ -68,8 +66,23 @@ All colors MUST be HSL.
 
   body {
     @apply text-foreground font-[family-name:var(--font-family)] antialiased;
-    background: linear-gradient(180deg, hsl(220 40% 6%), hsl(220 35% 4%));
+    background: hsl(210 60% 8%);
     overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 50%, hsl(199 89% 48% / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsl(199 89% 48% / 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
   }
 
   h1, h2, h3, h4, h5, h6 {

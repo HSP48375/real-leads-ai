@@ -77,7 +77,7 @@ const IntegrationsSection = () => {
               <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-3xl" />
               
               {/* Main Visual */}
-              <div className="relative backdrop-blur-glass bg-card/40 border border-white/10 rounded-2xl p-8 h-full flex items-center justify-center">
+              <div className="relative backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-8 h-full flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-32 h-32 mx-auto mb-6 rounded-2xl bg-gradient-primary opacity-30" />
                   <p className="text-muted-foreground">Integration Dashboard</p>

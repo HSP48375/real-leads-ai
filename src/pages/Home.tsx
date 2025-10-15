@@ -6,10 +6,14 @@ import IntegrationsSection from "@/components/flowvia/IntegrationsSection";
 import PricingSection from "@/components/flowvia/PricingSection";
 import CTASection from "@/components/flowvia/CTASection";
 import Footer from "@/components/flowvia/Footer";
+import ParallaxChevrons from "@/components/ParallaxChevrons";
+import StarField from "@/components/StarField";
 
 const Home = () => {
   return (
     <div className="min-h-screen relative">
+      <StarField />
+      <ParallaxChevrons />
       <Navigation />
       <Hero />
       <TrustedBySection />
