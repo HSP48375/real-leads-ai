@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 43 74% 66%;
+    --primary: 51 100% 50%;
     --primary-foreground: 0 0% 4%;
 
     --secondary: 0 0% 12%;
@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 43 74% 66%;
+    --accent: 51 100% 50%;
     --accent-foreground: 0 0% 4%;
 
     --destructive: 0 84% 60%;
@@ -34,16 +34,16 @@ All colors MUST be HSL.
 
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 43 74% 66%;
-    --headline: 50 100% 70%;
+    --ring: 51 100% 50%;
+    --headline: 51 100% 50%;
 
     --radius: 0.75rem;
 
     /* Custom gradients and effects */
-    --gradient-gold: linear-gradient(135deg, hsl(50 100% 75%), hsl(45 100% 68%));
+    --gradient-gold: linear-gradient(135deg, hsl(51 100% 55%), hsl(51 100% 50%));
     --gradient-dark: linear-gradient(180deg, hsl(0 0% 4%), hsl(0 0% 8%));
-    --shadow-gold: 0 10px 40px -10px hsl(43 74% 66% / 0.3);
-    --shadow-gold-glow: 0 0 60px hsl(43 74% 66% / 0.4);
+    --shadow-gold: 0 10px 40px -10px hsl(51 100% 50% / 0.3);
+    --shadow-gold-glow: 0 0 60px hsl(51 100% 50% / 0.4);
     --shadow-subtle: 0 4px 20px hsl(0 0% 0% / 0.4);
     
     /* Glassmorphic effects */
@@ -66,7 +66,7 @@ All colors MUST be HSL.
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 43 74% 66%;
+    --primary: 51 100% 50%;
     --primary-foreground: 0 0% 4%;
 
     --secondary: 0 0% 12%;
@@ -75,7 +75,7 @@ All colors MUST be HSL.
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 43 74% 66%;
+    --accent: 51 100% 50%;
     --accent-foreground: 0 0% 4%;
 
     --destructive: 0 84% 60%;
@@ -83,8 +83,8 @@ All colors MUST be HSL.
 
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 43 74% 66%;
-    --headline: 50 100% 70%;
+    --ring: 51 100% 50%;
+    --headline: 51 100% 50%;
    }
 }
 
@@ -109,12 +109,12 @@ All colors MUST be HSL.
     height: 150%;
     background: linear-gradient(180deg, 
       transparent,
-      rgba(255, 215, 0, 0.15) 20%,
-      rgba(255, 215, 0, 0.15) 50%,
-      rgba(255, 215, 0, 0.15) 80%,
+      hsl(51 100% 50% / 0.15) 20%,
+      hsl(51 100% 50% / 0.15) 50%,
+      hsl(51 100% 50% / 0.15) 80%,
       transparent
     );
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 10px hsl(51 100% 50% / 0.3);
     pointer-events: none;
     z-index: -1;
   }
@@ -152,7 +152,7 @@ All colors MUST be HSL.
     --glow-sens: 30;
     --color-sens: calc(var(--glow-sens) + 20);
     --pointer-deg: 45deg;
-    --glow-color: 43 74% 66%;
+    --glow-color: 51 100% 50%;
     --glow-boost: 0%;
     
     position: relative;
