@@ -36,30 +36,31 @@ const HowItWorks = () => {
     <section className="py-20 md:py-32 relative bg-background overflow-hidden">
       <div className="container px-4">
         {/* Header */}
-        <div className="text-center mb-32">
-          <h2 className="text-4xl md:text-6xl font-bold mb-6">
+        <div className="text-center mb-20">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
             How It Works
           </h2>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
             From order to inbox in 24 hours. No complexity, no waiting.
           </p>
         </div>
 
         {/* Steps with Arrow Ribbons */}
-        <div className="relative max-w-6xl mx-auto min-h-[2000px]">
+        <div className="relative max-w-6xl mx-auto min-h-[1200px]">
           {/* SVG Arrow Ribbons - Desktop Only */}
           <svg
             className="absolute inset-0 w-full h-full hidden md:block"
             style={{ zIndex: 1 }}
-            viewBox="0 0 1000 2000"
+            viewBox="0 0 1000 1200"
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
-              {/* Glow filter */}
-              <filter id="ribbon-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+              {/* Glow filter matching pricing cards */}
+              <filter id="ribbon-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur"/>
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 0.84 0 0 0  0 0 0 0 0  0 0 0 0.6 0" result="glow"/>
                 <feMerge>
-                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="glow"/>
                   <feMergeNode in="SourceGraphic"/>
                 </feMerge>
               </filter>
@@ -67,15 +68,15 @@ const HowItWorks = () => {
 
             {/* Main flowing ribbon path */}
             <motion.path
-              d="M 700 150 Q 400 250, 150 400 Q 50 500, 150 600 Q 500 750, 700 900 Q 800 1000, 700 1100 Q 400 1250, 150 1400 Q 50 1500, 150 1600"
+              d="M 700 100 Q 400 180, 150 280 Q 50 350, 150 420 Q 500 550, 700 650 Q 800 720, 700 790 Q 400 920, 150 1020 Q 50 1090, 150 1150"
               stroke={hoveredRibbon !== null ? "#FFD700" : "#8B7500"}
-              strokeWidth="60"
+              strokeWidth="30"
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
               className="transition-all duration-300 cursor-pointer"
               style={{
-                filter: hoveredRibbon !== null ? "url(#ribbon-glow) drop-shadow(0 0 25px rgba(255, 215, 0, 0.7))" : "none",
+                filter: hoveredRibbon !== null ? "url(#ribbon-glow) drop-shadow(0 0 40px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))" : "none",
               }}
               onMouseEnter={() => setHoveredRibbon(0)}
               onMouseLeave={() => setHoveredRibbon(null)}
@@ -83,9 +84,9 @@ const HowItWorks = () => {
 
             {/* Yellow border/outline */}
             <path
-              d="M 700 150 Q 400 250, 150 400 Q 50 500, 150 600 Q 500 750, 700 900 Q 800 1000, 700 1100 Q 400 1250, 150 1400 Q 50 1500, 150 1600"
+              d="M 700 100 Q 400 180, 150 280 Q 50 350, 150 420 Q 500 550, 700 650 Q 800 720, 700 790 Q 400 920, 150 1020 Q 50 1090, 150 1150"
               stroke="#FFD700"
-              strokeWidth="3"
+              strokeWidth="2"
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -95,12 +96,12 @@ const HowItWorks = () => {
 
           {/* Steps positioned along the path */}
           {steps.map((step, index) => {
-            // Positions matching the SVG path coordinates
+            // Positions matching the SVG path coordinates - closer together
             const positions = [
-              { left: "65%", top: "7%" },    // Step 1 - top right
-              { left: "10%", top: "30%" },   // Step 2 - left
-              { left: "65%", top: "55%" },   // Step 3 - right
-              { left: "10%", top: "80%" },   // Step 4 - left bottom
+              { left: "65%", top: "8%" },    // Step 1 - top right
+              { left: "10%", top: "35%" },   // Step 2 - left
+              { left: "65%", top: "62%" },   // Step 3 - right
+              { left: "10%", top: "89%" },   // Step 4 - left bottom
             ];
 
             return (
@@ -123,35 +124,26 @@ const HowItWorks = () => {
                 {/* Step Number Badge ON the ribbon */}
                 <div className="relative flex items-center gap-6">
                   <motion.div
-                    className="w-24 h-24 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold relative"
+                    className="w-20 h-20 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold relative"
                     whileHover={{ scale: 1.1 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <span className="text-4xl font-bold text-primary-foreground">
+                    <span className="text-3xl font-bold text-primary-foreground">
                       {step.number}
                     </span>
-                  </motion.div>
-
-                  {/* Icon floating next to badge */}
-                  <motion.div
-                    className="text-[80px] leading-none"
-                    animate={{ y: [0, -10, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    {step.emoji}
                   </motion.div>
                 </div>
 
                 {/* Content card */}
                 <motion.div
-                  className="mt-8 bg-background/90 backdrop-blur-sm border border-border rounded-lg p-6 max-w-md shadow-lg"
+                  className="mt-6 bg-background/90 backdrop-blur-sm border border-border rounded-lg p-5 max-w-sm shadow-lg"
                   whileHover={{ y: -5, boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}
                   transition={{ duration: 0.2 }}
                 >
-                  <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                  <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2">
                     {step.title}
                   </h3>
-                  <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </motion.div>
@@ -160,24 +152,21 @@ const HowItWorks = () => {
           })}
 
           {/* Mobile simplified view */}
-          <div className="md:hidden space-y-20">
+          <div className="md:hidden space-y-12">
             {steps.map((step) => (
               <div key={step.number} className="relative">
-                <div className="flex items-start gap-6">
-                  <div className="w-20 h-20 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold flex-shrink-0">
-                    <span className="text-3xl font-bold text-primary-foreground">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold flex-shrink-0">
+                    <span className="text-2xl font-bold text-primary-foreground">
                       {step.number}
                     </span>
                   </div>
-                  <div className="text-[60px] leading-none">
-                    {step.emoji}
-                  </div>
                 </div>
-                <div className="mt-6">
-                  <h3 className="text-2xl font-bold text-foreground mb-3">
+                <div className="mt-4">
+                  <h3 className="text-xl font-bold text-foreground mb-2">
                     {step.title}
                   </h3>
-                  <p className="text-base text-muted-foreground leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </div>
@@ -187,13 +176,13 @@ const HowItWorks = () => {
         </div>
 
         {/* Bottom CTA */}
-        <div className="text-center mt-32">
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8">
+        <div className="text-center mt-20">
+          <p className="text-lg md:text-xl text-muted-foreground mb-6">
             Ready to get started?
           </p>
           <Button
             size="lg"
-            className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-10 py-7 text-xl shadow-gold transition-all hover:shadow-xl"
+            className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg shadow-gold transition-all hover:shadow-xl"
             onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
           >
             See Pricing
