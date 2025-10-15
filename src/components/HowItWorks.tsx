@@ -1,111 +1,138 @@
 import { Button } from "@/components/ui/button";
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 
-// Custom SVG Animations
+// Animated Step Components with REAL CSS animations
 const MapPinAnimation = () => (
-  <svg width="280" height="280" viewBox="0 0 280 280" className="animate-fade-in">
+  <div className="w-[300px] h-[300px] relative flex items-center justify-center">
     {/* Map dots */}
-    <circle cx="80" cy="120" r="4" fill="#FFD700" opacity="0.3" />
-    <circle cx="140" cy="100" r="4" fill="#FFD700" opacity="0.3" />
-    <circle cx="200" cy="130" r="4" fill="#FFD700" opacity="0.3" />
-    <circle cx="110" cy="160" r="4" fill="#FFD700" opacity="0.3" />
-    <circle cx="170" cy="170" r="4" fill="#FFD700" opacity="0.3" />
-    
-    {/* Pin with bounce animation */}
-    <g className="animate-[bounce_3s_ease-in-out_infinite]">
-      <path
-        d="M140 80 L140 140 L150 160 L140 140 L130 160 L140 140 Z"
-        fill="#FFD700"
-      />
-      <circle cx="140" cy="80" r="20" fill="#FFD700" />
-      <circle cx="140" cy="80" r="10" fill="#1a1a1a" />
-    </g>
+    <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-primary/30" />
+    <div className="absolute top-1/3 right-1/3 w-2 h-2 rounded-full bg-primary/30" />
+    <div className="absolute bottom-1/3 left-1/3 w-2 h-2 rounded-full bg-primary/30" />
     
     {/* Pulse rings */}
-    <circle cx="140" cy="160" r="30" fill="none" stroke="#FFD700" strokeWidth="2" opacity="0.6" className="animate-[ping_3s_ease-out_infinite]" />
-    <circle cx="140" cy="160" r="40" fill="none" stroke="#FFD700" strokeWidth="2" opacity="0.3" className="animate-[ping_3s_ease-out_infinite_0.5s]" style={{ animationDelay: '0.5s' }} />
-  </svg>
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+      <div className="absolute w-20 h-20 rounded-full border-2 border-primary/40 animate-[pulse_3s_ease-out_infinite]" />
+      <div className="absolute w-20 h-20 rounded-full border-2 border-primary/30 animate-[pulse_3s_ease-out_infinite_1s]" style={{ animationDelay: '1s' }} />
+      <div className="absolute w-20 h-20 rounded-full border-2 border-primary/20 animate-[pulse_3s_ease-out_infinite_2s]" style={{ animationDelay: '2s' }} />
+    </div>
+    
+    {/* Animated pin drop */}
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[pinDrop_3s_ease-out_infinite]">
+      <svg width="60" height="80" viewBox="0 0 60 80" className="drop-shadow-lg">
+        <path d="M30 0 C13.5 0 0 13.5 0 30 C0 45 30 80 30 80 C30 80 60 45 60 30 C60 13.5 46.5 0 30 0 Z" fill="#FFD700"/>
+        <circle cx="30" cy="30" r="12" fill="#1a1a1a"/>
+      </svg>
+    </div>
+  </div>
 );
 
 const ScanAnimation = () => (
-  <svg width="280" height="280" viewBox="0 0 280 280" className="animate-fade-in">
-    {/* Documents */}
-    <rect x="60" y="100" width="40" height="50" rx="4" fill="rgba(255,215,0,0.1)" stroke="#FFD700" strokeWidth="2" />
-    <rect x="120" y="100" width="40" height="50" rx="4" fill="rgba(255,215,0,0.1)" stroke="#FFD700" strokeWidth="2" />
-    <rect x="180" y="100" width="40" height="50" rx="4" fill="rgba(255,215,0,0.1)" stroke="#FFD700" strokeWidth="2" />
+  <div className="w-[300px] h-[300px] relative flex items-center justify-center">
+    {/* Document icons */}
+    <div className="absolute top-1/3 left-1/4 w-12 h-16 border-2 border-primary/40 rounded" />
+    <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-12 h-16 border-2 border-primary/40 rounded" />
+    <div className="absolute top-1/3 right-1/4 w-12 h-16 border-2 border-primary/40 rounded" />
     
-    {/* Magnifying glass with movement */}
-    <g className="animate-[scan_3s_ease-in-out_infinite]">
-      <circle cx="140" cy="80" r="20" fill="none" stroke="#FFD700" strokeWidth="3" />
-      <line x1="155" y1="95" x2="170" y2="110" stroke="#FFD700" strokeWidth="3" strokeLinecap="round" />
-    </g>
+    {/* Checkmarks that appear */}
+    <svg className="absolute top-2/3 left-1/4 animate-[checkmarkAppear_4s_ease-in-out_infinite]" width="20" height="20" viewBox="0 0 20 20">
+      <path d="M 4 10 L 8 14 L 16 6" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+    <svg className="absolute top-2/3 left-1/2 -translate-x-1/2 animate-[checkmarkAppear_4s_ease-in-out_infinite_1s]" width="20" height="20" viewBox="0 0 20 20" style={{ animationDelay: '1s' }}>
+      <path d="M 4 10 L 8 14 L 16 6" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+    <svg className="absolute top-2/3 right-1/4 animate-[checkmarkAppear_4s_ease-in-out_infinite_2s]" width="20" height="20" viewBox="0 0 20 20" style={{ animationDelay: '2s' }}>
+      <path d="M 4 10 L 8 14 L 16 6" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
     
-    {/* Checkmarks */}
-    <g className="animate-[checkmark_3s_ease-in-out_infinite]">
-      <path d="M 70 170 L 80 180 L 100 160" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M 130 170 L 140 180 L 160 160" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M 190 170 L 200 180 L 220 160" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-    </g>
-  </svg>
+    {/* Magnifying glass scanning */}
+    <div className="absolute top-1/2 -translate-y-1/2 animate-[scan_4s_ease-in-out_infinite]">
+      <svg width="60" height="60" viewBox="0 0 60 60">
+        <circle cx="24" cy="24" r="18" fill="none" stroke="#FFD700" strokeWidth="4"/>
+        <line x1="37" y1="37" x2="52" y2="52" stroke="#FFD700" strokeWidth="4" strokeLinecap="round"/>
+      </svg>
+    </div>
+  </div>
 );
 
 const SpreadsheetAnimation = () => (
-  <svg width="280" height="280" viewBox="0 0 280 280" className="animate-fade-in">
-    {/* Grid outline */}
-    <rect x="80" y="80" width="120" height="120" fill="rgba(255,215,0,0.05)" stroke="#FFD700" strokeWidth="2" rx="4" />
+  <div className="w-[300px] h-[300px] relative flex items-center justify-center">
+    {/* Grid */}
+    <div className="relative w-48 h-40 border-2 border-primary/40 rounded">
+      {/* Grid lines */}
+      <div className="absolute top-0 left-1/3 w-px h-full bg-primary/30" />
+      <div className="absolute top-0 left-2/3 w-px h-full bg-primary/30" />
+      
+      {/* Animated filling rows */}
+      <div className="absolute top-2 left-2 right-2 space-y-2">
+        <div className="h-6 bg-primary/20 rounded overflow-hidden">
+          <div className="h-full bg-primary animate-[fillRow_4s_ease-in-out_infinite] rounded" />
+        </div>
+        <div className="h-6 bg-primary/20 rounded overflow-hidden">
+          <div className="h-full bg-primary animate-[fillRow_4s_ease-in-out_infinite_0.5s] rounded" style={{ animationDelay: '0.5s' }} />
+        </div>
+        <div className="h-6 bg-primary/20 rounded overflow-hidden">
+          <div className="h-full bg-primary animate-[fillRow_4s_ease-in-out_infinite_1s] rounded" style={{ animationDelay: '1s' }} />
+        </div>
+        <div className="h-6 bg-primary/20 rounded overflow-hidden">
+          <div className="h-full bg-primary animate-[fillRow_4s_ease-in-out_infinite_1.5s] rounded" style={{ animationDelay: '1.5s' }} />
+        </div>
+        <div className="h-6 bg-primary/20 rounded overflow-hidden">
+          <div className="h-full bg-primary animate-[fillRow_4s_ease-in-out_infinite_2s] rounded" style={{ animationDelay: '2s' }} />
+        </div>
+      </div>
+    </div>
     
-    {/* Vertical lines */}
-    <line x1="120" y1="80" x2="120" y2="200" stroke="#FFD700" strokeWidth="1" opacity="0.3" />
-    <line x1="160" y1="80" x2="160" y2="200" stroke="#FFD700" strokeWidth="1" opacity="0.3" />
-    
-    {/* Animated rows filling */}
-    <g className="animate-[fillRows_3s_ease-in-out_infinite]">
-      <rect x="85" y="85" width="110" height="18" fill="#FFD700" opacity="0.6" />
-      <rect x="85" y="108" width="110" height="18" fill="#FFD700" opacity="0.5" />
-      <rect x="85" y="131" width="110" height="18" fill="#FFD700" opacity="0.4" />
-      <rect x="85" y="154" width="110" height="18" fill="#FFD700" opacity="0.3" />
-      <rect x="85" y="177" width="110" height="18" fill="#FFD700" opacity="0.2" />
-    </g>
-    
-    {/* Final checkmark */}
-    <g className="animate-[checkmark_3s_ease-in-out_infinite]">
-      <circle cx="230" cy="90" r="15" fill="#10b981" />
-      <path d="M 223 90 L 228 95 L 237 86" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </g>
-  </svg>
+    {/* Green checkmark */}
+    <div className="absolute top-8 right-8 animate-[checkmarkAppear_4s_ease-in-out_infinite_2.5s]" style={{ animationDelay: '2.5s' }}>
+      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path d="M 6 12 L 10 16 L 18 8" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
 );
 
-const SuccessAnimation = () => (
-  <svg width="280" height="280" viewBox="0 0 280 280" className="animate-fade-in">
-    {/* Trophy base */}
-    <rect x="120" y="180" width="40" height="10" fill="#FFD700" />
-    <rect x="130" y="165" width="20" height="15" fill="#FFD700" />
-    
-    {/* Trophy cup */}
-    <path
-      d="M 110 140 Q 110 120 130 120 L 150 120 Q 170 120 170 140 L 165 160 Q 165 170 140 170 Q 115 170 115 160 Z"
-      fill="#FFD700"
-      className="animate-[pulse_3s_ease-in-out_infinite]"
-    />
-    
-    {/* Trophy handles */}
-    <path d="M 110 130 Q 95 130 95 145 Q 95 155 105 155" fill="none" stroke="#FFD700" strokeWidth="3" />
-    <path d="M 170 130 Q 185 130 185 145 Q 185 155 175 155" fill="none" stroke="#FFD700" strokeWidth="3" />
+const TrophyAnimation = () => (
+  <div className="w-[300px] h-[300px] relative flex items-center justify-center">
+    {/* Trophy - floating */}
+    <div className="animate-[float_3s_ease-in-out_infinite]">
+      <svg width="80" height="100" viewBox="0 0 80 100">
+        {/* Base */}
+        <rect x="30" y="80" width="20" height="8" fill="#FFD700"/>
+        <rect x="25" y="70" width="30" height="10" fill="#FFD700"/>
+        
+        {/* Cup */}
+        <path d="M 20 30 Q 20 20 30 20 L 50 20 Q 60 20 60 30 L 55 50 Q 55 60 40 60 Q 25 60 25 50 Z" fill="#FFD700"/>
+        
+        {/* Handles */}
+        <path d="M 20 35 Q 10 35 10 45 Q 10 50 18 50" fill="none" stroke="#FFD700" strokeWidth="3"/>
+        <path d="M 60 35 Q 70 35 70 45 Q 70 50 62 50" fill="none" stroke="#FFD700" strokeWidth="3"/>
+      </svg>
+    </div>
     
     {/* Sparkles */}
-    <g className="animate-[sparkle_3s_ease-in-out_infinite]">
-      <path d="M 90 100 L 92 105 L 97 107 L 92 109 L 90 114 L 88 109 L 83 107 L 88 105 Z" fill="#FFD700" />
-      <path d="M 190 95 L 192 100 L 197 102 L 192 104 L 190 109 L 188 104 L 183 102 L 188 100 Z" fill="#FFD700" />
-      <path d="M 140 80 L 142 85 L 147 87 L 142 89 L 140 94 L 138 89 L 133 87 L 138 85 Z" fill="#FFD700" />
-    </g>
+    <div className="absolute top-12 left-12 animate-[sparkle_3s_ease-in-out_infinite]">
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <path d="M 10 0 L 11 9 L 20 10 L 11 11 L 10 20 L 9 11 L 0 10 L 9 9 Z" fill="#FFD700"/>
+      </svg>
+    </div>
+    <div className="absolute top-16 right-12 animate-[sparkle_3s_ease-in-out_infinite_1s]" style={{ animationDelay: '1s' }}>
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <path d="M 10 0 L 11 9 L 20 10 L 11 11 L 10 20 L 9 11 L 0 10 L 9 9 Z" fill="#FFD700"/>
+      </svg>
+    </div>
+    <div className="absolute bottom-20 left-16 animate-[sparkle_3s_ease-in-out_infinite_2s]" style={{ animationDelay: '2s' }}>
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <path d="M 10 0 L 11 9 L 20 10 L 11 11 L 10 20 L 9 11 L 0 10 L 9 9 Z" fill="#FFD700"/>
+      </svg>
+    </div>
     
-    {/* Rising dollar signs */}
-    <g className="animate-[float_3s_ease-in-out_infinite]" opacity="0.6">
-      <text x="110" y="100" fill="#10b981" fontSize="20" fontWeight="bold">$</text>
-      <text x="160" y="110" fill="#10b981" fontSize="20" fontWeight="bold">$</text>
-    </g>
-  </svg>
+    {/* Floating dollar signs */}
+    <div className="absolute top-1/2 left-1/3 animate-[floatUp_3s_ease-in-out_infinite] text-2xl font-bold text-green-500">$</div>
+    <div className="absolute top-1/2 right-1/3 animate-[floatUp_3s_ease-in-out_infinite_1.5s] text-2xl font-bold text-green-500" style={{ animationDelay: '1.5s' }}>$</div>
+  </div>
 );
 
 const steps = [
@@ -132,7 +159,7 @@ const steps = [
   },
   {
     number: 4,
-    animation: SuccessAnimation,
+    animation: TrophyAnimation,
     title: "Start Closing Deals",
     description: "Reach homeowners before your competition. Real leads, real conversations, real commissions.",
     visualLeft: true,
@@ -140,44 +167,98 @@ const steps = [
 ];
 
 const HowItWorks = () => {
-  const pathRef = useRef<SVGPathElement>(null);
-  const section1Ref = useRef(null);
-  const section2Ref = useRef(null);
-  const section3Ref = useRef(null);
-  const section4Ref = useRef(null);
+  const step1Ref = useRef<HTMLDivElement>(null);
+  const step2Ref = useRef<HTMLDivElement>(null);
+  const step3Ref = useRef<HTMLDivElement>(null);
+  const step4Ref = useRef<HTMLDivElement>(null);
   
-  const inView2 = useInView(section2Ref, { once: true, margin: "-100px" });
-  const inView3 = useInView(section3Ref, { once: true, margin: "-100px" });
-  const inView4 = useInView(section4Ref, { once: true, margin: "-100px" });
+  const inView2 = useInView(step2Ref, { once: true, margin: "-100px" });
+  const inView3 = useInView(step3Ref, { once: true, margin: "-100px" });
+  const inView4 = useInView(step4Ref, { once: true, margin: "-100px" });
+
+  const [circlePositions, setCirclePositions] = useState<{x: number, y: number}[]>([]);
+
+  useEffect(() => {
+    const updatePositions = () => {
+      const refs = [step1Ref, step2Ref, step3Ref, step4Ref];
+      const positions = refs.map(ref => {
+        if (ref.current) {
+          const circle = ref.current.querySelector('.numbered-circle');
+          if (circle) {
+            const rect = circle.getBoundingClientRect();
+            const container = ref.current.closest('section');
+            const containerRect = container?.getBoundingClientRect();
+            return {
+              x: rect.left + rect.width / 2 - (containerRect?.left || 0),
+              y: rect.top + rect.height / 2 - (containerRect?.top || 0)
+            };
+          }
+        }
+        return { x: 0, y: 0 };
+      });
+      setCirclePositions(positions);
+    };
+
+    updatePositions();
+    window.addEventListener('resize', updatePositions);
+    setTimeout(updatePositions, 100); // Update after initial render
+    return () => window.removeEventListener('resize', updatePositions);
+  }, []);
 
   return (
     <section className="py-20 md:py-32 relative bg-background overflow-hidden">
-      <div className="container px-4 relative">
-        {/* Animated treasure map path */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
-          style={{ zIndex: 0 }}
-        >
-          <defs>
-            <linearGradient id="pathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#FFD700" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#FFD700" stopOpacity="0.3" />
-            </linearGradient>
-          </defs>
-          <path
-            ref={pathRef}
-            d="M 50% 15% Q 65% 25% 50% 35% Q 35% 45% 50% 55% Q 65% 65% 50% 75% Q 35% 85% 50% 95%"
-            fill="none"
-            stroke="url(#pathGradient)"
-            strokeWidth="3"
-            strokeDasharray="8 8"
-            strokeLinecap="round"
-            className="transition-all duration-[2400ms] ease-out"
-            style={{
-              strokeDashoffset: !inView2 ? 2000 : !inView3 ? 1333 : !inView4 ? 666 : 0,
-            }}
-          />
-        </svg>
+      <div className="container px-4 relative max-w-6xl mx-auto">
+        {/* Animated connecting path */}
+        {circlePositions.length === 4 && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
+            style={{ zIndex: 0 }}
+          >
+            <defs>
+              <linearGradient id="pathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FFD700" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#FFD700" stopOpacity="0.6" />
+              </linearGradient>
+            </defs>
+            {/* Path segment 1 to 2 */}
+            <motion.path
+              d={`M ${circlePositions[0].x} ${circlePositions[0].y} C ${circlePositions[0].x + 100} ${circlePositions[0].y + 50}, ${circlePositions[1].x - 100} ${circlePositions[1].y - 50}, ${circlePositions[1].x} ${circlePositions[1].y}`}
+              fill="none"
+              stroke="url(#pathGradient)"
+              strokeWidth="2"
+              strokeDasharray="8 8"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={inView2 ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+            {/* Path segment 2 to 3 */}
+            <motion.path
+              d={`M ${circlePositions[1].x} ${circlePositions[1].y} C ${circlePositions[1].x + 100} ${circlePositions[1].y + 50}, ${circlePositions[2].x - 100} ${circlePositions[2].y - 50}, ${circlePositions[2].x} ${circlePositions[2].y}`}
+              fill="none"
+              stroke="url(#pathGradient)"
+              strokeWidth="2"
+              strokeDasharray="8 8"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={inView3 ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+            {/* Path segment 3 to 4 */}
+            <motion.path
+              d={`M ${circlePositions[2].x} ${circlePositions[2].y} C ${circlePositions[2].x + 100} ${circlePositions[2].y + 50}, ${circlePositions[3].x - 100} ${circlePositions[3].y - 50}, ${circlePositions[3].x} ${circlePositions[3].y}`}
+              fill="none"
+              stroke="url(#pathGradient)"
+              strokeWidth="2"
+              strokeDasharray="8 8"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={inView4 ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </svg>
+        )}
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -194,14 +275,14 @@ const HowItWorks = () => {
           </p>
         </motion.div>
 
-        {/* Steps */}
-        <div className="space-y-24 md:space-y-32 max-w-7xl mx-auto relative" style={{ zIndex: 1 }}>
+        {/* Steps - REDUCED SPACING */}
+        <div className="space-y-16 md:space-y-20 max-w-6xl mx-auto relative" style={{ zIndex: 1 }}>
           {steps.map((step, index) => {
-            const sectionRef = index === 0 ? section1Ref : index === 1 ? section2Ref : index === 2 ? section3Ref : section4Ref;
+            const stepRef = index === 0 ? step1Ref : index === 1 ? step2Ref : index === 2 ? step3Ref : step4Ref;
             return (
               <motion.div
                 key={step.number}
-                ref={sectionRef}
+                ref={stepRef}
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
@@ -220,7 +301,7 @@ const HowItWorks = () => {
                 >
                   {/* Numbered Circle */}
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(255,215,0,0.3)]">
+                    <div className="numbered-circle w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(255,215,0,0.3)]">
                       <span className="text-2xl md:text-3xl font-bold text-primary-foreground">
                         {step.number}
                       </span>

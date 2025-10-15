@@ -93,14 +93,34 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  @keyframes pinDrop {
+    0% { transform: translateY(-50px) scale(0); }
+    40% { transform: translateY(0) scale(1.2); }
+    60% { transform: translateY(0) scale(0.9); }
+    80% { transform: translateY(0) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
   @keyframes scan {
-    0%, 100% { transform: translateX(-60px); }
-    50% { transform: translateX(60px); }
+    0%, 100% { transform: translateX(-80px); }
+    50% { transform: translateX(80px); }
   }
 
   @keyframes checkmark {
     0%, 40% { opacity: 0; transform: scale(0); }
     60%, 100% { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes checkmarkAppear {
+    0%, 30% { opacity: 0; transform: scale(0); }
+    40%, 90% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0); }
+  }
+
+  @keyframes fillRow {
+    0%, 10% { width: 0%; }
+    50%, 90% { width: 100%; }
+    100% { width: 0%; }
   }
 
   @keyframes fillRows {
@@ -109,13 +129,19 @@ All colors MUST be HSL.
   }
 
   @keyframes sparkle {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1); }
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0); opacity: 0; }
-    50% { transform: translateY(-20px); opacity: 1; }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
+
+  @keyframes floatUp {
+    0% { transform: translateY(0); opacity: 0; }
+    30% { opacity: 1; }
+    100% { transform: translateY(-60px); opacity: 0; }
   }
 
   body {
