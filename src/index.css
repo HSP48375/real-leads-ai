@@ -209,33 +209,8 @@ All colors MUST be HSL.
   }
 
   .glow-card::after {
-    /* mesh gradient background */
-    border: 1px solid transparent;
-    
-    background:
-      radial-gradient(at 80% 55%, hsla(268,100%,86%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 69% 34%, hsla(349,100%,84%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 8% 6%, hsla(136,100%,88%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 41% 38%, hsla(192,100%,74%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 86% 85%, hsla(186,100%,84%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 82% 18%, hsla(52,100%,75%,1) 0px, transparent 50%) padding-box,
-      radial-gradient(at 51% 4%, hsla(12,100%,82%,1) 0px, transparent 50%) padding-box,
-      linear-gradient(#e0b3ff 0 100%) padding-box;
-    
-    mask-image:
-      linear-gradient( to bottom, black, black ),
-      radial-gradient( ellipse at 50% 50%, black 40%, transparent 65% ),
-      radial-gradient( ellipse at 66% 66%, black 5%, transparent 40% ),
-      radial-gradient( ellipse at 33% 33%, black 5%, transparent 40% ),
-      radial-gradient( ellipse at 66% 33%, black 5%, transparent 40% ),
-      radial-gradient( ellipse at 33% 66%, black 5%, transparent 40% ),
-      conic-gradient( from var(--pointer-deg) at center, transparent 5%, black 15%, black 85%, transparent 95% );
-
-    mask-composite: subtract,add,add,add,add,add;
-    
-    /* opacity increases as pointer gets near edge */
-    opacity: calc((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens)));
-    mix-blend-mode: soft-light;
+    /* disabled - removed background layer */
+    display: none;
   }
 
   .glow-card > .glow {
