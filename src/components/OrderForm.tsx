@@ -62,7 +62,7 @@ const OrderForm = () => {
             <Card className="backdrop-blur-glass bg-card/60 border-transparent shadow-none animate-fade-in">
             <CardHeader>
               <CardTitle className="text-3xl text-center">
-                Get Your <span className="bg-gradient-gold bg-clip-text text-transparent">Verified Leads</span>
+                Get Your <span className="text-primary font-bold">Verified Leads</span>
               </CardTitle>
               <CardDescription className="text-center text-base">
                 Fill out the form below and we'll deliver fresh, geo-verified leads within 24 hours
@@ -115,8 +115,9 @@ const OrderForm = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="starter">Starter - $97 (15-25 leads)</SelectItem>
-                      <SelectItem value="growth">Growth - $197 (40-60 leads)</SelectItem>
-                      <SelectItem value="pro">Pro - $397 (100-150 leads)</SelectItem>
+                      <SelectItem value="growth">Growth - $197 (25-35 leads)</SelectItem>
+                      <SelectItem value="pro">Pro - $397 (50-70 leads)</SelectItem>
+                      <SelectItem value="enterprise">Enterprise - Contact Us</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
