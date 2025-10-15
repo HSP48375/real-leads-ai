@@ -1,13 +1,14 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import GlowingCard from "@/components/GlowingCard";
 
-const tiers = [
+const oneTimeTiers = [
   {
     name: "Starter",
     price: "$97",
-    leads: "15-25 leads",
+    subtext: "15-25 verified leads",
     costPerLead: "$3.88–$6.47 per verified lead",
     description: "Perfect for testing the waters with verified FSBO leads.",
     features: [
@@ -16,15 +17,17 @@ const tiers = [
       "Delivered within 24 hours",
       "Clean Google Sheet",
       "Email support"
-    ]
+    ],
+    cta: "GET STARTED"
   },
   {
     name: "Growth",
     price: "$197",
-    leads: "25-35 leads",
+    subtext: "25-35 verified leads",
     costPerLead: "$5.63–$7.88 per verified lead",
     description: "Great for small agencies and independent agents.",
     featured: true,
+    badge: "MOST POPULAR",
     features: [
       "25-35 verified leads",
       "Multiple city options",
@@ -32,12 +35,13 @@ const tiers = [
       "Clean Google Sheet",
       "Priority email support",
       "Monthly updates available"
-    ]
+    ],
+    cta: "GET STARTED"
   },
   {
     name: "Pro",
     price: "$397",
-    leads: "50-70 leads",
+    subtext: "50-70 verified leads",
     costPerLead: "$5.67–$7.94 per verified lead",
     description: "Full city coverage, best for serious realtors and broker teams.",
     features: [
@@ -48,76 +52,204 @@ const tiers = [
       "Priority support + phone",
       "Weekly updates available",
       "Dedicated account manager"
-    ]
+    ],
+    cta: "GET STARTED"
+  },
+  {
+    name: "Enterprise",
+    price: "Custom Pricing",
+    subtext: "100+ verified leads per order",
+    costPerLead: "$3.50–$5.00 per verified lead",
+    description: "For brokerages, large teams, and high-volume agents.",
+    badge: "TEAMS & API",
+    enterprise: true,
+    features: [
+      "100+ verified leads per order",
+      "API access for CRM integration",
+      "White-label delivery options",
+      "Priority 24/7 support",
+      "Custom reporting dashboard",
+      "Team management tools",
+      "Bulk processing"
+    ],
+    cta: "CONTACT SALES"
+  }
+];
+
+const monthlyTiers = [
+  {
+    name: "Starter",
+    price: "$79",
+    period: "/month",
+    savings: "Save $18 vs one-time",
+    subtext: "15-25 verified leads monthly",
+    costPerLead: "$3.16–$5.27 per verified lead",
+    description: "Perfect for consistent lead flow without commitment.",
+    features: [
+      "15-25 verified leads monthly",
+      "Single city targeting",
+      "Delivered within 24 hours",
+      "Clean Google Sheet",
+      "Email support",
+      "Cancel anytime"
+    ],
+    cta: "START SUBSCRIPTION"
+  },
+  {
+    name: "Growth",
+    price: "$167",
+    period: "/month",
+    savings: "Save $30 vs one-time",
+    subtext: "25-35 verified leads monthly",
+    costPerLead: "$4.77–$6.68 per verified lead",
+    description: "Great for active agents building a pipeline.",
+    featured: true,
+    badge: "MOST POPULAR",
+    features: [
+      "25-35 verified leads monthly",
+      "Multiple city options",
+      "Delivered within 24 hours",
+      "Clean Google Sheet",
+      "Priority email support",
+      "Monthly campaign rollover (carry 1 unused)"
+    ],
+    cta: "START SUBSCRIPTION"
+  },
+  {
+    name: "Pro",
+    price: "$337",
+    period: "/month",
+    savings: "Save $60 vs one-time",
+    subtext: "50-70 verified leads monthly",
+    costPerLead: "$4.81–$6.74 per verified lead",
+    description: "Best for top producers and small teams.",
+    features: [
+      "50-70 verified leads monthly",
+      "Unlimited city targeting",
+      "Delivered within 12 hours",
+      "Clean Google Sheet",
+      "Priority support + phone",
+      "Weekly updates",
+      "Dedicated account manager",
+      "2 campaign rollover"
+    ],
+    cta: "START SUBSCRIPTION"
+  },
+  {
+    name: "Enterprise",
+    price: "Starting at $997",
+    period: "/month",
+    savings: "Unlimited campaigns",
+    subtext: "Unlimited verified leads",
+    costPerLead: "$2.50–$4.00 per verified lead (bulk pricing)",
+    description: "For brokerages and high-volume operations.",
+    badge: "TEAMS & API",
+    enterprise: true,
+    features: [
+      "Unlimited verified leads",
+      "Full API access",
+      "White-label delivery",
+      "24/7 priority support",
+      "Custom integrations",
+      "Team dashboard",
+      "Dedicated success manager",
+      "SLA guarantees"
+    ],
+    cta: "SCHEDULE DEMO"
   }
 ];
 
 const Pricing = () => {
+  const [isMonthly, setIsMonthly] = useState(false);
+  const currentTiers = isMonthly ? monthlyTiers : oneTimeTiers;
+
   return (
     <section id="pricing" className="py-20 relative">
       <div className="container px-4">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Pricing That Makes
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> Sense</span>
-          </h2>
-          <p className="text-xl text-muted-foreground">
+        <div className="text-center max-w-4xl mx-auto mb-12">
+          <p className="text-lg md:text-xl text-foreground mb-8">
             All plans include fresh, geo-verified leads with no recycled data. Real homeowners, verified and ready within 24 hours.
           </p>
+          
+          {/* Pricing Toggle */}
+          <div className="inline-flex items-center bg-card/40 backdrop-blur-glass border border-border rounded-full p-1 shadow-subtle">
+            <button
+              onClick={() => setIsMonthly(false)}
+              className={`px-8 py-3 rounded-full font-semibold text-base transition-all duration-300 ${
+                !isMonthly
+                  ? "bg-primary text-primary-foreground shadow-gold"
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              One-Time Purchase
+            </button>
+            <button
+              onClick={() => setIsMonthly(true)}
+              className={`px-8 py-3 rounded-full font-semibold text-base transition-all duration-300 ${
+                isMonthly
+                  ? "bg-primary text-primary-foreground shadow-gold"
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              Monthly Subscription
+            </button>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {tiers.map((tier, index) => (
-            <GlowingCard key={tier.name}>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          {currentTiers.map((tier, index) => (
+            <GlowingCard key={`${tier.name}-${isMonthly}`}>
               <Card 
-                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-transparent shadow-none ${
-                  tier.featured 
-                    ? 'shadow-gold-glow scale-105' 
-                    : ''
-                }`}
-                style={{ animationDelay: `${index * 150}ms` }}
+                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-card/60 shadow-none h-full flex flex-col ${
+                  tier.featured ? 'shadow-gold-glow lg:scale-105' : ''
+                } ${tier.enterprise ? 'border border-primary/30' : ''}`}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-              {tier.featured && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-gold rounded-full shadow-gold">
-                  <span className="text-sm font-semibold text-primary-foreground">Most Popular</span>
-                </div>
-              )}
-              
-              <CardHeader className="pb-8 pt-8">
-                <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">{tier.price}</span>
-                </div>
-                <CardDescription className="text-base mt-2">{tier.leads}</CardDescription>
-                <p className="text-xs text-primary/80 mt-1 font-medium">{tier.costPerLead}</p>
-                <p className="text-sm text-muted-foreground mt-4">{tier.description}</p>
-              </CardHeader>
+                {tier.badge && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary rounded-full shadow-gold whitespace-nowrap">
+                    <span className="text-xs font-bold text-primary-foreground">{tier.badge}</span>
+                  </div>
+                )}
+                
+                <CardHeader className="pb-6 pt-8">
+                  <CardTitle className="text-xl">{tier.name}</CardTitle>
+                  <div className="mt-3">
+                    <span className="text-3xl font-bold">{tier.price}</span>
+                    {('period' in tier) && <span className="text-lg text-muted-foreground">{(tier as any).period}</span>}
+                  </div>
+                  {('savings' in tier) && (
+                    <p className="text-xs text-primary font-semibold mt-2">{(tier as any).savings}</p>
+                  )}
+                  <CardDescription className="text-sm mt-2">{tier.subtext}</CardDescription>
+                  <p className="text-xs text-primary/70 mt-1 font-medium">{tier.costPerLead}</p>
+                  <p className="text-sm text-muted-foreground mt-3 min-h-[40px]">{tier.description}</p>
+                </CardHeader>
 
-              <CardContent>
-                <ul className="space-y-3">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-foreground">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
+                <CardContent className="flex-grow">
+                  <ul className="space-y-2.5">
+                    {tier.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-xs text-foreground">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
 
-              <CardFooter>
-                <Button 
-                  className={`w-full transition-all duration-300 ${
-                    tier.featured
-                      ? 'bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-[0_0_80px_hsl(43_74%_66%_/_0.6),0_0_40px_hsl(43_74%_66%_/_0.4)]'
-                      : 'bg-secondary text-secondary-foreground hover:bg-gradient-gold hover:text-primary-foreground hover:shadow-gold-glow'
-                  }`}
-                  size="lg"
-                  onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  Get Started
-                </Button>
-              </CardFooter>
-            </Card>
+                <CardFooter className="pt-6">
+                  <Button 
+                    className={`w-full transition-all duration-300 ${
+                      tier.featured || tier.enterprise
+                        ? 'bg-primary text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-gold-glow'
+                        : 'bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground hover:shadow-gold'
+                    }`}
+                    size="lg"
+                    onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                    {tier.cta}
+                  </Button>
+                </CardFooter>
+              </Card>
             </GlowingCard>
           ))}
         </div>
