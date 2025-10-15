@@ -220,7 +220,7 @@ All colors MUST be HSL.
     /* outer padding so the glow can overflow the element without being masked */
     inset: calc(var(--outset) * -1);
     pointer-events: none;
-    z-index: 1;
+    z-index: 3;
     
     /* glow is masked to a cone, originating from the center towards the pointer */
     mask-image: 

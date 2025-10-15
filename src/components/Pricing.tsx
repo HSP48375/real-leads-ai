@@ -70,10 +70,10 @@ const Pricing = () => {
           {tiers.map((tier, index) => (
             <GlowingCard key={tier.name}>
               <Card 
-                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent ${
+                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-transparent shadow-none ${
                   tier.featured 
-                    ? 'shadow-gold-glow scale-105 bg-card/60' 
-                    : 'bg-card/40'
+                    ? 'shadow-gold-glow scale-105' 
+                    : ''
                 }`}
                 style={{ animationDelay: `${index * 150}ms` }}
               >
