@@ -30,29 +30,28 @@ const Testimonials = () => {
     <section className="py-20 relative">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Trusted by
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> Real Professionals</span>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 text-white uppercase tracking-tight">
+            Trusted by Real Professionals
           </h2>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-xl text-white/80 font-medium">
             Join thousands of realtors who've ditched cold lists for verified leads.
           </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {testimonials.map((testimonial) => (
-            <Card key={testimonial.name} className="border-border transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_hsl(43_74%_66%_/_0.3)] hover:-translate-y-1">
+            <Card key={testimonial.name} className="bg-white/5 border-white/10 transition-all duration-300 hover:border-primary/50 hover:shadow-lime hover:-translate-y-1 backdrop-blur-md">
               <CardContent className="pt-6">
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-5 h-5 fill-primary text-primary" />
                   ))}
                 </div>
-                <p className="text-foreground mb-6 italic">"{testimonial.content}"</p>
+                <p className="text-white mb-6 italic">"{testimonial.content}"</p>
                 <div>
-                  <p className="font-semibold text-foreground">{testimonial.name}</p>
-                  <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                  <p className="text-sm text-muted-foreground">{testimonial.location}</p>
+                  <p className="font-bold text-white">{testimonial.name}</p>
+                  <p className="text-sm text-white/70">{testimonial.role}</p>
+                  <p className="text-sm text-white/70">{testimonial.location}</p>
                 </div>
               </CardContent>
             </Card>

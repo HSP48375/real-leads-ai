@@ -52,12 +52,13 @@ export default {
         },
       },
       backgroundImage: {
-        'gradient-gold': 'var(--gradient-gold)',
-        'gradient-dark': 'var(--gradient-dark)',
+        'gradient-green': 'var(--gradient-green)',
+        'gradient-lime': 'var(--gradient-lime)',
+        'gradient-dark-green': 'var(--gradient-dark-green)',
       },
       boxShadow: {
-        'gold': 'var(--shadow-gold)',
-        'gold-glow': 'var(--shadow-gold-glow)',
+        'lime': 'var(--shadow-lime)',
+        'lime-glow': 'var(--shadow-lime-glow)',
         'subtle': 'var(--shadow-subtle)',
       },
       backdropBlur: {
@@ -111,6 +112,14 @@ export default {
             opacity: "0.5",
           },
         },
+        "marquee": {
+          "0%": {
+            transform: "translateX(0%)",
+          },
+          "100%": {
+            transform: "translateX(-50%)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -118,6 +127,7 @@ export default {
         "fade-in": "fade-in 0.6s ease-out",
         "shimmer": "shimmer 3s linear infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "marquee": "marquee 40s linear infinite",
       },
     },
   },

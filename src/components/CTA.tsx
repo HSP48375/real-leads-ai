@@ -6,15 +6,11 @@ const CTA = () => {
     <section className="py-20 relative">
       <div className="container px-4">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold">
-            Ready to Stop Chasing
-            <br />
-            <span className="bg-gradient-gold bg-clip-text text-transparent">
-              Dead Leads?
-            </span>
+          <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tight">
+            Ready to Stop Chasing Dead Leads?
           </h2>
           
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/80 max-w-2xl mx-auto font-medium">
             Get fresh, verified FSBO leads delivered to your inbox within 24 hours. 
             Real people. Real listings. Real ROI.
           </p>
@@ -22,7 +18,7 @@ const CTA = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               size="lg" 
-              className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg shadow-gold transition-all hover:shadow-xl group"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 py-7 text-lg shadow-lime-glow transition-all group uppercase tracking-wide"
               onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Get Started Now
@@ -30,18 +26,18 @@ const CTA = () => {
             </Button>
           </div>
 
-          <div className="pt-8 flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
+          <div className="pt-8 flex flex-wrap justify-center gap-8 text-sm text-white/70">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>No setup fees</span>
+              <span className="font-medium">No setup fees</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Cancel anytime</span>
+              <span className="font-medium">Cancel anytime</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Money-back guarantee</span>
+              <span className="font-medium">Money-back guarantee</span>
             </div>
           </div>
         </div>

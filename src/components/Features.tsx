@@ -29,25 +29,24 @@ const Features = () => {
     <section className="py-20 relative">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Why Choose
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> RealtyLeadsAI?</span>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 text-white uppercase tracking-tight">
+            Why Choose RealtyLeadsAI?
           </h2>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-xl text-white/80 font-medium">
             Most lead companies sell recycled, outdated lists. We deliver fresh, real-time scraped data from active listings.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {features.map((feature, index) => (
-            <div key={feature.title} className="text-center space-y-4">
+            <div key={feature.title} className="text-center space-y-4 p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:border-primary/30 transition-all duration-300">
               <MicroParallax offset={12 + index * 3}>
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-gold">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary shadow-lime">
                   <feature.icon className="w-8 h-8 text-primary-foreground" />
                 </div>
               </MicroParallax>
-              <h3 className="text-xl font-semibold">{feature.title}</h3>
-              <p className="text-muted-foreground">{feature.description}</p>
+              <h3 className="text-xl font-bold text-white">{feature.title}</h3>
+              <p className="text-white/70">{feature.description}</p>
             </div>
           ))}
         </div>

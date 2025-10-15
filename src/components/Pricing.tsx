@@ -57,11 +57,10 @@ const Pricing = () => {
     <section id="pricing" className="py-20 relative">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Pricing That Makes
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> Sense</span>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 text-white uppercase tracking-tight">
+            Pricing That Makes Sense
           </h2>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-xl text-white/80 font-medium">
             All plans include fresh, geo-verified leads with no recycled data. Real homeowners, verified and ready within 24 hours.
           </p>
         </div>
@@ -70,27 +69,27 @@ const Pricing = () => {
           {tiers.map((tier, index) => (
             <GlowingCard key={tier.name}>
               <Card 
-                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-transparent shadow-none ${
+                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-white/5 shadow-none ${
                   tier.featured 
-                    ? 'shadow-gold-glow scale-105' 
-                    : ''
+                    ? 'shadow-lime-glow scale-105 border-primary/30' 
+                    : 'border-white/10'
                 }`}
                 style={{ animationDelay: `${index * 150}ms` }}
               >
               {tier.featured && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-gold rounded-full shadow-gold">
-                  <span className="text-sm font-semibold text-primary-foreground">Most Popular</span>
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary rounded-full shadow-lime">
+                  <span className="text-sm font-bold text-primary-foreground uppercase tracking-wide">Most Popular</span>
                 </div>
               )}
               
               <CardHeader className="pb-8 pt-8">
-                <CardTitle className="text-2xl">{tier.name}</CardTitle>
+                <CardTitle className="text-2xl font-bold text-white">{tier.name}</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold">{tier.price}</span>
+                  <span className="text-4xl font-black text-white">{tier.price}</span>
                 </div>
-                <CardDescription className="text-base mt-2">{tier.leads}</CardDescription>
-                <p className="text-xs text-primary/80 mt-1 font-medium">{tier.costPerLead}</p>
-                <p className="text-sm text-muted-foreground mt-4">{tier.description}</p>
+                <CardDescription className="text-base mt-2 text-white/70">{tier.leads}</CardDescription>
+                <p className="text-xs text-primary mt-1 font-bold">{tier.costPerLead}</p>
+                <p className="text-sm text-white/60 mt-4">{tier.description}</p>
               </CardHeader>
 
               <CardContent>
@@ -98,7 +97,7 @@ const Pricing = () => {
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-foreground">{feature}</span>
+                      <span className="text-sm text-white">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -106,10 +105,10 @@ const Pricing = () => {
 
               <CardFooter>
                 <Button 
-                  className={`w-full transition-all duration-300 ${
+                  className={`w-full transition-all duration-300 font-bold uppercase tracking-wide ${
                     tier.featured
-                      ? 'bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-[0_0_80px_hsl(43_74%_66%_/_0.6),0_0_40px_hsl(43_74%_66%_/_0.4)]'
-                      : 'bg-secondary text-secondary-foreground hover:bg-gradient-gold hover:text-primary-foreground hover:shadow-gold-glow'
+                      ? 'bg-primary text-primary-foreground shadow-lime-glow hover:bg-primary/90'
+                      : 'bg-white/10 text-white hover:bg-primary hover:text-primary-foreground hover:shadow-lime'
                   }`}
                   size="lg"
                   onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}

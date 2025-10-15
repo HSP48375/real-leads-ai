@@ -57,31 +57,31 @@ const OrderForm = () => {
     <section id="order-form" className="py-20 relative">
       <div className="container px-4">
         <div className="max-w-2xl mx-auto">
-          <Card className="backdrop-blur-glass bg-card/40 border-primary/30 shadow-[0_0_80px_hsl(43_74%_66%_/_0.5),0_20px_60px_-15px_hsl(43_74%_66%_/_0.4),0_-10px_40px_-10px_hsl(43_74%_66%_/_0.3),15px_15px_50px_-10px_hsl(43_74%_66%_/_0.35),-15px_15px_50px_-10px_hsl(43_74%_66%_/_0.35)] animate-fade-in">
+          <Card className="backdrop-blur-md bg-white/5 border-primary/30 shadow-lime-glow animate-fade-in">
             <CardHeader>
-              <CardTitle className="text-3xl text-center">
-                Get Your <span className="bg-gradient-gold bg-clip-text text-transparent">Verified Leads</span>
+              <CardTitle className="text-4xl text-center font-black text-white uppercase tracking-tight">
+                Get Your Verified Leads
               </CardTitle>
-              <CardDescription className="text-center text-base">
+              <CardDescription className="text-center text-base text-white/70 font-medium">
                 Fill out the form below and we'll deliver fresh, geo-verified leads within 24 hours
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name" className="text-white font-bold">Full Name</Label>
                   <Input
                     id="name"
                     placeholder="John Doe"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-primary transition-colors"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email" className="text-white font-bold">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
@@ -89,26 +89,26 @@ const OrderForm = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-primary transition-colors"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="city">City or Zip Code</Label>
+                  <Label htmlFor="city" className="text-white font-bold">City or Zip Code</Label>
                   <Input
                     id="city"
                     placeholder="Los Angeles, CA or 90001"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-primary transition-colors"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tier">Select Pricing Tier</Label>
+                  <Label htmlFor="tier" className="text-white font-bold">Select Pricing Tier</Label>
                   <Select value={formData.tier} onValueChange={(value) => setFormData({ ...formData, tier: value })} required>
-                    <SelectTrigger className="bg-background/50 border-border/50 focus:border-primary transition-colors">
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-primary transition-colors">
                       <SelectValue placeholder="Choose your plan" />
                     </SelectTrigger>
                     <SelectContent>
@@ -122,7 +122,7 @@ const OrderForm = () => {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground font-semibold shadow-gold transition-all duration-300 group relative overflow-hidden"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lime-glow transition-all duration-300 uppercase tracking-wide"
                   size="lg"
                 >
                   {isSubmitting ? (
@@ -131,14 +131,11 @@ const OrderForm = () => {
                       Processing...
                     </>
                   ) : (
-                    <>
-                      <span className="relative z-10">Place Order</span>
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </>
+                    "Place Order"
                   )}
                 </Button>
 
-                <p className="text-xs text-muted-foreground text-center mt-4">
+                <p className="text-xs text-white/60 text-center mt-4 font-medium">
                   By submitting this form, you agree to receive your leads and order confirmation via email.
                 </p>
               </form>
