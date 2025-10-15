@@ -50,7 +50,7 @@ const Hero = () => {
           </h1>
 
           {/* Subheading */}
-          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-foreground max-w-2xl mx-auto">
             Stop chasing bad leads. Start connecting with real homeowners — fast.
           </p>
 
