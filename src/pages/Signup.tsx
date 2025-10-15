@@ -85,19 +85,8 @@ const Signup = () => {
 
               {/* Heading */}
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-foreground">Account Created! 🎉</h1>
+                <h1 className="text-3xl font-bold text-foreground">Account Created! 💃</h1>
                 <p className="text-xl text-muted-foreground">Check your email to verify your account</p>
-              </div>
-
-              {/* Body Text */}
-              <div className="space-y-4 py-4">
-                <p className="text-base text-foreground">
-                  We sent a confirmation link to{' '}
-                  <span className="font-semibold text-primary">{signupEmail}</span>
-                </p>
-                <p className="text-base text-muted-foreground">
-                  Click the link in that email to activate your account and start ordering leads.
-                </p>
               </div>
 
               {/* Action Buttons */}
