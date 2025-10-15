@@ -22,16 +22,14 @@ const Hero = () => {
 
           {/* Main heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-            Fresh Real Estate Leads.
-            <br />
             <span className="bg-gradient-gold bg-clip-text text-transparent">
-              Geo-Verified. Scam-Free.
+              Connect with Homeowners Who Are Ready to Talk.
             </span>
           </h1>
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            No cold lists. No recycled data. Real homeowners, verified and ready within 24 hours.
+            Every lead verified by location, ownership, and intent — no spam, no waste.
           </p>
 
           {/* Value props */}
