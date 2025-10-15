@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Package, User, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, User, LogOut, Menu, X, Home } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -93,6 +93,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </Link>
               </div>
             </div>
+          </div>
+
+          {/* Back to Website Link */}
+          <div className="p-4 border-b border-border">
+            <Link
+              to="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition-all duration-300"
+            >
+              <Home className="h-5 w-5" />
+              <span className="font-medium">← Back to Website</span>
+            </Link>
           </div>
 
           {/* Navigation */}
