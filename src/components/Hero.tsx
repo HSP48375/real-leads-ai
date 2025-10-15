@@ -23,16 +23,16 @@ const Hero = () => {
 
           {/* Main heading */}
           <h1 className="font-black leading-[0.9] tracking-tighter">
-            <span className="block text-7xl md:text-[10rem] lg:text-[14rem] text-white uppercase">
+            <span className="block text-5xl md:text-7xl lg:text-8xl text-white uppercase">
               REAL LEADS
             </span>
-            <span className="block text-4xl md:text-6xl lg:text-7xl text-white uppercase mt-4">
+            <span className="block text-2xl md:text-4xl lg:text-5xl text-white uppercase mt-4">
               You Can Rely On
             </span>
           </h1>
 
           {/* Subheading */}
-          <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto font-medium">
+          <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto font-medium">
             Stop chasing bad leads. Start connecting with real homeowners — fast.
           </p>
 
