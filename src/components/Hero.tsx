@@ -23,10 +23,10 @@ const Hero = () => {
 
           {/* Main heading */}
           <h1 className="font-black leading-[0.9] tracking-tighter">
-            <span className="block text-7xl md:text-[10rem] lg:text-[12rem] text-white uppercase">
-              REAL Leads
+            <span className="block text-7xl md:text-[10rem] lg:text-[14rem] text-white uppercase">
+              REAL LEADS
             </span>
-            <span className="block text-3xl md:text-5xl lg:text-6xl text-white uppercase mt-4">
+            <span className="block text-4xl md:text-6xl lg:text-7xl text-white uppercase mt-4">
               You Can Rely On
             </span>
           </h1>
