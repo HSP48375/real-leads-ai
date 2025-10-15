@@ -57,7 +57,7 @@ const Hero = () => {
           </p>
 
           {/* Value props */}
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground pt-32">
+          <div className="flex flex-wrap justify-center gap-8 text-base text-foreground pt-32">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
               <span>Real People</span>
