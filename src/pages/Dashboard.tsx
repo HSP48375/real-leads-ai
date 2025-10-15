@@ -28,7 +28,9 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchDashboardData();
+      // Temporarily disable orders fetching until orders table is ready
+      // fetchDashboardData();
+      setLoading(false);
     }
   }, [user]);
 
@@ -48,28 +50,11 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
-    try {
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (ordersError) throw ordersError;
-
-      const totalOrders = orders?.length || 0;
-      const totalLeads = orders?.reduce((sum, order) => sum + (order.leads_count || 0), 0) || 0;
-      const totalSpent = orders?.reduce((sum, order) => {
-        const price = getPriceForTier(order.tier);
-        return sum + price;
-      }, 0) || 0;
-
-      setStats({ totalOrders, totalLeads, totalSpent });
-      setRecentOrders(orders?.slice(0, 5) || []);
-    } catch (error: any) {
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
+    // Temporarily disabled until orders table is created.
+    // Graceful fallback: show empty state and zero stats without toasts.
+    setStats({ totalOrders: 0, totalLeads: 0, totalSpent: 0 });
+    setRecentOrders([]);
+    setLoading(false);
   };
 
   const getPriceForTier = (tier: string) => {
