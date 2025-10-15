@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Header from '@/components/Header';
+import GlowingCard from '@/components/GlowingCard';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -25,44 +26,6 @@ const Signup = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
   const { signUp, signInWithOAuth } = useAuth();
-  const glowCardRef = useRef<HTMLDivElement>(null);
-  const formGlowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showSuccess) return;
-    
-    const glowCard = glowCardRef.current;
-    if (!glowCard) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const rect = glowCard.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      glowCard.style.setProperty('--pointer-x', `${x}px`);
-      glowCard.style.setProperty('--pointer-y', `${y}px`);
-    };
-
-    glowCard.addEventListener('pointermove', handlePointerMove);
-    return () => glowCard.removeEventListener('pointermove', handlePointerMove);
-  }, [showSuccess]);
-
-  useEffect(() => {
-    const formGlow = formGlowRef.current;
-    if (!formGlow) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const rect = formGlow.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      formGlow.style.setProperty('--pointer-x', `${x}px`);
-      formGlow.style.setProperty('--pointer-y', `${y}px`);
-    };
-
-    formGlow.addEventListener('pointermove', handlePointerMove);
-    return () => formGlow.removeEventListener('pointermove', handlePointerMove);
-  }, []);
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setOauthLoading(true);
@@ -124,12 +87,11 @@ const Signup = () => {
   if (showSuccess) {
     return (
       <>
-        <Header />
-        <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
-          <div className="w-full max-w-md">
-          <div ref={glowCardRef} className="glow-card">
-            <span className="glow"></span>
-            <div className="card-inner bg-card border border-border rounded-lg p-8 text-center space-y-6">
+      <Header />
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
+        <div className="w-full max-w-md">
+          <GlowingCard>
+            <div className="bg-card border border-border rounded-lg p-8 text-center space-y-6">
               {/* Success Icon */}
               <div className="flex justify-center">
                 <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -175,9 +137,9 @@ const Signup = () => {
                 Check your spam folder if you don't see it within 5 minutes.
               </p>
             </div>
-          </div>
+          </GlowingCard>
         </div>
-        </div>
+      </div>
       </>
     );
   }
@@ -192,9 +154,8 @@ const Signup = () => {
           <p className="text-muted-foreground">Start getting verified FSBO leads today</p>
         </div>
 
-        <div ref={formGlowRef} className="glow-card">
-          <span className="glow"></span>
-          <form onSubmit={handleSubmit} className="card-inner space-y-6 bg-card border border-border rounded-lg p-8">
+        <GlowingCard>
+          <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-8">
           {/* OAuth Buttons */}
           <div className="space-y-4">
             <Button
@@ -284,7 +245,7 @@ const Signup = () => {
             </Link>
           </p>
           </form>
-        </div>
+        </GlowingCard>
 
         <p className="text-center text-xs text-muted-foreground">
           By signing up, you agree to our{' '}
