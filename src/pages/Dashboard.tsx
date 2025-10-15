@@ -204,7 +204,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
             return (
               <Card
                 key={stat.label}
-                className="relative overflow-hidden bg-gradient-to-br from-[#1a3a2e] to-[#0d1f1a] border border-primary/20 rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.3)] group"
+                className="relative overflow-hidden bg-gradient-to-br from-[#1f2937] to-[#111827] border border-primary/20 rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.3)] group"
                 style={{
                   animation: `fade-in 0.5s ease-out ${index * 0.1}s both`,
                 }}
@@ -237,7 +237,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
               <Card
                 key={action.title}
                 onClick={action.onClick}
-                className="cursor-pointer bg-gradient-to-br from-[#1a3a2e] to-[#0d1f1a] border border-primary/20 rounded-xl hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+                className="cursor-pointer bg-gradient-to-br from-[#1f2937] to-[#111827] border border-primary/20 rounded-xl hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,215,0,0.2)]"
               >
                 <CardContent className="p-6 flex items-start gap-4">
                   <div className="p-3 bg-primary/10 rounded-lg">
@@ -254,7 +254,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
         </div>
 
         {/* Ready for More Leads */}
-        <Card className="relative overflow-hidden bg-gradient-to-r from-[#1a3a2e] via-[#0d1f1a] to-[#1a3a2e] border-2 border-primary rounded-xl shadow-[0_0_30px_rgba(255,215,0,0.3)]">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-[#1f2937] to-[#111827] border-2 border-primary rounded-xl shadow-[0_0_30px_rgba(255,215,0,0.3)]">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjE1LDAsMC4wNSkiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
           <CardContent className="relative p-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -294,7 +294,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
                   {previewOrders.map((preview, index) => (
                     <div
                       key={index}
-                      className="relative bg-gradient-to-br from-muted/50 to-muted/30 border border-border rounded-xl p-6 opacity-60"
+                      className="relative bg-[rgba(31,41,55,0.5)] border border-border rounded-xl p-6 opacity-60"
                     >
                       <div className="absolute top-4 right-4">
                         <Lock className="h-6 w-6 text-muted-foreground" />
