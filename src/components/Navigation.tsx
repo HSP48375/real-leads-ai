@@ -44,7 +44,7 @@ const Navigation = () => {
         {/* CTA Button */}
         <Button
           onClick={() => scrollToSection("pricing")}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2 shadow-lime-glow"
+          className="bg-primary hover:bg-primary text-primary-foreground font-bold px-6 py-2 transition-all duration-300 hover:shadow-[0_0_40px_hsl(68_100%_70%_/_0.6),0_0_20px_hsl(68_100%_70%_/_0.4)]"
         >
           GET LEADS
         </Button>

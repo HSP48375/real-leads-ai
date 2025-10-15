@@ -122,7 +122,7 @@ const OrderForm = () => {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lime-glow transition-all duration-300 uppercase tracking-wide"
+                  className="w-full bg-primary hover:bg-primary text-primary-foreground font-bold transition-all duration-300 uppercase tracking-wide hover:shadow-[0_0_60px_hsl(68_100%_70%_/_0.6),0_0_30px_hsl(68_100%_70%_/_0.4),0_0_15px_hsl(68_100%_70%_/_0.3)]"
                   size="lg"
                 >
                   {isSubmitting ? (

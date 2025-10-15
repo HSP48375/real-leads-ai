@@ -107,8 +107,8 @@ const Pricing = () => {
                 <Button 
                   className={`w-full transition-all duration-300 font-bold uppercase tracking-wide ${
                     tier.featured
-                      ? 'bg-primary text-primary-foreground shadow-lime-glow hover:bg-primary/90'
-                      : 'bg-white/10 text-white hover:bg-primary hover:text-primary-foreground hover:shadow-lime'
+                      ? 'bg-primary text-primary-foreground hover:shadow-[0_0_60px_hsl(68_100%_70%_/_0.6),0_0_30px_hsl(68_100%_70%_/_0.4),0_0_15px_hsl(68_100%_70%_/_0.3)]'
+                      : 'bg-white/10 text-white hover:bg-primary hover:text-primary-foreground hover:shadow-[0_0_40px_hsl(68_100%_70%_/_0.5),0_0_20px_hsl(68_100%_70%_/_0.3)]'
                   }`}
                   size="lg"
                   onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}

@@ -18,7 +18,7 @@ const CTA = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               size="lg" 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 py-7 text-lg shadow-lime-glow transition-all group uppercase tracking-wide"
+              className="bg-primary hover:bg-primary text-primary-foreground font-bold px-10 py-7 text-lg transition-all duration-300 group uppercase tracking-wide hover:shadow-[0_0_60px_hsl(68_100%_70%_/_0.6),0_0_30px_hsl(68_100%_70%_/_0.4),0_0_15px_hsl(68_100%_70%_/_0.3)]"
               onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Get Started Now
