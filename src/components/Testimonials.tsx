@@ -43,9 +43,17 @@ const Testimonials = () => {
           {testimonials.map((testimonial) => (
             <Card key={testimonial.name} className="border-border transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_hsl(43_74%_66%_/_0.3)] hover:-translate-y-1">
               <CardContent className="pt-6">
-                <div className="flex gap-1 mb-4">
+                <div className="flex gap-1 mb-4 group">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-primary text-primary" />
+                    <Star 
+                      key={i} 
+                      className="w-5 h-5 fill-primary text-primary transition-all duration-300 group-hover:animate-shimmer group-hover:scale-110" 
+                      style={{ 
+                        animationDelay: `${i * 0.1}s`,
+                        backgroundImage: 'linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 50%, transparent 100%)',
+                        backgroundSize: '200% 100%'
+                      }}
+                    />
                   ))}
                 </div>
                 <p className="text-foreground mb-6 italic">"{testimonial.content}"</p>
