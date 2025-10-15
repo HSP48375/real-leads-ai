@@ -23,7 +23,7 @@ const Hero = () => {
           {/* Main heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">
             <span className="bg-gradient-gold bg-clip-text text-transparent">
-              REAL, Verified Leads You Can Rely On.
+              REAL Leads You Can Rely On.
             </span>
           </h1>
 
