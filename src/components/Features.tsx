@@ -31,7 +31,7 @@ const Features = () => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Why Choose
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> RealtyLeadsAI?</span>
+            <span className="text-primary"> RealtyLeadsAI?</span>
           </h2>
           <p className="text-xl text-muted-foreground">
             Most lead companies sell recycled, outdated lists. We deliver fresh, real-time scraped data from active listings.
