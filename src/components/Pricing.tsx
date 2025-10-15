@@ -51,9 +51,9 @@ const oneTimeTiers = [
   },
   {
     name: "Enterprise",
-    price: "$9,970",
-    subtext: "100+ verified leads per order",
-    costPerLead: "$3.50–$5.00 per lead",
+    price: "Contact Us",
+    subtext: "Custom pricing for your needs",
+    costPerLead: "",
     description: "For brokerages, large teams, and high-volume agents.",
     badge: "TEAMS & API",
     enterprise: true,
@@ -64,7 +64,7 @@ const oneTimeTiers = [
       "Custom dashboard & team tools",
       "Bulk processing"
     ],
-    cta: "GET STARTED"
+    cta: "CONTACT SALES"
   }
 ];
 
@@ -121,11 +121,11 @@ const monthlyTiers = [
   },
   {
     name: "Enterprise",
-    price: "$997",
+    price: "$597",
     period: "/month",
     savings: "Unlimited campaigns",
-    subtext: "Unlimited leads",
-    costPerLead: "$2.50–$4.00 per lead",
+    subtext: "Unlimited verified leads",
+    costPerLead: "",
     description: "For brokerages and high-volume operations.",
     badge: "TEAMS & API",
     enterprise: true,
@@ -136,7 +136,7 @@ const monthlyTiers = [
       "Custom integrations & team dashboard",
       "Dedicated success manager + SLA"
     ],
-    cta: "GET STARTED"
+    cta: "START SUBSCRIPTION"
   }
 ];
 
@@ -205,7 +205,7 @@ const Pricing = () => {
                     <p className="text-[10px] text-primary font-semibold mt-2 opacity-80">{(tier as any).savings}</p>
                   )}
                   <CardDescription className="text-sm mt-3">{tier.subtext}</CardDescription>
-                  <p className="text-[9px] text-primary/60 mt-1.5 font-medium opacity-60">{tier.costPerLead}</p>
+                  {tier.costPerLead && <p className="text-[9px] text-primary/60 mt-1.5 font-medium opacity-60">{tier.costPerLead}</p>}
                   <p className="text-sm text-muted-foreground mt-4 min-h-[40px]">{tier.description}</p>
                 </CardHeader>
 
