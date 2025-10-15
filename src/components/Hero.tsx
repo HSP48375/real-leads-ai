@@ -29,6 +29,8 @@ const Hero = () => {
     <section className="relative min-h-screen flex items-start justify-center">
       {/* Parallax background image */}
       <ParallaxBackground imageSrc={heroImage} />
+      {/* Dark overlay for better text contrast */}
+      <div className="absolute inset-0 bg-black/25 pointer-events-none"></div>
       {/* Radial accent overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
@@ -36,9 +38,9 @@ const Hero = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Badge with micro-parallax */}
           <MicroParallax offset={20}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></div>
-              <span className="text-xs font-medium text-foreground uppercase tracking-wider">
+              <span className="text-sm font-medium text-foreground uppercase tracking-wider">
                 Trusted by thousands of realtors nationwide
               </span>
             </div>
@@ -85,7 +87,7 @@ const Hero = () => {
                   onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <span className="relative z-10">Get Verified Leads</span>
-                  <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                 </Button>
               </div>
