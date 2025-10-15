@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const testimonials = [
   {
@@ -26,8 +27,28 @@ const testimonials = [
 ];
 
 const Testimonials = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="py-20 relative">
+    <section ref={sectionRef} className="py-20 relative">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
@@ -43,15 +64,16 @@ const Testimonials = () => {
           {testimonials.map((testimonial) => (
             <Card key={testimonial.name} className="border-border transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_40px_hsl(43_74%_66%_/_0.3)] hover:-translate-y-1">
               <CardContent className="pt-6">
-                <div className="flex gap-1 mb-4 group">
+                <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star 
                       key={i} 
-                      className="w-5 h-5 fill-primary text-primary transition-all duration-300 group-hover:animate-shimmer group-hover:scale-110" 
+                      className={`w-5 h-5 fill-primary text-primary transition-all duration-500 ${
+                        isVisible ? 'animate-pulse-glow' : ''
+                      }`}
                       style={{ 
-                        animationDelay: `${i * 0.1}s`,
-                        backgroundImage: 'linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 50%, transparent 100%)',
-                        backgroundSize: '200% 100%'
+                        animationDelay: `${i * 0.15}s`,
+                        filter: isVisible ? 'drop-shadow(0 0 8px hsl(var(--primary)))' : 'none'
                       }}
                     />
                   ))}
