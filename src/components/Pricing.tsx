@@ -68,11 +68,7 @@ const Pricing = () => {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {tiers.map((tier, index) => (
-            <GlowingCard
-              key={tier.name}
-              className={tier.featured ? 'featured-glow' : ''}
-              featured={tier.featured}
-            >
+            <GlowingCard key={tier.name}>
               <Card 
                 className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in ${
                   tier.featured 
