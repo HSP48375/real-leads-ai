@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
+import GlowingCard from "@/components/GlowingCard";
 
 const tiers = [
   {
@@ -67,15 +68,19 @@ const Pricing = () => {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {tiers.map((tier, index) => (
-            <Card 
+            <GlowingCard
               key={tier.name}
-              className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in group ${
-                tier.featured 
-                  ? 'border-primary shadow-gold-glow scale-105 bg-card/60' 
-                  : 'border-border/50 bg-card/40 hover:border-primary/50'
-              }`}
-              style={{ animationDelay: `${index * 150}ms` }}
+              className={tier.featured ? 'featured-glow' : ''}
+              featured={tier.featured}
             >
+              <Card 
+                className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in ${
+                  tier.featured 
+                    ? 'border-primary/30 shadow-gold-glow scale-105 bg-card/60' 
+                    : 'border-border/30 bg-card/40'
+                }`}
+                style={{ animationDelay: `${index * 150}ms` }}
+              >
               {tier.featured && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-gold rounded-full shadow-gold">
                   <span className="text-sm font-semibold text-primary-foreground">Most Popular</span>
@@ -117,6 +122,7 @@ const Pricing = () => {
                 </Button>
               </CardFooter>
             </Card>
+            </GlowingCard>
           ))}
         </div>
       </div>

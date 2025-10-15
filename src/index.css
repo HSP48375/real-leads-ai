@@ -146,4 +146,58 @@ All colors MUST be HSL.
   h1, h2, h3 {
     text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
   }
+
+  /* Glowing card border effect */
+  .glowing-card-border {
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: 
+      conic-gradient(
+        from 180deg at var(--x, 50%) var(--y, 50%),
+        transparent 0deg 120deg,
+        hsl(var(--primary)) 0deg
+      ),
+      conic-gradient(
+        from 0deg at var(--x, 50%) var(--y, 50%),
+        hsl(var(--accent)) 0deg,
+        transparent 120deg 360deg
+      );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .group:hover .glowing-card-border {
+    opacity: 1;
+  }
+
+  /* Enhanced glow on featured cards */
+  .featured-glow .glowing-card-border {
+    background: 
+      conic-gradient(
+        from 180deg at var(--x, 50%) var(--y, 50%),
+        transparent 0deg 100deg,
+        hsl(var(--primary)) 0deg 200deg,
+        transparent 200deg
+      ),
+      conic-gradient(
+        from 0deg at var(--x, 50%) var(--y, 50%),
+        hsl(var(--accent)) 0deg 100deg,
+        transparent 100deg 200deg,
+        hsl(43 100% 70%) 200deg 300deg,
+        transparent 300deg 360deg
+      );
+    filter: blur(8px);
+  }
+
+  .group:hover .featured-glow .glowing-card-border {
+    opacity: 0.8;
+  }
 }
