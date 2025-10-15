@@ -5,7 +5,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-2">
             <h3 className="text-2xl font-bold mb-4">
-              <span className="bg-gradient-gold bg-clip-text text-transparent">RealtyLeadsAI</span>
+              <span className="text-primary">RealtyLeadsAI</span>
             </h3>
             <p className="text-muted-foreground mb-4">
               Fresh real estate leads. Geo-verified. Scam-free.
