@@ -51,7 +51,7 @@ const oneTimeTiers = [
   },
   {
     name: "Enterprise",
-    price: "Custom Pricing",
+    price: "$9,970",
     subtext: "100+ verified leads per order",
     costPerLead: "$3.50–$5.00 per lead",
     description: "For brokerages, large teams, and high-volume agents.",
@@ -64,7 +64,7 @@ const oneTimeTiers = [
       "Custom dashboard & team tools",
       "Bulk processing"
     ],
-    cta: "CONTACT SALES"
+    cta: "GET STARTED"
   }
 ];
 
@@ -121,7 +121,7 @@ const monthlyTiers = [
   },
   {
     name: "Enterprise",
-    price: "Starting at $997",
+    price: "$997",
     period: "/month",
     savings: "Unlimited campaigns",
     subtext: "Unlimited leads",
@@ -136,7 +136,7 @@ const monthlyTiers = [
       "Custom integrations & team dashboard",
       "Dedicated success manager + SLA"
     ],
-    cta: "SCHEDULE DEMO"
+    cta: "GET STARTED"
   }
 ];
 
@@ -202,12 +202,12 @@ const Pricing = () => {
                     <p className="text-[10px] text-primary font-semibold mt-2 opacity-80">{(tier as any).savings}</p>
                   )}
                   <CardDescription className="text-sm mt-3">{tier.subtext}</CardDescription>
-                  <p className="text-[11px] text-primary/70 mt-1.5 font-medium opacity-70">{tier.costPerLead}</p>
+                  <p className="text-[9px] text-primary/60 mt-1.5 font-medium opacity-60">{tier.costPerLead}</p>
                   <p className="text-sm text-muted-foreground mt-4 min-h-[40px]">{tier.description}</p>
                 </CardHeader>
 
                 <CardContent className="flex-grow px-6">
-                  <ul className="space-y-4" style={{ lineHeight: '1.8' }}>
+                  <ul className="space-y-5" style={{ lineHeight: '2.0' }}>
                     {tier.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-3">
                         <Check className="w-4 h-4 text-primary flex-shrink-0 mt-1" />
@@ -233,6 +233,65 @@ const Pricing = () => {
               </Card>
             </GlowingCard>
           ))}
+        </div>
+
+        {/* API Access Section */}
+        <div className="mt-12 max-w-7xl mx-auto">
+          <Card className="backdrop-blur-glass bg-card/80 border-2 border-primary/30 shadow-gold-glow">
+            <CardContent className="p-8">
+              <div className="flex flex-col lg:flex-row items-center gap-6 lg:gap-8">
+                {/* Icon */}
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-grow text-center lg:text-left">
+                  <h3 className="text-2xl font-bold mb-2">Need API Access or Custom Integrations?</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Direct API access to integrate with your CRM, build custom workflows, or white-label our service.
+                  </p>
+                  <div className="flex flex-wrap justify-center lg:justify-start gap-4 text-sm">
+                    <span className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      Direct API
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      Webhooks
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      Custom endpoints
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      White-label
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      Technical support
+                    </span>
+                  </div>
+                </div>
+                
+                {/* CTA Button */}
+                <div className="flex-shrink-0">
+                  <Button 
+                    className="bg-primary text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-gold-glow px-8"
+                    size="lg"
+                    onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                    Contact for API Access
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>
