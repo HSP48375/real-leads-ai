@@ -53,7 +53,7 @@ const Testimonials = () => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Trusted by
-            <span className="bg-gradient-gold bg-clip-text text-transparent"> Real Professionals</span>
+            <span className="bg-gradient-gold bg-clip-text text-transparent text-gold-glow"> Real Professionals</span>
           </h2>
           <p className="text-xl text-muted-foreground">
             Join thousands of realtors who've ditched cold lists for verified leads.
