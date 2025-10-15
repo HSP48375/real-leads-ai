@@ -46,7 +46,7 @@ const Hero = () => {
 
           {/* Main heading */}
           <h1 className="font-bold leading-tight text-3xl md:text-5xl lg:text-6xl text-[hsl(var(--headline))]">
-            Real Leads You Can Rely On
+            Real leads you can rely on
           </h1>
 
           {/* Subheading */}
