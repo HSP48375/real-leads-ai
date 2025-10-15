@@ -43,9 +43,11 @@ const ScrollParallaxHero = () => {
         {/* Parallax background image */}
         <div className="parallax-image absolute inset-0">
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-110"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{ backgroundImage: `url(${sunsetImage})` }}
           />
+          {/* Black overlay at 60% opacity */}
+          <div className="absolute inset-0 bg-black opacity-60" />
         </div>
 
         {/* Fade to black overlay */}
