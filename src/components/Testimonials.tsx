@@ -73,7 +73,7 @@ const Testimonials = () => {
                       }`}
                       style={{ 
                         animationDelay: `${i * 0.15}s`,
-                        filter: isVisible ? 'drop-shadow(0 0 8px hsl(var(--primary)))' : 'none'
+                        filter: isVisible ? 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))' : 'none'
                       }}
                     />
                   ))}
