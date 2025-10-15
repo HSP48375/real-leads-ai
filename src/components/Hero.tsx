@@ -45,7 +45,7 @@ const Hero = () => {
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="font-bold leading-tight text-6xl md:text-8xl lg:text-9xl text-[hsl(var(--headline))]">
+          <h1 className="font-bold leading-tight text-4xl md:text-6xl lg:text-7xl text-[hsl(var(--headline))]">
             Real Leads You Can Rely On
           </h1>
 
