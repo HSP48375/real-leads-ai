@@ -53,7 +53,7 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-foreground max-w-2xl mx-auto">
-            Stop chasing bad leads. Start connecting with real homeowners — fast.
+            No cold calls. No chasing. Just verified FSBO leads that convert—delivered in 24 hours.
           </p>
 
           {/* Value props */}
