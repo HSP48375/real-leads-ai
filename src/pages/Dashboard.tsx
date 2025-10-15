@@ -4,8 +4,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, DollarSign } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Package, TrendingUp, DollarSign, Download, Play, MessageCircle, Lock, ArrowRight, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DashboardStats {
@@ -16,6 +16,7 @@ interface DashboardStats {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [userName, setUserName] = useState('');
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
     totalLeads: 0,
@@ -26,13 +27,28 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user) {
+      fetchUserProfile();
       fetchDashboardData();
     }
   }, [user]);
 
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user!.id)
+        .single();
+
+      if (error) throw error;
+      setUserName(data?.full_name || '');
+    } catch (error: any) {
+      console.error('Failed to load profile');
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
-      // Fetch all orders for stats
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
@@ -40,7 +56,6 @@ const Dashboard = () => {
 
       if (ordersError) throw ordersError;
 
-      // Calculate stats
       const totalOrders = orders?.length || 0;
       const totalLeads = orders?.reduce((sum, order) => sum + (order.leads_count || 0), 0) || 0;
       const totalSpent = orders?.reduce((sum, order) => {
@@ -49,8 +64,6 @@ const Dashboard = () => {
       }, 0) || 0;
 
       setStats({ totalOrders, totalLeads, totalSpent });
-
-      // Set recent orders (last 5)
       setRecentOrders(orders?.slice(0, 5) || []);
     } catch (error: any) {
       toast.error('Failed to load dashboard data');
@@ -87,99 +100,219 @@ const Dashboard = () => {
     });
   };
 
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const handleDownloadSample = () => {
+    const sampleCSV = `Name,Address,City,State,ZIP,Phone,Price,Date Listed,URL
+John Smith,123 Main St,Detroit,MI,48201,(313) 555-0100,$350000,2024-01-15,https://example.com
+Jane Doe,456 Oak Ave,Ann Arbor,MI,48103,(734) 555-0200,$425000,2024-01-14,https://example.com
+Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,https://example.com`;
+    
+    const blob = new Blob([sampleCSV], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample-fsbo-leads.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    toast.success('Sample CSV downloaded');
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </DashboardLayout>
     );
   }
 
+  const statsCards = [
+    {
+      label: 'Total Orders',
+      value: stats.totalOrders,
+      icon: Package,
+      trend: '+12%',
+      color: 'text-primary',
+    },
+    {
+      label: 'Total Leads',
+      value: stats.totalLeads,
+      icon: TrendingUp,
+      trend: '+24%',
+      color: 'text-primary',
+    },
+    {
+      label: 'Total Spent',
+      value: `$${stats.totalSpent.toLocaleString()}`,
+      icon: DollarSign,
+      trend: '+8%',
+      color: 'text-primary',
+    },
+  ];
+
+  const quickActions = [
+    {
+      title: 'Download Sample CSV',
+      description: 'See what our lead data looks like',
+      icon: Download,
+      onClick: handleDownloadSample,
+    },
+    {
+      title: 'Watch Tutorial',
+      description: 'Learn how to use your leads effectively',
+      icon: Play,
+      onClick: () => toast.info('Tutorial coming soon!'),
+    },
+    {
+      title: 'Contact Support',
+      description: "Questions? We're here to help",
+      icon: MessageCircle,
+      onClick: () => window.location.href = 'mailto:hello@realtyleadsai.com',
+    },
+  ];
+
+  const previewOrders = [
+    { city: 'Metro Detroit', leads: 45, price: 197 },
+    { city: 'Ann Arbor', leads: 25, price: 97 },
+    { city: 'Royal Oak', leads: 18, price: 97 },
+  ];
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back! Here's your account overview.
-          </p>
+        {/* Welcome Message */}
+        <div className="animate-fade-in">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            {getTimeBasedGreeting()}, {userName || 'there'}!
+          </h1>
+          <p className="text-muted-foreground text-lg">Here's your account overview</p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Orders
-              </CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.totalOrders}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Leads
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.totalLeads}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Spent
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">
-                ${stats.totalSpent.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
+          {statsCards.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <Card
+                key={stat.label}
+                className="relative overflow-hidden bg-gradient-to-br from-[#1a3a2e] to-[#0d1f1a] border border-primary/20 rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.3)] group"
+                style={{
+                  animation: `fade-in 0.5s ease-out ${index * 0.1}s both`,
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-muted-foreground uppercase tracking-wide">
+                      {stat.label}
+                    </span>
+                    <Icon className="h-8 w-8 text-primary" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.5))' }} />
+                  </div>
+                  <div className="text-5xl font-bold text-foreground mb-2">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-green-500 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    <span>{stat.trend} this month</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* CTA */}
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-foreground mb-2">
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {quickActions.map((action, index) => {
+            const Icon = action.icon;
+            return (
+              <Card
+                key={action.title}
+                onClick={action.onClick}
+                className="cursor-pointer bg-gradient-to-br from-[#1a3a2e] to-[#0d1f1a] border border-primary/20 rounded-xl hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+              >
+                <CardContent className="p-6 flex items-start gap-4">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <Icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">{action.title}</h3>
+                    <p className="text-sm text-muted-foreground">{action.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Ready for More Leads */}
+        <Card className="relative overflow-hidden bg-gradient-to-r from-[#1a3a2e] via-[#0d1f1a] to-[#1a3a2e] border-2 border-primary rounded-xl shadow-[0_0_30px_rgba(255,215,0,0.3)]">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjE1LDAsMC4wNSkiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
+          <CardContent className="relative p-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex-1 text-center md:text-left">
+                <h2 className="text-3xl font-bold text-foreground mb-3">
                   Ready for More Leads?
-                </h3>
-                <p className="text-muted-foreground">
+                </h2>
+                <p className="text-lg text-muted-foreground mb-4">
                   Get verified FSBO leads delivered to your inbox within 24 hours
                 </p>
+                <div className="flex items-center justify-center md:justify-start gap-2 text-primary">
+                  <Star className="h-5 w-5 fill-primary" />
+                  <span className="font-medium">Join 527+ agents closing more deals</span>
+                </div>
               </div>
               <Link to="/#pricing">
-                <Button size="lg">Order New Leads</Button>
+                <Button 
+                  size="lg"
+                  className="px-8 py-6 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_40px_rgba(255,215,0,0.4)] group"
+                >
+                  Order New Leads
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
               </Link>
             </div>
           </CardContent>
         </Card>
 
         {/* Recent Orders */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card className="bg-card border border-border rounded-xl">
+          <CardContent className="p-6">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Recent Orders</h2>
+            
             {recentOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No orders yet</p>
-                <Link to="/#pricing">
-                  <Button>Get Started</Button>
-                </Link>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {previewOrders.map((preview, index) => (
+                    <div
+                      key={index}
+                      className="relative bg-gradient-to-br from-muted/50 to-muted/30 border border-border rounded-xl p-6 opacity-60"
+                    >
+                      <div className="absolute top-4 right-4">
+                        <Lock className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-foreground">{preview.city}</h3>
+                        <p className="text-sm text-muted-foreground">{preview.leads} leads</p>
+                        <p className="text-lg font-bold text-primary">${preview.price}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-6 text-lg">Your orders will appear here</p>
+                  <Link to="/#pricing">
+                    <Button size="lg" className="px-8">Get Started</Button>
+                  </Link>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -187,32 +320,56 @@ const Dashboard = () => {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">City</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tier</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Territory</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Leads</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Amount</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentOrders.map((order) => (
-                      <tr key={order.id} className="border-b border-border">
-                        <td className="py-3 px-4">{formatDate(order.created_at)}</td>
-                        <td className="py-3 px-4">{order.city}</td>
-                        <td className="py-3 px-4">{getTierLabel(order.tier)}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              order.status === 'delivered'
-                                ? 'bg-green-500/10 text-green-500'
-                                : 'bg-yellow-500/10 text-yellow-500'
-                            }`}
-                          >
-                            {order.status === 'delivered' ? 'Delivered' : 'Processing'}
-                          </span>
+                    {recentOrders.map((order, index) => (
+                      <tr 
+                        key={order.id} 
+                        className={`border-b border-border ${index % 2 === 0 ? 'bg-muted/5' : ''}`}
+                      >
+                        <td className="py-4 px-4 text-sm">{formatDate(order.created_at)}</td>
+                        <td className="py-4 px-4 font-medium">{order.city}</td>
+                        <td className="py-4 px-4 text-sm">{order.leads_count || 0}</td>
+                        <td className="py-4 px-4 font-medium">${getPriceForTier(order.tier)}</td>
+                        <td className="py-4 px-4">
+                          {order.status === 'delivered' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
+                              ✓ Delivered
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 animate-pulse">
+                              Processing
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4">
+                          {order.status === 'delivered' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {recentOrders.length >= 5 && (
+                  <div className="mt-6 text-center">
+                    <Link to="/orders" className="text-primary hover:underline font-medium">
+                      View All Orders →
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
