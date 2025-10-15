@@ -55,7 +55,7 @@ const Hero = () => {
           </p>
 
           {/* Value props */}
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground pt-12">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground pt-32">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
               <span>Real People</span>
@@ -75,7 +75,7 @@ const Hero = () => {
           </div>
 
           {/* CTA Button */}
-          <div className="pt-4 flex justify-center">
+          <div className="pt-12 flex justify-center">
             <div ref={glowCardRef} className="glow-card inline-block">
               <span className="glow"></span>
               <div className="card-inner">
