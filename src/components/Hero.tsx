@@ -1,12 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import MicroParallax from "./MicroParallax";
 import ParallaxBackground from "./ParallaxBackground";
 import heroImage from "@/assets/hero-home-sunset.jpg";
 import { useRef, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
   const glowCardRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const glowCard = glowCardRef.current;
@@ -76,22 +79,52 @@ const Hero = () => {
             </div>
           </div>
 
-          {/* CTA Button */}
-          <div className="pt-12 flex justify-center">
-            <div ref={glowCardRef} className="glow-card inline-block">
-              <span className="glow"></span>
-              <div className="card-inner">
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
-                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  <span className="relative z-10">Get Verified Leads</span>
-                  <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                </Button>
-              </div>
-            </div>
+          {/* CTA Buttons */}
+          <div className="pt-12 flex flex-col sm:flex-row justify-center gap-4">
+            {user ? (
+              <Link to="/dashboard">
+                <div ref={glowCardRef} className="glow-card inline-block">
+                  <span className="glow"></span>
+                  <div className="card-inner">
+                    <Button 
+                      size="lg" 
+                      className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
+                    >
+                      <span className="relative z-10">Go to Dashboard</span>
+                      <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    </Button>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <>
+                <Link to="/signup">
+                  <div ref={glowCardRef} className="glow-card inline-block">
+                    <span className="glow"></span>
+                    <div className="card-inner">
+                      <Button 
+                        size="lg" 
+                        className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
+                      >
+                        <span className="relative z-10">Get Started</span>
+                        <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      </Button>
+                    </div>
+                  </div>
+                </Link>
+                <Link to="/login">
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    className="px-8 py-6 text-lg font-semibold border-2 border-primary/50 hover:bg-primary/10"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
