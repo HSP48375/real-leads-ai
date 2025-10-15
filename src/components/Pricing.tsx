@@ -177,7 +177,7 @@ const Pricing = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-16">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-24">
           {currentTiers.map((tier, index) => (
             <GlowingCard key={`${tier.name}-${isMonthly}`}>
               <Card 
