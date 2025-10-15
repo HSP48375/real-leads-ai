@@ -53,10 +53,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
     
-    if (!error) {
-      toast.success('Account created! Please check your email to verify.');
-    }
-    
     return { error };
   };
 

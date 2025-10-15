@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { CheckCircle2 } from 'lucide-react';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -18,6 +19,8 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +37,9 @@ const Signup = () => {
         } else {
           toast.error(error.message);
         }
+      } else {
+        setSignupEmail(validated.email);
+        setShowSuccess(true);
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -43,6 +49,77 @@ const Signup = () => {
       setLoading(false);
     }
   };
+
+  const handleResendEmail = async () => {
+    setLoading(true);
+    try {
+      const { error } = await signUp(signupEmail, password, fullName);
+      if (!error) {
+        toast.success('Confirmation email resent!');
+      } else {
+        toast.error('Failed to resend email. Please try again.');
+      }
+    } catch (err) {
+      toast.error('Failed to resend email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-card border border-border rounded-lg p-8 text-center space-y-6">
+            {/* Success Icon */}
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                <CheckCircle2 className="w-12 h-12 text-primary" />
+              </div>
+            </div>
+
+            {/* Heading */}
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground">Account Created! 🎉</h1>
+              <p className="text-xl text-muted-foreground">Check your email to verify your account</p>
+            </div>
+
+            {/* Body Text */}
+            <div className="space-y-4 py-4">
+              <p className="text-base text-foreground">
+                We sent a confirmation link to{' '}
+                <span className="font-semibold text-primary">{signupEmail}</span>
+              </p>
+              <p className="text-base text-muted-foreground">
+                Click the link in that email to activate your account and start ordering leads.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-4">
+              <Button 
+                onClick={handleResendEmail} 
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? 'Sending...' : "Didn't receive the email? Resend"}
+              </Button>
+              <Link to="/" className="block">
+                <Button variant="outline" className="w-full">
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+
+            {/* Help Text */}
+            <p className="text-xs text-muted-foreground pt-4">
+              Check your spam folder if you don't see it within 5 minutes.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
