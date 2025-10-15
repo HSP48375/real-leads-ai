@@ -32,8 +32,8 @@ const Hero = () => {
       {/* Radial accent overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
-      <div className="container relative z-10 px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto space-y-8">
+      <div className="container relative z-10 px-4 py-20 text-center flex items-start justify-center min-h-screen">
+        <div className="max-w-4xl mx-auto space-y-8 pt-32">
           {/* Badge with micro-parallax */}
           <MicroParallax offset={20}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-glass border border-primary/30 shadow-gold">
