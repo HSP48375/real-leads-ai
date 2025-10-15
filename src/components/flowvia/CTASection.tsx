@@ -18,14 +18,10 @@ const CTASection = () => {
           className="max-w-4xl mx-auto backdrop-blur-xl bg-card/40 border-2 border-primary/20 rounded-3xl p-12 text-center"
         >
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
-            Questions?{" "}
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              We've got answers.
-            </span>
+            Questions? We've got answers.
           </h2>
           <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-            sit felis elit amet senectus scelerisque. Odio enim accumsan
+            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque. Odio enim accumsan
           </p>
 
           <Button

@@ -39,8 +39,7 @@ const Hero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
           >
-            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-            sit felis elit amet senectus scelerisque. Odio enim accumsan
+            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque. Odio enim accumsan
           </motion.p>
 
           <motion.div
@@ -62,7 +61,7 @@ const Hero = () => {
           className="mt-20 relative"
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto perspective-1000">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
                 className="relative group"
@@ -76,7 +75,7 @@ const Hero = () => {
                     <div className="text-center p-8">
                       <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-primary/20 backdrop-blur-sm" />
                       <p className="text-sm text-muted-foreground">
-                        {i === 1 ? 'Features' : i === 2 ? 'Elevate Your Business Strategy with Flows' : 'Pricing'}
+                        {i === 1 ? 'Features' : i === 2 ? 'Home page' : i === 3 ? 'Pricing' : 'Contact Us'}
                       </p>
                     </div>
                   </div>

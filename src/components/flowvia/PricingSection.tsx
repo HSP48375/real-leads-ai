@@ -26,8 +26,6 @@ const PricingSection = () => {
         "Access to core AI features",
         "3 team members",
         "Email support",
-        "Priority support",
-        "Advanced analytics",
       ],
       featured: true,
     },
@@ -38,10 +36,8 @@ const PricingSection = () => {
       description: "Affordable Basic package, packed with essential features.",
       features: [
         "Access to core AI features",
-        "Unlimited team members",
-        "24/7 Priority support",
-        "Advanced analytics",
-        "Custom integrations",
+        "3 team members",
+        "Email support",
       ],
       featured: false,
     },
@@ -58,10 +54,7 @@ const PricingSection = () => {
           className="text-center max-w-3xl mx-auto mb-20"
         >
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
-            The Best{" "}
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              Pricing Plans
-            </span>
+            The Best Pricing Plans
           </h2>
           <p className="text-lg text-muted-foreground">
             Lorem ipsum dolor sit amet consectetur. Praesent fames in consequat faucibus.

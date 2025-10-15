@@ -10,12 +10,17 @@ const IntegrationsSection = () => {
     },
     {
       icon: Zap,
-      title: "Real-time Analytics",
+      title: "Project Monitoring",
       description: "Lorem ipsum dolor sit amet con sectetur Aliquam",
     },
     {
       icon: Shield,
-      title: "Data Protection",
+      title: "Project Monitoring",
+      description: "Lorem ipsum dolor sit amet con sectetur Aliquam",
+    },
+    {
+      icon: Puzzle,
+      title: "Project Monitoring",
       description: "Lorem ipsum dolor sit amet con sectetur Aliquam",
     },
   ];
@@ -32,14 +37,10 @@ const IntegrationsSection = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl sm:text-5xl font-heading font-bold mb-6">
-              Capabilities of{" "}
-              <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Seamless Integrations
-              </span>
+              Capabilities of Seamless Integrations
             </h2>
             <p className="text-lg text-muted-foreground mb-12">
-              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-              sit felis elit amet senectus
+              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus
             </p>
 
             <div className="space-y-6">

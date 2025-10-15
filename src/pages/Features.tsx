@@ -62,8 +62,7 @@ const Features = () => {
               Features
             </h1>
             <p className="text-lg text-muted-foreground">
-              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-              sit felis elit amet senectus scelerisque.
+              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque.
             </p>
           </motion.div>
         </div>

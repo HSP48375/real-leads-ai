@@ -14,18 +14,18 @@ const FeaturesSection = () => {
   const features = [
     {
       icon: TrendingUp,
-      title: "Growth Insights",
-      description: "Lorem ipsum dolor sit amet consectetur. Sed est hac tempor.",
+      title: "Project Monitoring",
+      description: "Organize, prioritize, and track tasks for efficient completion.",
     },
     {
       icon: Users,
       title: "Team Collaboration",
-      description: "Lorem ipsum dolor sit amet consectetur. Sed est hac tempor.",
+      description: "Organize, prioritize, and track tasks for efficient completion.",
     },
     {
       icon: Target,
-      title: "Goal Tracking",
-      description: "Lorem ipsum dolor sit amet consectetur. Sed est hac tempor.",
+      title: "Task Coordination",
+      description: "Organize, prioritize, and track tasks for efficient completion.",
     },
   ];
 
@@ -46,14 +46,10 @@ const FeaturesSection = () => {
           className="text-center max-w-3xl mx-auto mb-20"
         >
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
-            Intelligence That Scales{" "}
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              with Your Business
-            </span>
+            Intelligence That Scales with Your Business
           </h2>
           <p className="text-lg text-muted-foreground">
-            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-            sit felis elit amet senectus scelerisque.
+            Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque. Odio enim accumsan
           </p>
         </motion.div>
 

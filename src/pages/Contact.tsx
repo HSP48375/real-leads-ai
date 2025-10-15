@@ -34,8 +34,7 @@ const Contact = () => {
               Contact Us
             </h1>
             <p className="text-lg text-muted-foreground">
-              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-              sit felis elit amet senectus scelerisque.
+              Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque.
             </p>
           </motion.div>
         </div>
@@ -52,15 +51,11 @@ const Contact = () => {
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-4xl font-heading font-bold mb-6">
-                Get in Touch{" "}
-                <span className="bg-gradient-primary bg-clip-text text-transparent">
-                  with Us
-                </span>
+              <h2 className="text-4xl sm:text-5xl font-heading font-bold mb-6">
+                Get in Touch with Us
               </h2>
-              <p className="text-muted-foreground mb-12">
-                Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra
-                sit felis elit amet senectus scelerisque. Odio enim accumsan
+              <p className="text-lg text-muted-foreground mb-12">
+                Lorem ipsum dolor sit amet consectetur. Aliquam amet pharetra nec pulvinar. Viverra sit felis elit amet senectus scelerisque. Odio enim accumsan
               </p>
 
               <div className="space-y-6">
@@ -69,8 +64,8 @@ const Contact = () => {
                     <Clock className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-heading font-bold mb-1">24/7 Support</h3>
-                    <p className="text-sm text-muted-foreground">Always here to help you</p>
+                    <h3 className="font-heading font-bold mb-1">24/7 support</h3>
+                    <p className="text-sm text-muted-foreground">24/7 support</p>
                   </div>
                 </div>
 
@@ -80,7 +75,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-heading font-bold mb-1">Live Chat Support</h3>
-                    <p className="text-sm text-muted-foreground">Get instant assistance</p>
+                    <p className="text-sm text-muted-foreground">Live Chat Support</p>
                   </div>
                 </div>
 
@@ -89,7 +84,7 @@ const Contact = () => {
                     <MapPin className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-heading font-bold mb-1">Visit Us</h3>
+                    <h3 className="font-heading font-bold mb-1">Address</h3>
                     <p className="text-sm text-muted-foreground">
                       2118 Thornridge Cir. Syracuse, Connecticut 35624
                     </p>
