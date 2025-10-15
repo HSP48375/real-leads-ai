@@ -40,10 +40,10 @@ const ScrollParallaxHero = () => {
       <div ref={scrollDistRef} className="h-[200vh]" />
       
       <div ref={containerRef} className="fixed top-0 left-0 w-full h-screen overflow-hidden">
-        {/* Brightened parallax background image */}
+        {/* Parallax background image */}
         <div className="parallax-image absolute inset-0">
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-125"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-110"
             style={{ backgroundImage: `url(${sunsetImage})` }}
           />
         </div>
