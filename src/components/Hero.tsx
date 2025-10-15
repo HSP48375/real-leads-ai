@@ -23,13 +23,13 @@ const Hero = () => {
           {/* Main heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">
             <span className="bg-gradient-gold bg-clip-text text-transparent">
-              Connect with Homeowners Who Are Ready to Talk.
+              REAL, Verified Leads You Can Rely On.
             </span>
           </h1>
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            Every lead verified by location, ownership, and intent — no spam, no waste.
+            Stop chasing bad leads. Start connecting with real homeowners — fast.
           </p>
 
           {/* Value props */}
