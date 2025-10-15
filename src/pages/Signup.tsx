@@ -23,6 +23,7 @@ const Signup = () => {
   const [signupEmail, setSignupEmail] = useState('');
   const { signUp } = useAuth();
   const glowCardRef = useRef<HTMLDivElement>(null);
+  const formGlowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showSuccess) return;
@@ -42,6 +43,23 @@ const Signup = () => {
     glowCard.addEventListener('pointermove', handlePointerMove);
     return () => glowCard.removeEventListener('pointermove', handlePointerMove);
   }, [showSuccess]);
+
+  useEffect(() => {
+    const formGlow = formGlowRef.current;
+    if (!formGlow) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = formGlow.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      formGlow.style.setProperty('--pointer-x', `${x}px`);
+      formGlow.style.setProperty('--pointer-y', `${y}px`);
+    };
+
+    formGlow.addEventListener('pointermove', handlePointerMove);
+    return () => formGlow.removeEventListener('pointermove', handlePointerMove);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +170,9 @@ const Signup = () => {
           <p className="text-muted-foreground">Start getting verified FSBO leads today</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-8">
+        <div ref={formGlowRef} className="glow-card">
+          <span className="glow"></span>
+          <form onSubmit={handleSubmit} className="card-inner space-y-6 bg-card border border-border rounded-lg p-8">
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
             <Input
@@ -200,7 +220,8 @@ const Signup = () => {
               Sign in
             </Link>
           </p>
-        </form>
+          </form>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
           By signing up, you agree to our{' '}
