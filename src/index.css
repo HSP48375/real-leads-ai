@@ -8,86 +8,57 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* FrogCoin green gradient theme - darker and more vibrant */
-    --background: 140 60% 20%;
-    --foreground: 0 0% 100%;
+    --font-family: 'Inter', sans-serif;
+    --font-family-heading: 'Poppins', sans-serif;
 
-    --card: 140 50% 15%;
-    --card-foreground: 0 0% 100%;
+    /* 2026 Futuristic Dark Theme - Premium Blue/Purple Gradient */
+    --background: 220 40% 6%;
+    --foreground: 210 40% 98%;
 
-    --popover: 140 55% 18%;
-    --popover-foreground: 0 0% 100%;
+    --card: 220 35% 8%;
+    --card-foreground: 210 40% 98%;
 
-    --primary: 68 100% 70%;
-    --primary-foreground: 140 50% 20%;
+    --popover: 220 35% 8%;
+    --popover-foreground: 210 40% 98%;
 
-    --secondary: 140 60% 18%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 260 60% 65%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 140 45% 25%;
-    --muted-foreground: 0 0% 85%;
+    --muted: 220 30% 15%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 68 100% 70%;
-    --accent-foreground: 140 50% 20%;
+    --accent: 195 100% 50%;
+    --accent-foreground: 220 40% 6%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 140 35% 30%;
-    --input: 140 50% 20%;
-    --ring: 68 100% 70%;
-    --headline: 0 0% 100%;
+    --border: 220 30% 18%;
+    --input: 220 30% 18%;
+    --ring: 217 91% 60%;
 
     --radius: 0.75rem;
 
-    /* Green gradient theme - white glows only */
-    --gradient-green: linear-gradient(135deg, hsl(140 60% 22%), hsl(140 55% 18%));
-    --gradient-lime: linear-gradient(135deg, hsl(68 100% 75%), hsl(68 100% 65%));
-    --gradient-dark-green: linear-gradient(180deg, hsl(140 55% 15%), hsl(140 60% 22%));
-    --shadow-lime: 0 10px 40px -10px hsl(0 0% 100% / 0.3);
-    --shadow-lime-glow: 0 0 60px hsl(0 0% 100% / 0.4);
-    --shadow-subtle: 0 4px 20px hsl(0 0% 0% / 0.5);
-    
-    /* Glassmorphic effects */
-    --glass-bg: hsl(140 55% 15% / 0.6);
-    --glass-border: hsl(140 40% 35% / 0.3);
+    /* Gradients - Cinematic and Layered */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(260 60% 65%));
+    --gradient-secondary: linear-gradient(180deg, hsl(220 40% 6%), hsl(220 35% 8%));
+    --gradient-accent: linear-gradient(90deg, hsl(195 100% 50%), hsl(217 91% 60%));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(217 91% 60% / 0.3), transparent 50%),
+                      radial-gradient(ellipse at bottom right, hsl(260 60% 65% / 0.2), transparent 50%);
 
-    /* Parallax glow wave properties */
-    --hue1: 140;
-    --hue2: 68;
-    --scroll-offset: 0px;
+    /* Glassmorphism */
+    --glass-bg: hsl(220 35% 8% / 0.6);
+    --glass-border: hsl(210 40% 98% / 0.1);
+    --glass-blur: blur(20px);
+
+    /* Shadows - Elevated and Glowing */
+    --shadow-glow: 0 0 60px hsl(217 91% 60% / 0.4);
+    --shadow-glow-secondary: 0 0 60px hsl(260 60% 65% / 0.3);
   }
 
-  .dark {
-    --background: 140 60% 20%;
-    --foreground: 0 0% 100%;
-
-    --card: 140 50% 15%;
-    --card-foreground: 0 0% 100%;
-
-    --popover: 140 55% 18%;
-    --popover-foreground: 0 0% 100%;
-
-    --primary: 68 100% 70%;
-    --primary-foreground: 140 50% 20%;
-
-    --secondary: 140 60% 18%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 140 45% 25%;
-    --muted-foreground: 0 0% 85%;
-
-    --accent: 68 100% 70%;
-    --accent-foreground: 140 50% 20%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 140 35% 30%;
-    --input: 140 50% 20%;
-    --ring: 68 100% 70%;
-    --headline: 0 0% 100%;
-   }
 }
 
 @layer base {
@@ -96,132 +67,13 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply text-foreground font-sans antialiased;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, hsl(140 60% 20%) 0%, hsl(140 55% 16%) 100%);
-    position: relative;
+    @apply text-foreground font-[family-name:var(--font-family)] antialiased;
+    background: linear-gradient(180deg, hsl(220 40% 6%), hsl(220 35% 4%));
     overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
+    @apply font-[family-name:var(--font-family-heading)] font-bold tracking-tight;
   }
 
-  h1, h2, h3 {
-    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.9);
-  }
-
-  /* Glowing Card Effect - Green Theme */
-  .glow-card {
-    --glow-sens: 30;
-    --color-sens: calc(var(--glow-sens) + 20);
-    --pointer-deg: 45deg;
-    --glow-color: 68 100% 70%;
-    --glow-boost: 0%;
-    
-    position: relative;
-    border-radius: 0.75rem;
-    isolation: isolate;
-    transform: translate3d(0, 0, 0.01px);
-    display: grid;
-  }
-
-  .glow-card::before,
-  .glow-card::after,
-  .glow-card > .glow {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    transition: opacity 0.25s ease-out;
-    z-index: -1;
-  }
-
-  .glow-card:not(:hover) {
-    &::before,
-    &::after,
-    & > .glow {
-      opacity: 0;
-      transition: opacity 0.75s ease-in-out;
-    }
-  }
-
-  .glow-card::before {
-    /* mesh gradient border */
-    border: 1px solid transparent;
-    
-    background:
-      linear-gradient(hsl(var(--card)) 0 100%) padding-box,
-      linear-gradient(rgb(255 255 255 / 0%) 0% 100%) border-box,
-      radial-gradient(at 80% 55%, hsla(268,100%,86%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 69% 34%, hsla(349,100%,84%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 8% 6%, hsla(136,100%,88%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 41% 38%, hsla(192,100%,74%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 86% 85%, hsla(186,100%,84%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 82% 18%, hsla(52,100%,75%,1) 0px, transparent 50%) border-box,
-      radial-gradient(at 51% 4%, hsla(12,100%,82%,1) 0px, transparent 50%) border-box,
-      linear-gradient(#e0b3ff 0 100%) border-box;
-    
-    /* opacity increases as pointer gets near edge */
-    opacity: calc((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens)));
-    
-    /* border is masked to a cone, originating from the center towards the pointer */
-    mask-image: 
-      conic-gradient( 
-        from var(--pointer-deg) at center, black 25%, transparent 40%, transparent 60%, black 75%
-      );
-  }
-
-  .glow-card::after {
-    /* disabled - removed background layer */
-    display: none;
-  }
-
-  .glow-card > .glow {
-    /* glowing border edges */
-    --outset: 20px;
-    
-    /* outer padding so the glow can overflow the element without being masked */
-    inset: calc(var(--outset) * -1);
-    pointer-events: none;
-    z-index: 3;
-    
-    /* glow is masked to a cone, originating from the center towards the pointer */
-    mask-image: 
-      conic-gradient( 
-        from var(--pointer-deg) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
-      );
-    
-    /* opacity increases as pointer gets near edge */
-    opacity: calc((var(--pointer-d) - var(--glow-sens)) / (100 - var(--glow-sens)));
-    mix-blend-mode: plus-lighter;
-  }
-
-  .glow-card > .glow::before {
-    content: "";
-    position: absolute;
-    inset: var(--outset);
-    border-radius: inherit;
-    box-shadow: 
-      inset 0 0 0 1px hsl( var(--glow-color) / 100%), 
-      
-      inset 0 0 1px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 60%)), 
-      inset 0 0 3px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 50%)), 
-      inset 0 0 6px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 40%)), 
-      inset 0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
-      inset 0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
-      inset 0 0 50px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 10%)), 
-      
-      0 0 1px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 60%)), 
-      0 0 3px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 50%)), 
-      0 0 6px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 40%)), 
-      0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
-      0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
-      0 0 50px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 10%));
-  }
-
-  .glow-card-inner {
-    position: relative;
-    z-index: 1;
-  }
 }
