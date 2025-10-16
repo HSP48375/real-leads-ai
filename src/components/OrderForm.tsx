@@ -7,13 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import GlowingCard from "@/components/GlowingCard";
+import { supabase } from "@/integrations/supabase/client";
 
 const OrderForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    city: "",
+    primary_city: "",
+    search_radius: "50",
+    additional_cities: "",
     tier: "",
   });
   const { toast } = useToast();
@@ -23,26 +26,46 @@ const OrderForm = () => {
     setIsSubmitting(true);
 
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/process-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+      // Parse additional cities (comma-separated, limit to 5)
+      const additionalCitiesArray = formData.additional_cities
+        .split(",")
+        .map(c => c.trim())
+        .filter(c => c.length > 0)
+        .slice(0, 5);
+
+      // Create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          tier: formData.tier,
+          primary_city: formData.primary_city,
+          search_radius: parseInt(formData.search_radius),
+          additional_cities: additionalCitiesArray,
+          name: formData.name,
+          email: formData.email,
+        },
       });
 
-      const data = await response.json();
+      if (error) throw error;
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to process order");
+      // Redirect to Stripe checkout
+      if (data.sessionUrl) {
+        window.open(data.sessionUrl, '_blank');
+        
+        toast({
+          title: "Redirecting to Checkout",
+          description: "Complete your payment to start lead generation.",
+        });
+        
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          primary_city: "",
+          search_radius: "50",
+          additional_cities: "",
+          tier: "",
+        });
       }
-      
-      toast({
-        title: "Order Received!",
-        description: "Your verified leads are being generated and will be emailed to you shortly.",
-      });
-      
-      // Reset form
-      setFormData({ name: "", email: "", city: "", tier: "" });
     } catch (error) {
       toast({
         title: "Error",
@@ -96,15 +119,47 @@ const OrderForm = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="city">City or Zip Code</Label>
+                  <Label htmlFor="primary_city">Primary City or Home Base</Label>
                   <Input
-                    id="city"
-                    placeholder="Los Angeles, CA or 90001"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    id="primary_city"
+                    placeholder="e.g., Royal Oak, Birmingham, Farmington Hills"
+                    value={formData.primary_city}
+                    onChange={(e) => setFormData({ ...formData, primary_city: e.target.value })}
                     required
                     className="bg-background/50 border-border/50 focus:border-primary transition-colors"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="search_radius">Search Radius</Label>
+                  <Select value={formData.search_radius} onValueChange={(value) => setFormData({ ...formData, search_radius: value })} required>
+                    <SelectTrigger className="bg-background/50 border-border/50 focus:border-primary transition-colors">
+                      <SelectValue placeholder="Select radius" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25 miles</SelectItem>
+                      <SelectItem value="50">50 miles (recommended)</SelectItem>
+                      <SelectItem value="75">75 miles</SelectItem>
+                      <SelectItem value="100">100 miles</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    We'll find FSBO leads in your city plus all surrounding areas
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="additional_cities">Additional Cities (Optional)</Label>
+                  <Input
+                    id="additional_cities"
+                    placeholder="e.g., Ann Arbor, Ypsilanti"
+                    value={formData.additional_cities}
+                    onChange={(e) => setFormData({ ...formData, additional_cities: e.target.value })}
+                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Add up to 5 cities that fall outside your radius (comma-separated)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -114,10 +169,10 @@ const OrderForm = () => {
                       <SelectValue placeholder="Choose your plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="starter">Starter - $97 (15-25 leads)</SelectItem>
-                      <SelectItem value="growth">Growth - $197 (25-35 leads)</SelectItem>
-                      <SelectItem value="pro">Pro - $397 (50-70 leads)</SelectItem>
-                      <SelectItem value="enterprise">Enterprise - Contact Us</SelectItem>
+                      <SelectItem value="starter">Starter - $97 (20-25 verified leads)</SelectItem>
+                      <SelectItem value="growth">Growth - $197 (40-60 verified leads)</SelectItem>
+                      <SelectItem value="pro">Pro - $397 (80-100 verified leads)</SelectItem>
+                      <SelectItem value="enterprise">Enterprise - $597/month (120-150 verified leads)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -135,14 +190,14 @@ const OrderForm = () => {
                     </>
                   ) : (
                     <>
-                      <span className="relative z-10">Place Order</span>
+                      <span className="relative z-10">Proceed to Payment</span>
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                     </>
                   )}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center mt-4">
-                  By submitting this form, you agree to receive your leads and order confirmation via email.
+                  You'll be redirected to secure Stripe checkout. Your leads will be generated after payment confirmation.
                 </p>
               </form>
             </CardContent>

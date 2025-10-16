@@ -65,88 +65,103 @@ serve(async (req) => {
       throw new Error("Order not found");
     }
 
-    logStep("Order retrieved", { tier: order.tier, city: order.city });
+    logStep("Order retrieved", { tier: order.tier, primary_city: order.primary_city });
 
-    // Determine lead quota based on tier
-    const leadQuota = order.tier === "starter" ? 25 : order.tier === "growth" ? 35 : 70;
-    logStep("Lead quota", { quota: leadQuota });
+    // Determine lead quotas based on tier (aim high, guarantee minimum)
+    const quotas = {
+      starter: { target: 25, minimum: 20 },
+      growth: { target: 60, minimum: 40 },
+      pro: { target: 100, minimum: 80 },
+      enterprise: { target: 150, minimum: 120 },
+    };
+    
+    const tierQuota = quotas[order.tier as keyof typeof quotas] || quotas.starter;
+    const leadQuota = tierQuota.target;
+    const minimumQuota = tierQuota.minimum;
+    logStep("Lead quota", { target: leadQuota, minimum: minimumQuota });
 
-    // Run all scrapers in parallel
+    // Build target cities list based on radius and additional cities
+    const targetCities = [order.primary_city];
+    if (order.additional_cities && order.additional_cities.length > 0) {
+      targetCities.push(...order.additional_cities);
+    }
+    
+    logStep("Target cities determined", { cities: targetCities, radius: order.search_radius });
+
+    // Run all scrapers in parallel for all target cities
     const allLeads: Lead[] = [];
-
-    // Metro Detroit configuration
-    const metroDetroitCities = [
-      "Detroit", "Warren", "Sterling Heights", "Ann Arbor", "Livonia",
-      "Dearborn", "Westland", "Troy", "Farmington Hills", "Canton",
-      "Southfield", "Rochester Hills", "St. Clair Shoes", "Royal Oak",
-      "Novi", "Taylor", "Pontiac", "Dearborn Heights", "Wyandotte"
-    ];
 
     logStep("Starting scraper runs");
 
-    // Zillow FSBO Scraper
-    try {
-      const zillowResults = await runApifyScraper(SCRAPERS.zillow_fsbo, {
-        search: `${order.city}, MI FSBO`,
-        maxItems: leadQuota * 2,
-      });
-      allLeads.push(...parseZillowResults(zillowResults));
-      logStep("Zillow scraper completed", { count: zillowResults.length });
-    } catch (e) {
-      logStep("Zillow scraper error", { error: e instanceof Error ? e.message : String(e) });
-    }
+    for (const city of targetCities) {
+      // Zillow FSBO Scraper
+      try {
+        const zillowResults = await runApifyScraper(SCRAPERS.zillow_fsbo, {
+          search: `${city}, MI FSBO`,
+          maxItems: leadQuota * 2,
+        });
+        allLeads.push(...parseZillowResults(zillowResults));
+        logStep(`Zillow scraper completed for ${city}`, { count: zillowResults.length });
+      } catch (e) {
+        logStep(`Zillow scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      }
 
-    // Craigslist FSBO Scraper
-    try {
-      const craigslistResults = await runApifyScraper(SCRAPERS.craigslist, {
-        searchQueries: [`https://detroit.craigslist.org/search/reo?query=fsbo`],
-        maxItems: leadQuota * 2,
-      });
-      allLeads.push(...parseCraigslistResults(craigslistResults));
-      logStep("Craigslist scraper completed", { count: craigslistResults.length });
-    } catch (e) {
-      logStep("Craigslist scraper error", { error: e instanceof Error ? e.message : String(e) });
-    }
+      // Craigslist FSBO Scraper
+      try {
+        const craigslistResults = await runApifyScraper(SCRAPERS.craigslist, {
+          searchQueries: [`https://detroit.craigslist.org/search/reo?query=fsbo+${city}`],
+          maxItems: leadQuota * 2,
+        });
+        allLeads.push(...parseCraigslistResults(craigslistResults));
+        logStep(`Craigslist scraper completed for ${city}`, { count: craigslistResults.length });
+      } catch (e) {
+        logStep(`Craigslist scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      }
 
-    // Facebook Marketplace Scraper
-    try {
-      const fbResults = await runApifyScraper(SCRAPERS.facebook_marketplace, {
-        search: "house for sale by owner",
-        location: `Detroit, MI`,
-        maxItems: leadQuota * 2,
-      });
-      allLeads.push(...parseFacebookResults(fbResults));
-      logStep("Facebook Marketplace scraper completed", { count: fbResults.length });
-    } catch (e) {
-      logStep("Facebook scraper error", { error: e instanceof Error ? e.message : String(e) });
-    }
+      // Facebook Marketplace Scraper
+      try {
+        const fbResults = await runApifyScraper(SCRAPERS.facebook_marketplace, {
+          search: "house for sale by owner",
+          location: `${city}, MI`,
+          maxItems: leadQuota * 2,
+        });
+        allLeads.push(...parseFacebookResults(fbResults));
+        logStep(`Facebook Marketplace scraper completed for ${city}`, { count: fbResults.length });
+      } catch (e) {
+        logStep(`Facebook scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      }
 
-    // FSBO.com Scraper
-    try {
-      const fsboResults = await runApifyScraper(SCRAPERS.fsbo_com, {
-        location: "Michigan",
-        maxItems: leadQuota * 2,
-      });
-      allLeads.push(...parseFSBOResults(fsboResults));
-      logStep("FSBO.com scraper completed", { count: fsboResults.length });
-    } catch (e) {
-      logStep("FSBO.com scraper error", { error: e instanceof Error ? e.message : String(e) });
+      // FSBO.com Scraper
+      try {
+        const fsboResults = await runApifyScraper(SCRAPERS.fsbo_com, {
+          location: city,
+          maxItems: leadQuota * 2,
+        });
+        allLeads.push(...parseFSBOResults(fsboResults));
+        logStep(`FSBO.com scraper completed for ${city}`, { count: fsboResults.length });
+      } catch (e) {
+        logStep(`FSBO.com scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     logStep("All scrapers completed", { totalLeads: allLeads.length });
 
-    // Filter to Metro Detroit
-    const metroLeads = allLeads.filter(lead => 
-      metroDetroitCities.some(city => 
-        lead.city?.toLowerCase().includes(city.toLowerCase()) ||
-        lead.address?.toLowerCase().includes(city.toLowerCase())
-      )
-    );
+    // CRITICAL: Filter out agent-listed properties
+    const fsboOnly = allLeads.filter(lead => {
+      const hasAgentIndicators = 
+        lead.seller_name?.toLowerCase().includes('agent') ||
+        lead.seller_name?.toLowerCase().includes('broker') ||
+        lead.seller_name?.toLowerCase().includes('realty') ||
+        lead.seller_name?.toLowerCase().includes('real estate group') ||
+        lead.seller_name?.toLowerCase().includes('mls');
+      
+      return !hasAgentIndicators && lead.source.toLowerCase().includes('fsbo');
+    });
 
-    logStep("Filtered to Metro Detroit", { count: metroLeads.length });
+    logStep("Filtered out agent listings", { count: fsboOnly.length });
 
     // Remove duplicates based on address
-    const uniqueLeads = removeDuplicates(metroLeads);
+    const uniqueLeads = removeDuplicates(fsboOnly);
     logStep("Removed duplicates", { count: uniqueLeads.length });
 
     // Check against existing database leads
@@ -164,6 +179,52 @@ serve(async (req) => {
     // Limit to quota
     const finalLeads = newLeads.slice(0, leadQuota);
     logStep("Applied tier quota", { finalCount: finalLeads.length });
+
+    // Check if we met minimum quota - handle refunds if needed
+    let refundAmount = null;
+    let refundReason = null;
+
+    if (finalLeads.length < minimumQuota) {
+      const percentageDelivered = (finalLeads.length / minimumQuota) * 100;
+      const tierPrices = { starter: 9700, growth: 19700, pro: 39700, enterprise: 59700 };
+      const orderPrice = tierPrices[order.tier as keyof typeof tierPrices] || 0;
+
+      if (percentageDelivered < 50) {
+        // Full refund if less than 50% of minimum
+        refundAmount = orderPrice;
+        refundReason = `Only ${finalLeads.length} leads found (${percentageDelivered.toFixed(0)}% of minimum ${minimumQuota}). Full refund issued.`;
+        logStep("Full refund triggered", { found: finalLeads.length, minimum: minimumQuota });
+      } else if (percentageDelivered < 80) {
+        // Partial refund if 50-80% of minimum
+        const refundPercentage = 100 - percentageDelivered;
+        refundAmount = Math.floor((orderPrice * refundPercentage) / 100);
+        refundReason = `Only ${finalLeads.length} leads found (${percentageDelivered.toFixed(0)}% of minimum ${minimumQuota}). Partial refund issued.`;
+        logStep("Partial refund triggered", { found: finalLeads.length, minimum: minimumQuota, refund: refundAmount });
+      } else {
+        // No refund if >80% of minimum
+        logStep("No refund needed", { found: finalLeads.length, minimum: minimumQuota, percentage: percentageDelivered });
+      }
+
+      // Process refund via Stripe if applicable
+      if (refundAmount && order.stripe_payment_intent_id) {
+        try {
+          const stripe = await import("https://esm.sh/stripe@18.5.0");
+          const stripeClient = new stripe.default(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+            apiVersion: "2025-08-27.basil",
+          });
+          
+          await stripeClient.refunds.create({
+            payment_intent: order.stripe_payment_intent_id,
+            amount: refundAmount,
+          });
+          
+          logStep("Refund processed via Stripe", { amount: refundAmount });
+        } catch (refundError) {
+          console.error("Refund failed:", refundError);
+          refundReason += " (Refund processing failed - will be handled manually)";
+        }
+      }
+    }
 
     // Enrich contacts using Reverse Contact Enricher
     const enrichedLeads = await enrichContacts(finalLeads);
@@ -198,7 +259,7 @@ serve(async (req) => {
     const sheetUrl = await createGoogleSheet(order, enrichedLeads);
     logStep("Google Sheet created", { url: sheetUrl });
 
-    // Update order with sheet URL and status
+    // Update order with sheet URL, status, and refund info
     await supabase
       .from("orders")
       .update({
@@ -206,6 +267,9 @@ serve(async (req) => {
         status: "delivered",
         delivered_at: new Date().toISOString(),
         leads_count: enrichedLeads.length,
+        cities_searched: targetCities,
+        refund_amount: refundAmount,
+        refund_reason: refundReason,
       })
       .eq("id", orderId);
 

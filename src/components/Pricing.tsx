@@ -8,12 +8,12 @@ const oneTimeTiers = [
   {
     name: "Starter",
     price: "$97",
-    subtext: "15-20 verified leads",
-    costPerLead: "$4.85–$6.47 per verified lead",
+    subtext: "20-25 verified leads",
+    costPerLead: "$3.88–$4.85 per verified lead",
     description: "Perfect for testing the waters with verified FSBO leads.",
     features: [
-      "15-20 verified leads",
-      "Single city targeting",
+      "20-25 verified leads",
+      "Radius-based targeting (up to 100 mi)",
       "Delivered in 24 hours (Google Sheet)",
       "Email support"
     ],
@@ -22,132 +22,58 @@ const oneTimeTiers = [
   {
     name: "Growth",
     price: "$197",
-    subtext: "40-50 verified leads",
-    costPerLead: "$3.94–$4.93 per verified lead",
+    subtext: "40-60 verified leads",
+    costPerLead: "$3.28–$4.93 per verified lead",
     description: "Great for small agencies and independent agents.",
     featured: true,
     badge: "MOST POPULAR",
     features: [
-      "40-50 verified leads",
-      "Multiple city options",
+      "40-60 verified leads",
+      "Radius-based targeting (up to 100 mi)",
       "Delivered in 24 hours (Google Sheet)",
       "Priority email support",
-      "Monthly updates available"
+      "Contact enrichment included"
     ],
     cta: "GET STARTED"
   },
   {
     name: "Pro",
     price: "$397",
-    subtext: "110-130 verified leads",
-    costPerLead: "$3.05–$3.61 per verified lead",
-    description: "Full city coverage, best for serious realtors and broker teams.",
+    subtext: "80-100 verified leads",
+    costPerLead: "$3.97–$4.96 per verified lead",
+    description: "Full territory coverage, best for serious realtors and broker teams.",
     features: [
-      "110-130 verified leads",
-      "Unlimited city targeting",
+      "80-100 verified leads",
+      "Radius-based targeting (up to 100 mi)",
       "Delivered in 12 hours (Google Sheet)",
       "Priority support + phone",
-      "Weekly updates available",
+      "Advanced contact enrichment",
       "Dedicated account manager"
     ],
     cta: "GET STARTED"
-  },
-  {
-    name: "Enterprise",
-    price: "Contact Us",
-    subtext: "Custom pricing for your needs",
-    costPerLead: "",
-    description: "For brokerages, large teams, and high-volume agents.",
-    badge: "TEAMS & API",
-    enterprise: true,
-    features: [
-      "200-250 verified leads per order",
-      "API access for CRM integration",
-      "White-label delivery options",
-      "Priority 24/7 support",
-      "Custom reporting dashboard",
-      "Team management tools",
-      "Bulk processing"
-    ],
-    cta: "CONTACT SALES"
   }
 ];
 
 const monthlyTiers = [
   {
-    name: "Starter",
-    price: "$79",
-    period: "/month",
-    savings: "Save $18",
-    subtext: "15-20 verified leads monthly",
-    costPerLead: "$3.95–$5.27 per verified lead",
-    description: "Perfect for consistent lead flow without commitment.",
-    features: [
-      "15-20 verified leads monthly",
-      "Single city targeting",
-      "Delivered in 24 hours (Google Sheet)",
-      "Email support",
-      "Cancel anytime"
-    ],
-    cta: "START SUBSCRIPTION"
-  },
-  {
-    name: "Growth",
-    price: "$167",
-    period: "/month",
-    savings: "Save $30",
-    subtext: "40-50 verified leads monthly",
-    costPerLead: "$3.34–$4.18 per verified lead",
-    description: "Great for active agents building a pipeline.",
-    featured: true,
-    badge: "MOST POPULAR",
-    features: [
-      "40-50 verified leads monthly",
-      "Multiple city options",
-      "Delivered in 24 hours (Google Sheet)",
-      "Priority email support",
-      "1 campaign rollover"
-    ],
-    cta: "START SUBSCRIPTION"
-  },
-  {
-    name: "Pro",
-    price: "$337",
-    period: "/month",
-    savings: "Save $60",
-    subtext: "110-130 verified leads monthly",
-    costPerLead: "$2.59–$3.06 per verified lead",
-    description: "Best for top producers and small teams.",
-    features: [
-      "110-130 verified leads monthly",
-      "Unlimited city targeting",
-      "Delivered in 12 hours (Google Sheet)",
-      "Priority support + phone",
-      "Weekly updates",
-      "Dedicated account manager",
-      "2 campaign rollovers"
-    ],
-    cta: "START SUBSCRIPTION"
-  },
-  {
     name: "Enterprise",
     price: "$597",
     period: "/month",
-    savings: "",
-    subtext: "200-250 verified leads monthly",
-    costPerLead: "$2.39–$2.99 per verified lead (bulk pricing)",
-    description: "For brokerages and high-volume operations.",
-    badge: "TEAMS & API",
-    enterprise: true,
+    savings: "Best value for high-volume agents",
+    subtext: "120-150 verified leads monthly",
+    costPerLead: "$3.98–$4.98 per verified lead",
+    description: "For high-volume agents and teams needing consistent lead flow.",
+    featured: true,
+    badge: "SUBSCRIPTION",
     features: [
-      "200-250 verified leads monthly",
-      "Full API access",
-      "White-label delivery",
-      "24/7 priority support",
-      "Custom integrations",
-      "Team dashboard",
-      "Dedicated success manager",
-      "SLA guarantees"
+      "120-150 verified leads monthly",
+      "Radius-based targeting (up to 100 mi)",
+      "Delivered in 6 hours (Google Sheet)",
+      "Priority support + phone",
+      "Advanced contact enrichment",
+      "Dedicated account manager",
+      "Custom territory configurations",
+      "Cancel anytime"
     ],
     cta: "START SUBSCRIPTION"
   }
@@ -199,7 +125,7 @@ const Pricing = () => {
               <Card 
                 className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-card/60 shadow-none h-full flex flex-col ${
                   tier.featured ? 'shadow-gold-glow lg:scale-105' : ''
-                } ${tier.enterprise ? 'border border-primary/30' : ''}`}
+                }`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 {tier.badge && (
@@ -240,7 +166,7 @@ const Pricing = () => {
                 <CardFooter className="pt-8 px-6 pb-6">
                   <Button 
                     className={`w-full transition-all duration-300 ${
-                      tier.featured || tier.enterprise
+                      tier.featured
                         ? 'bg-primary text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-gold-glow'
                         : 'bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground hover:shadow-gold'
                     }`}
