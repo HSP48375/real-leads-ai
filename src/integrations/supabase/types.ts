@@ -72,13 +72,18 @@ export type Database = {
       }
       orders: {
         Row: {
-          city: string
+          additional_cities: string[] | null
+          cities_searched: string[] | null
           created_at: string
-          customer_email: string
-          customer_name: string
+          customer_email: string | null
+          customer_name: string | null
           delivered_at: string | null
           id: string
           leads_count: number | null
+          primary_city: string
+          refund_amount: number | null
+          refund_reason: string | null
+          search_radius: number
           sheet_url: string | null
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
@@ -86,13 +91,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          city: string
+          additional_cities?: string[] | null
+          cities_searched?: string[] | null
           created_at?: string
-          customer_email: string
-          customer_name: string
+          customer_email?: string | null
+          customer_name?: string | null
           delivered_at?: string | null
           id?: string
           leads_count?: number | null
+          primary_city?: string
+          refund_amount?: number | null
+          refund_reason?: string | null
+          search_radius?: number
           sheet_url?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
@@ -100,13 +110,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          city?: string
+          additional_cities?: string[] | null
+          cities_searched?: string[] | null
           created_at?: string
-          customer_email?: string
-          customer_name?: string
+          customer_email?: string | null
+          customer_name?: string | null
           delivered_at?: string | null
           id?: string
           leads_count?: number | null
+          primary_city?: string
+          refund_amount?: number | null
+          refund_reason?: string | null
+          search_radius?: number
           sheet_url?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
