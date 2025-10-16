@@ -67,18 +67,18 @@ serve(async (req) => {
 
     logStep("Order retrieved", { tier: order.tier, primary_city: order.primary_city });
 
-    // Determine lead quotas based on tier (aim high, guarantee minimum)
+    // Determine lead quotas based on tier (aim for minimum, delight with extras)
     const quotas = {
-      starter: { target: 25, minimum: 20 },
-      growth: { target: 60, minimum: 40 },
-      pro: { target: 100, minimum: 80 },
-      enterprise: { target: 150, minimum: 120 },
+      starter: { min: 20, max: 25 },
+      growth: { min: 40, max: 60 },
+      pro: { min: 80, max: 100 },
+      enterprise: { min: 120, max: 150 },
     };
     
     const tierQuota = quotas[order.tier as keyof typeof quotas] || quotas.starter;
-    const leadQuota = tierQuota.target;
-    const minimumQuota = tierQuota.minimum;
-    logStep("Lead quota", { target: leadQuota, minimum: minimumQuota });
+    const minimumQuota = tierQuota.min;
+    const maximumQuota = tierQuota.max;
+    logStep("Lead quota", { minimum: minimumQuota, maximum: maximumQuota });
 
     // Build target cities list based on radius and additional cities
     const targetCities = [order.primary_city];
@@ -98,7 +98,7 @@ serve(async (req) => {
       try {
         const zillowResults = await runApifyScraper(SCRAPERS.zillow_fsbo, {
           search: `${city}, MI FSBO`,
-          maxItems: leadQuota * 2,
+          maxItems: minimumQuota * 2, // Aim for minimum, but allow scrapers to return more
         });
         allLeads.push(...parseZillowResults(zillowResults));
         logStep(`Zillow scraper completed for ${city}`, { count: zillowResults.length });
@@ -110,7 +110,7 @@ serve(async (req) => {
       try {
         const craigslistResults = await runApifyScraper(SCRAPERS.craigslist, {
           searchQueries: [`https://detroit.craigslist.org/search/reo?query=fsbo+${city}`],
-          maxItems: leadQuota * 2,
+          maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseCraigslistResults(craigslistResults));
         logStep(`Craigslist scraper completed for ${city}`, { count: craigslistResults.length });
@@ -123,7 +123,7 @@ serve(async (req) => {
         const fbResults = await runApifyScraper(SCRAPERS.facebook_marketplace, {
           search: "house for sale by owner",
           location: `${city}, MI`,
-          maxItems: leadQuota * 2,
+          maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseFacebookResults(fbResults));
         logStep(`Facebook Marketplace scraper completed for ${city}`, { count: fbResults.length });
@@ -135,7 +135,7 @@ serve(async (req) => {
       try {
         const fsboResults = await runApifyScraper(SCRAPERS.fsbo_com, {
           location: city,
-          maxItems: leadQuota * 2,
+          maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseFSBOResults(fsboResults));
         logStep(`FSBO.com scraper completed for ${city}`, { count: fsboResults.length });
@@ -176,54 +176,27 @@ serve(async (req) => {
 
     logStep("Filtered out existing leads", { newCount: newLeads.length });
 
-    // Limit to quota
-    const finalLeads = newLeads.slice(0, leadQuota);
-    logStep("Applied tier quota", { finalCount: finalLeads.length });
+    // Limit to maximum quota (but deliver all if naturally found up to max)
+    const finalLeads = newLeads.slice(0, maximumQuota);
+    logStep("Applied tier quota", { finalCount: finalLeads.length, minimum: minimumQuota, maximum: maximumQuota });
 
-    // Check if we met minimum quota - handle refunds if needed
-    let refundAmount = null;
-    let refundReason = null;
+    // Check if we met minimum quota - handle partial delivery if needed
+    let orderStatus = "delivered";
+    let needsAdditionalScraping = false;
+    let nextScrapeDate = null;
 
     if (finalLeads.length < minimumQuota) {
-      const percentageDelivered = (finalLeads.length / minimumQuota) * 100;
-      const tierPrices = { starter: 9700, growth: 19700, pro: 39700, enterprise: 59700 };
-      const orderPrice = tierPrices[order.tier as keyof typeof tierPrices] || 0;
-
-      if (percentageDelivered < 50) {
-        // Full refund if less than 50% of minimum
-        refundAmount = orderPrice;
-        refundReason = `Only ${finalLeads.length} leads found (${percentageDelivered.toFixed(0)}% of minimum ${minimumQuota}). Full refund issued.`;
-        logStep("Full refund triggered", { found: finalLeads.length, minimum: minimumQuota });
-      } else if (percentageDelivered < 80) {
-        // Partial refund if 50-80% of minimum
-        const refundPercentage = 100 - percentageDelivered;
-        refundAmount = Math.floor((orderPrice * refundPercentage) / 100);
-        refundReason = `Only ${finalLeads.length} leads found (${percentageDelivered.toFixed(0)}% of minimum ${minimumQuota}). Partial refund issued.`;
-        logStep("Partial refund triggered", { found: finalLeads.length, minimum: minimumQuota, refund: refundAmount });
-      } else {
-        // No refund if >80% of minimum
-        logStep("No refund needed", { found: finalLeads.length, minimum: minimumQuota, percentage: percentageDelivered });
-      }
-
-      // Process refund via Stripe if applicable
-      if (refundAmount && order.stripe_payment_intent_id) {
-        try {
-          const stripe = await import("https://esm.sh/stripe@18.5.0");
-          const stripeClient = new stripe.default(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-            apiVersion: "2025-08-27.basil",
-          });
-          
-          await stripeClient.refunds.create({
-            payment_intent: order.stripe_payment_intent_id,
-            amount: refundAmount,
-          });
-          
-          logStep("Refund processed via Stripe", { amount: refundAmount });
-        } catch (refundError) {
-          console.error("Refund failed:", refundError);
-          refundReason += " (Refund processing failed - will be handled manually)";
-        }
-      }
+      // Mark as partial delivery and schedule re-scrapes
+      orderStatus = "partial_delivery";
+      needsAdditionalScraping = true;
+      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+      logStep("Partial delivery - scheduling re-scrapes", { 
+        found: finalLeads.length, 
+        minimum: minimumQuota,
+        nextScrape: nextScrapeDate 
+      });
+    } else {
+      logStep("Minimum quota met", { found: finalLeads.length, minimum: minimumQuota });
     }
 
     // Enrich contacts using Reverse Contact Enricher
@@ -259,21 +232,48 @@ serve(async (req) => {
     const sheetUrl = await createGoogleSheet(order, enrichedLeads);
     logStep("Google Sheet created", { url: sheetUrl });
 
-    // Update order with sheet URL, status, and refund info
+    // Update order with sheet URL, status, and scraping info
     await supabase
       .from("orders")
       .update({
         sheet_url: sheetUrl,
-        status: "delivered",
+        status: orderStatus,
         delivered_at: new Date().toISOString(),
         leads_count: enrichedLeads.length,
+        total_leads_delivered: enrichedLeads.length,
         cities_searched: targetCities,
-        refund_amount: refundAmount,
-        refund_reason: refundReason,
+        needs_additional_scraping: needsAdditionalScraping,
+        next_scrape_date: nextScrapeDate?.toISOString(),
       })
       .eq("id", orderId);
 
     // Send email with sheet link
+    const emailSubject = needsAdditionalScraping 
+      ? `Your ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)} Leads - First Batch Delivered + More Coming!`
+      : "Your RealtyLeadsAI Verified Leads Are Ready";
+    
+    const emailBody = needsAdditionalScraping
+      ? `
+          <h1>Hi ${order.customer_name},</h1>
+          <p><strong>First batch delivered:</strong> ${enrichedLeads.length} verified FSBO homeowners</p>
+          <p>We're continuing to scrape your territory for the next 2 weeks to ensure you receive your guaranteed minimum of ${minimumQuota} leads.</p>
+          <p><strong>Plan tier:</strong> ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</p>
+          <p><strong>Location:</strong> ${order.primary_city}, MI</p>
+          <p><a href="${sheetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Current Leads</a></p>
+          <p>You'll receive additional batches as we find more FSBO sellers in your area. Your Google Sheet will be automatically updated with new leads.</p>
+          <p>Best regards,<br>RealtyLeadsAI Team</p>
+        `
+      : `
+          <h1>Hi ${order.customer_name},</h1>
+          <p>Your verified homeowner leads are ready!</p>
+          <p><strong>Leads delivered:</strong> ${enrichedLeads.length} verified FSBO homeowners</p>
+          <p><strong>Plan tier:</strong> ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</p>
+          <p><strong>Location:</strong> ${order.primary_city}, MI</p>
+          <p><a href="${sheetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Leads</a></p>
+          <p>Your leads include verified contact information for homeowners selling their properties directly (FSBO) in the Metro Detroit area.</p>
+          <p>Best regards,<br>RealtyLeadsAI Team</p>
+        `;
+
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -283,17 +283,8 @@ serve(async (req) => {
       body: JSON.stringify({
         from: "RealtyLeadsAI <onboarding@resend.dev>",
         to: [order.customer_email],
-        subject: "Your RealtyLeadsAI Verified Leads Are Ready",
-        html: `
-          <h1>Hi ${order.customer_name},</h1>
-          <p>Your verified homeowner leads are ready!</p>
-          <p><strong>Leads delivered:</strong> ${enrichedLeads.length} verified FSBO homeowners</p>
-          <p><strong>Plan tier:</strong> ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</p>
-          <p><strong>Location:</strong> ${order.city}, MI</p>
-          <p><a href="${sheetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Leads</a></p>
-          <p>Your leads include verified contact information for homeowners selling their properties directly (FSBO) in the Metro Detroit area.</p>
-          <p>Best regards,<br>RealtyLeadsAI Team</p>
-        `,
+        subject: emailSubject,
+        html: emailBody,
       }),
     });
 

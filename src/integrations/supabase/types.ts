@@ -80,6 +80,8 @@ export type Database = {
           delivered_at: string | null
           id: string
           leads_count: number | null
+          needs_additional_scraping: boolean | null
+          next_scrape_date: string | null
           primary_city: string
           refund_amount: number | null
           refund_reason: string | null
@@ -88,6 +90,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
+          total_leads_delivered: number | null
           updated_at: string
         }
         Insert: {
@@ -99,6 +102,8 @@ export type Database = {
           delivered_at?: string | null
           id?: string
           leads_count?: number | null
+          needs_additional_scraping?: boolean | null
+          next_scrape_date?: string | null
           primary_city?: string
           refund_amount?: number | null
           refund_reason?: string | null
@@ -107,6 +112,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
+          total_leads_delivered?: number | null
           updated_at?: string
         }
         Update: {
@@ -118,6 +124,8 @@ export type Database = {
           delivered_at?: string | null
           id?: string
           leads_count?: number | null
+          needs_additional_scraping?: boolean | null
+          next_scrape_date?: string | null
           primary_city?: string
           refund_amount?: number | null
           refund_reason?: string | null
@@ -126,6 +134,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           tier?: Database["public"]["Enums"]["pricing_tier"]
+          total_leads_delivered?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -159,7 +168,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      order_status: "pending" | "processing" | "completed" | "failed"
+      order_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "partial_delivery"
       pricing_tier: "starter" | "growth" | "pro"
     }
     CompositeTypes: {
@@ -288,7 +302,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      order_status: ["pending", "processing", "completed", "failed"],
+      order_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "partial_delivery",
+      ],
       pricing_tier: ["starter", "growth", "pro"],
     },
   },
