@@ -56,7 +56,7 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-foreground max-w-2xl mx-auto">
-            No cold calls. No chasing. Just verified FSBO leads that convert—delivered in 24 hours.
+            No cold calls. No chasing. Fresh FSBO leads delivered in under 1 hour—get leads faster than any competitor.
           </p>
 
           {/* Value props */}
@@ -71,7 +71,7 @@ const Hero = () => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Sent in under 24 hours</span>
+              <span>Delivered in under 1 hour</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>

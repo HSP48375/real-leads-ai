@@ -8,13 +8,15 @@ const oneTimeTiers = [
   {
     name: "Starter",
     price: "$97",
-    subtext: "20-25 verified leads",
+    subtext: "20-25 verified FSBO leads",
     costPerLead: "$3.88–$4.85 per verified lead",
     description: "Perfect for testing the waters with verified FSBO leads.",
     features: [
-      "20-25 verified leads",
-      "Radius-based targeting (up to 100 mi)",
-      "Delivered in 24 hours (Google Sheet)",
+      "20-25 verified FSBO leads",
+      "⚡ Delivered in under 1 hour",
+      "Primary city + 50-mile radius",
+      "Optional: Up to 5 additional cities",
+      "Google Sheets + CSV delivery",
       "Email support"
     ],
     cta: "GET STARTED"
@@ -22,33 +24,34 @@ const oneTimeTiers = [
   {
     name: "Growth",
     price: "$197",
-    subtext: "40-60 verified leads",
+    subtext: "40-60 verified FSBO leads",
     costPerLead: "$3.28–$4.93 per verified lead",
     description: "Great for small agencies and independent agents.",
     featured: true,
     badge: "MOST POPULAR",
     features: [
-      "40-60 verified leads",
-      "Radius-based targeting (up to 100 mi)",
-      "Delivered in 24 hours (Google Sheet)",
-      "Priority email support",
-      "Contact enrichment included"
+      "40-60 verified FSBO leads",
+      "⚡ Delivered in under 1 hour",
+      "Primary city + 50-mile radius",
+      "Optional: Up to 5 additional cities",
+      "Google Sheets + CSV delivery",
+      "Priority email support"
     ],
     cta: "GET STARTED"
   },
   {
     name: "Pro",
     price: "$397",
-    subtext: "80-100 verified leads",
+    subtext: "80-100 verified FSBO leads",
     costPerLead: "$3.97–$4.96 per verified lead",
     description: "Full territory coverage, best for serious realtors and broker teams.",
     features: [
-      "80-100 verified leads",
-      "Radius-based targeting (up to 100 mi)",
-      "Delivered in 12 hours (Google Sheet)",
-      "Priority support + phone",
-      "Advanced contact enrichment",
-      "Dedicated account manager"
+      "80-100 verified FSBO leads",
+      "⚡ Delivered in under 1 hour",
+      "Primary city + 50-mile radius",
+      "Optional: Up to 5 additional cities",
+      "Google Sheets + CSV delivery",
+      "Phone + email support"
     ],
     cta: "GET STARTED"
   }
@@ -60,20 +63,19 @@ const monthlyTiers = [
     price: "$597",
     period: "/month",
     savings: "Best value for high-volume agents",
-    subtext: "120-150 verified leads monthly",
+    subtext: "120-150 verified FSBO leads per month",
     costPerLead: "$3.98–$4.98 per verified lead",
     description: "For high-volume agents and teams needing consistent lead flow.",
     featured: true,
     badge: "SUBSCRIPTION",
     features: [
-      "120-150 verified leads monthly",
-      "Radius-based targeting (up to 100 mi)",
-      "Delivered in 6 hours (Google Sheet)",
-      "Priority support + phone",
-      "Advanced contact enrichment",
+      "120-150 verified FSBO leads per month",
+      "⚡ Delivered in under 1 hour",
+      "Primary city + 50-mile radius",
+      "Optional: Up to 5 additional cities",
+      "Google Sheets + CSV delivery",
       "Dedicated account manager",
-      "Custom territory configurations",
-      "Cancel anytime"
+      "Priority support"
     ],
     cta: "START SUBSCRIPTION"
   }
@@ -91,7 +93,7 @@ const Pricing = () => {
             Choose Your Plan
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground mb-10">
-            All plans include fresh, geo-verified leads with no recycled data. Real homeowners, verified and ready within 24 hours.
+            All plans include fresh, geo-verified FSBO leads delivered in under 1 hour. Real homeowners, verified and ready—no recycled data.
           </p>
           
           {/* Pricing Toggle */}

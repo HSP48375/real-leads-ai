@@ -17,8 +17,8 @@ const steps = [
   {
     number: 3,
     icon: FileCheck,
-    title: "Delivered in 24 Hours",
-    description: "Receive a clean Google Sheet with verified names, phone numbers, addresses, and property details.",
+    title: "Delivered in Under 1 Hour",
+    description: "Receive a clean Google Sheet with verified names, phone numbers, addresses, and property details. Most orders completed in 15-30 minutes.",
   },
   {
     number: 4,
@@ -38,7 +38,7 @@ const HowItWorks = () => {
             How It Works
           </h2>
           <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
-            From order to inbox in 24 hours. No complexity, no waiting.
+            From order to inbox in under 1 hour. Lightning-fast delivery, no complexity, no waiting.
           </p>
         </div>
 

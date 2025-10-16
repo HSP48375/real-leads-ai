@@ -5,7 +5,7 @@ const features = [
   {
     icon: Shield,
     title: "Verified Quality",
-    description: "Every lead is verified within 24 hours. No cold, recycled lists—just active sellers ready to move."
+    description: "Every lead is verified and delivered in under 1 hour. No cold, recycled lists—just active sellers ready to move."
   },
   {
     icon: Clock,

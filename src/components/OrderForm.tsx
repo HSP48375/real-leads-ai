@@ -88,7 +88,7 @@ const OrderForm = () => {
                 Get Your <span className="text-primary font-bold">Verified Leads</span>
               </CardTitle>
               <CardDescription className="text-center text-base">
-                Fill out the form below and we'll deliver fresh, geo-verified leads within 24 hours
+                Fill out the form below and we'll deliver fresh, geo-verified leads in under 1 hour
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -169,10 +169,10 @@ const OrderForm = () => {
                       <SelectValue placeholder="Choose your plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="starter">Starter - $97 (20-25 verified leads)</SelectItem>
-                      <SelectItem value="growth">Growth - $197 (40-60 verified leads)</SelectItem>
-                      <SelectItem value="pro">Pro - $397 (80-100 verified leads)</SelectItem>
-                      <SelectItem value="enterprise">Enterprise - $597/month (120-150 verified leads)</SelectItem>
+                      <SelectItem value="starter">Starter - $97 (20-25 verified FSBO leads)</SelectItem>
+                      <SelectItem value="growth">Growth - $197 (40-60 verified FSBO leads)</SelectItem>
+                      <SelectItem value="pro">Pro - $397 (80-100 verified FSBO leads)</SelectItem>
+                      <SelectItem value="enterprise">Enterprise - $597/month (120-150 verified FSBO leads per month)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

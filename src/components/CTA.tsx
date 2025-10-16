@@ -14,7 +14,7 @@ const CTA = () => {
           </h2>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Get fresh, geo-verified FSBO leads delivered to your inbox within 24 hours. Real people. Real listings. Real results.
+            Get fresh, geo-verified FSBO leads delivered to your inbox in under 1 hour. Real people. Real listings. Real results.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -31,7 +31,7 @@ const CTA = () => {
           <div className="pt-8 flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Delivered in 24 hours</span>
+              <span>Delivered in under 1 hour</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary"></div>

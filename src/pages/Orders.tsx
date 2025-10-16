@@ -52,19 +52,19 @@ const Orders = () => {
   const getPriceForTier = (tier: string) => {
     const prices: Record<string, number> = {
       starter: 97,
-      growth: 297,
-      pro: 597,
-      enterprise: 1297,
+      growth: 197,
+      pro: 397,
+      enterprise: 597,
     };
     return prices[tier] || 0;
   };
 
   const getTierLabel = (tier: string) => {
     const labels: Record<string, string> = {
-      starter: 'Starter (50 leads)',
-      growth: 'Growth (200 leads)',
-      pro: 'Pro (500 leads)',
-      enterprise: 'Enterprise (1500 leads)',
+      starter: 'Starter (20-25 leads)',
+      growth: 'Growth (40-60 leads)',
+      pro: 'Pro (80-100 leads)',
+      enterprise: 'Enterprise (120-150 leads/month)',
     };
     return labels[tier] || tier;
   };
@@ -211,7 +211,7 @@ const Orders = () => {
                                 : 'bg-yellow-500/10 text-yellow-500'
                             }`}
                           >
-                            {order.status === 'delivered' ? 'Delivered' : 'Processing'}
+                            {order.status === 'delivered' ? 'Delivered' : 'Processing (15-30 min)'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
