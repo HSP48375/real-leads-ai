@@ -6,7 +6,7 @@ const CTA = () => {
     <section className="py-20 relative">
       <div className="container px-4">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold space-y-3">
+          <h2 className="text-4xl md:text-5xl font-bold space-y-3 mb-12">
             <div>Ready to Close More Listings?</div>
             <div className="text-primary">
               Be the First Agent They Call.
