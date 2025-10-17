@@ -61,13 +61,13 @@ const ComparisonTable = () => {
 
         <div className="max-w-5xl mx-auto">
           {/* Desktop Table */}
-          <div className="hidden md:block overflow-hidden rounded-lg border border-border bg-card mb-12">
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card mb-12">
             {/* Table Header */}
             <div className="grid grid-cols-[2fr_2fr_2fr] border-b border-border bg-muted/30">
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                 Feature
               </div>
-              <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center bg-amber-50/50 dark:bg-amber-950/20 border-x border-border">
+              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center bg-amber-50/50 dark:bg-amber-950/20 border-x border-border text-[#F1A501]">
                 RealtyLeadsAI
               </div>
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground">
@@ -86,7 +86,7 @@ const ComparisonTable = () => {
                 <div className="p-6 font-medium text-foreground">
                   {row.feature}
                 </div>
-                <div className="p-6 bg-amber-50/50 dark:bg-amber-950/20 border-x border-border">
+                <div className="p-6 bg-amber-50/50 dark:bg-amber-950/20 border-x border-border transition-all duration-300 hover:shadow-[0_0_30px_rgba(241,165,1,0.3)]">
                   <div className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm leading-relaxed font-medium">
@@ -111,24 +111,24 @@ const ComparisonTable = () => {
             {comparisonData.map((row) => (
               <div
                 key={row.feature}
-                className="rounded-lg border border-border bg-card overflow-hidden"
+                className="rounded-2xl border border-border bg-card overflow-hidden"
               >
                 <div className="p-4 bg-muted/30 border-b border-border">
                   <h4 className="font-semibold text-sm">{row.feature}</h4>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded p-3">
+                  <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-xl p-3">
                     <div className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        <p className="text-xs font-bold text-[#F1A501] mb-1">
                           RealtyLeadsAI
                         </p>
                         <p className="text-sm font-medium">{row.realtyLeadsAI}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="rounded p-3 bg-muted/20">
+                  <div className="rounded-xl p-3 bg-muted/20">
                     <div className="flex items-start gap-2">
                       <X className="w-4 h-4 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
                       <div>
