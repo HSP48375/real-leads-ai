@@ -62,10 +62,10 @@ const ComparisonTable = () => {
 
         <div className="max-w-5xl mx-auto">
           {/* Desktop Table */}
-          <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card mb-12">
-            <div className="grid grid-cols-[2fr_2fr_2fr]">
+          <div className="hidden md:block mb-12">
+            <div className="grid grid-cols-[2fr_2fr_2fr] gap-6">
               {/* Left Column - Features */}
-              <div>
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
                 {/* Header */}
                 <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30">
                   Feature
@@ -84,9 +84,9 @@ const ComparisonTable = () => {
               </div>
 
               {/* Middle Column - RealtyLeadsAI (with glow) */}
-              <div className="border-x border-border relative z-10 transform scale-105 shadow-[0_8px_30px_rgb(0,0,0,0.6)]">
+              <div className="relative z-10 transform scale-105">
                 <GlowingCard className="h-full glow-always-on">
-                  <div className="h-full flex flex-col">
+                  <div className="h-full flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
                     {/* Header */}
                     <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30">
                       RealtyLeadsAI
@@ -112,7 +112,7 @@ const ComparisonTable = () => {
               </div>
 
               {/* Right Column - Traditional Services */}
-              <div>
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
                 {/* Header */}
                 <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30">
                   Traditional Services
