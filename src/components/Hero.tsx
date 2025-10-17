@@ -53,6 +53,11 @@ const Hero = () => {
           <h1 className="font-bold leading-tight text-[hsl(var(--headline))] text-3xl md:text-5xl lg:text-6xl whitespace-nowrap tracking-tight">
             Stop chasing. Start closing.
           </h1>
+          
+          {/* Tagline */}
+          <p className="text-base md:text-lg text-muted-foreground/80 italic">
+            Built for realtors who demand quality over quantity.
+          </p>
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl font-bold text-foreground max-w-2xl mx-auto pt-4">
