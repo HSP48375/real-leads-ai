@@ -94,32 +94,21 @@ const Hero = () => {
                 </div>
               </Link>
             ) : (
-              <>
-                <Link to="/signup">
-                  <div ref={glowCardRef} className="glow-card inline-block">
-                    <span className="glow"></span>
-                    <div className="card-inner">
-                      <Button 
-                        size="lg" 
-                        className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
-                      >
-                        <span className="relative z-10">Get Started</span>
-                        <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                      </Button>
-                    </div>
+              <Link to="/signup">
+                <div ref={glowCardRef} className="glow-card inline-block">
+                  <span className="glow"></span>
+                  <div className="card-inner">
+                    <Button 
+                      size="lg" 
+                      className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg transition-all duration-300 group relative overflow-hidden border-0"
+                    >
+                      <span className="relative z-10">Get Started</span>
+                      <ArrowRight className="ml-2 relative z-10 group-hover:translate-x-1 transition-transform animate-pulse" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    </Button>
                   </div>
-                </Link>
-                <Link to="/login">
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    className="px-8 py-6 text-lg font-semibold border-2 border-primary/50 hover:bg-primary/10"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-              </>
+                </div>
+              </Link>
             )}
           </div>
         </div>
