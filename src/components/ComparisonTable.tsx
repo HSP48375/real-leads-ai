@@ -66,7 +66,7 @@ const ComparisonTable = () => {
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-6">
               {/* Column 1: Features */}
               <div className="grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden">
-                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30 flex items-center">
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30 flex items-center h-[72px]">
                   Feature
                 </div>
                 {comparisonData.map((row, index) => (
@@ -85,7 +85,7 @@ const ComparisonTable = () => {
               <div className="relative z-10 transform scale-105">
                 <GlowingCard className="h-full glow-always-on">
                   <div className="h-full grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
-                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30 flex items-center justify-center">
+                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30 flex items-center justify-center h-[72px]">
                       RealtyLeadsAI
                     </div>
                     {comparisonData.map((row, index) => (
@@ -109,7 +109,7 @@ const ComparisonTable = () => {
 
               {/* Column 3: Traditional Services */}
               <div className="grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden">
-                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30 flex items-center justify-center">
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30 flex items-center justify-center h-[72px]">
                   Traditional Services
                 </div>
                 {comparisonData.map((row, index) => (
