@@ -1,5 +1,6 @@
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import GlowingCard from "@/components/GlowingCard";
 
 const comparisonData = [
   {
@@ -86,13 +87,17 @@ const ComparisonTable = () => {
                 <div className="p-6 font-medium text-foreground">
                   {row.feature}
                 </div>
-                <div className="p-6 border-x border-border transition-all duration-300 hover:shadow-[0_0_30px_rgba(241,165,1,0.3)]">
-                  <div className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm leading-relaxed font-medium">
-                      {row.realtyLeadsAI}
-                    </span>
-                  </div>
+                <div className="border-x border-border relative">
+                  <GlowingCard className="h-full">
+                    <div className="p-6 h-full transition-all duration-300">
+                      <div className="flex items-start gap-3">
+                        <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm leading-relaxed font-medium">
+                          {row.realtyLeadsAI}
+                        </span>
+                      </div>
+                    </div>
+                  </GlowingCard>
                 </div>
                 <div className="p-6">
                   <div className="flex items-start gap-3">
