@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import GlowingCard from "@/components/GlowingCard";
 
-const oneTimeTiers = [
+const allTiers = [
   {
     name: "Starter",
     price: "$97",
@@ -54,10 +53,7 @@ const oneTimeTiers = [
       "Phone + email support"
     ],
     cta: "GET STARTED"
-  }
-];
-
-const monthlyTiers = [
+  },
   {
     name: "Enterprise",
     price: "$597",
@@ -66,7 +62,6 @@ const monthlyTiers = [
     subtext: "120-150 verified FSBO leads per month",
     costPerLead: "$3.98–$4.98 per verified lead",
     description: "For high-volume agents and teams needing consistent lead flow.",
-    featured: true,
     badge: "SUBSCRIPTION",
     features: [
       "120-150 verified FSBO leads per month",
@@ -82,8 +77,6 @@ const monthlyTiers = [
 ];
 
 const Pricing = () => {
-  const [isMonthly, setIsMonthly] = useState(false);
-  const currentTiers = isMonthly ? monthlyTiers : oneTimeTiers;
 
   return (
     <section id="pricing" className="py-20 relative">
@@ -92,38 +85,14 @@ const Pricing = () => {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground mb-10">
+          <p className="text-lg md:text-xl text-muted-foreground">
             All plans include fresh, geo-verified FSBO leads delivered in under 1 hour. Real homeowners, verified and ready—no recycled data.
           </p>
-          
-          {/* Pricing Toggle */}
-          <div className="inline-flex items-center bg-card/40 backdrop-blur-glass border border-border rounded-full p-1 shadow-subtle">
-            <button
-              onClick={() => setIsMonthly(false)}
-              className={`px-8 py-3 rounded-full font-semibold text-base transition-all duration-300 ${
-                !isMonthly
-                  ? "bg-primary text-primary-foreground shadow-gold"
-                  : "text-foreground hover:text-primary"
-              }`}
-            >
-              One-Time Purchase
-            </button>
-            <button
-              onClick={() => setIsMonthly(true)}
-              className={`px-8 py-3 rounded-full font-semibold text-base transition-all duration-300 ${
-                isMonthly
-                  ? "bg-primary text-primary-foreground shadow-gold"
-                  : "text-foreground hover:text-primary"
-              }`}
-            >
-              Monthly Subscription
-            </button>
-          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-24">
-          {currentTiers.map((tier, index) => (
-            <GlowingCard key={`${tier.name}-${isMonthly}`}>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-12">
+          {allTiers.map((tier, index) => (
+            <GlowingCard key={tier.name}>
               <Card 
                 className={`relative backdrop-blur-glass transition-all duration-500 hover:-translate-y-2 animate-fade-in border-transparent bg-card/60 shadow-none h-full flex flex-col ${
                   tier.featured ? 'shadow-gold-glow lg:scale-105' : ''
