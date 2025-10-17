@@ -15,9 +15,10 @@ const allTiers = [
     description: "Perfect for getting started",
     features: [
       "20-25 Verified FSBO Leads",
-      "1 City Coverage",
-      "Phone + Email + Address",
-      "Delivered Within 24 Hours"
+      "Phone Number + Property Address",
+      "Choose Your Coverage Area",
+      "Delivered Within 1 Hour",
+      "Email Support"
     ],
     tierValue: "starter"
   },
@@ -30,9 +31,9 @@ const allTiers = [
     description: "Most popular - Best value",
     features: [
       "40-50 Verified FSBO Leads",
-      "Up to 2 Cities",
-      "Phone + Email + Address",
-      "Delivered Within 24 Hours",
+      "Phone Number + Property Address",
+      "Choose Your Coverage Area",
+      "Delivered Within 1 Hour",
       "Priority Support"
     ],
     popular: true,
@@ -47,9 +48,9 @@ const allTiers = [
     description: "For serious lead generation",
     features: [
       "110-130 Verified FSBO Leads",
-      "Up to 3 Cities",
-      "Phone + Email + Address",
-      "Delivered Within 12 Hours",
+      "Phone Number + Property Address",
+      "Choose Your Coverage Area",
+      "Delivered Within 1 Hour",
       "Priority Support"
     ],
     tierValue: "pro"
@@ -63,9 +64,9 @@ const allTiers = [
     description: "Maximum coverage & support",
     features: [
       "150-200 Verified FSBO Leads",
-      "Unlimited Cities",
-      "Phone + Email + Address",
-      "Delivered Within 6 Hours",
+      "Phone Number + Property Address",
+      "Choose Your Coverage Area",
+      "Delivered Within 1 Hour",
       "Dedicated Account Manager"
     ],
     tierValue: "enterprise"
