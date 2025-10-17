@@ -50,7 +50,7 @@ const Hero = () => {
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="font-bold leading-tight text-[hsl(var(--headline))] text-4xl md:text-5xl lg:text-7xl">
+          <h1 className="font-bold leading-tight text-[hsl(var(--headline))] text-3xl md:text-5xl lg:text-6xl whitespace-nowrap tracking-tight">
             Stop chasing. Start closing.
           </h1>
 
