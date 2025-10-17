@@ -8,9 +8,7 @@ const allTiers = [
     name: "Starter",
     price: "$97",
     subtext: "15-20 verified FSBO leads",
-    costPerLead: "$4.85–$6.47 per verified lead",
     features: [
-      "15-20 verified FSBO leads",
       "Email support"
     ],
     cta: "GET STARTED"
@@ -19,11 +17,9 @@ const allTiers = [
     name: "Growth",
     price: "$197",
     subtext: "25-40 verified FSBO leads",
-    costPerLead: "$4.93–$7.88 per verified lead",
     featured: true,
     badge: "MOST POPULAR",
     features: [
-      "25-40 verified FSBO leads",
       "Priority email support"
     ],
     cta: "GET STARTED"
@@ -32,9 +28,7 @@ const allTiers = [
     name: "Pro",
     price: "$397",
     subtext: "50-75 verified FSBO leads",
-    costPerLead: "$5.29–$7.94 per verified lead",
     features: [
-      "50-75 verified FSBO leads",
       "Phone + email support"
     ],
     cta: "GET STARTED"
@@ -43,12 +37,9 @@ const allTiers = [
     name: "Enterprise",
     price: "$597",
     period: "/month",
-    savings: "Best value for high-volume agents",
     subtext: "80-120 verified FSBO leads per month",
-    costPerLead: "$4.98–$7.46 per verified lead",
     badge: "SUBSCRIPTION",
     features: [
-      "80-120 verified FSBO leads per month",
       "Dedicated account manager",
       "Priority support"
     ],
@@ -65,9 +56,6 @@ const Pricing = () => {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground mb-8">
-            All plans include fresh, geo-verified FSBO leads delivered in under 1 hour. Real homeowners, verified and ready—no recycled data.
-          </p>
           
           {/* Universal Features */}
           <div className="bg-card/80 backdrop-blur-glass border border-border rounded-2xl p-8 max-w-3xl mx-auto mb-16">
@@ -75,31 +63,19 @@ const Pricing = () => {
             <div className="grid md:grid-cols-2 gap-4 text-left">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">⚡</span>
-                <div>
-                  <p className="font-semibold">Delivered in under 1 hour</p>
-                  <p className="text-sm text-muted-foreground">Most orders completed in 15-30 min</p>
-                </div>
+                <p className="font-semibold">Delivered in under 1 hour</p>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📍</span>
-                <div>
-                  <p className="font-semibold">Primary city + 50-mile radius search</p>
-                  <p className="text-sm text-muted-foreground">Comprehensive territory coverage</p>
-                </div>
+                <p className="font-semibold">Primary city + 50-mile radius</p>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📞</span>
-                <div>
-                  <p className="font-semibold">Direct seller phone numbers</p>
-                  <p className="text-sm text-muted-foreground">Contact info included</p>
-                </div>
+                <p className="font-semibold">Direct seller phone numbers</p>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📊</span>
-                <div>
-                  <p className="font-semibold">Google Sheets + CSV delivery</p>
-                  <p className="text-sm text-muted-foreground">Organized, easy-to-use format</p>
-                </div>
+                <p className="font-semibold">Google Sheets + CSV delivery</p>
               </div>
             </div>
           </div>
@@ -126,15 +102,7 @@ const Pricing = () => {
                     <span className="text-3xl font-bold">{tier.price}</span>
                     {('period' in tier) && <span className="text-lg text-muted-foreground">{(tier as any).period}</span>}
                   </div>
-                  {('savings' in tier) ? (
-                    <p className="text-[10px] text-primary font-semibold mt-2 opacity-80 min-h-[16px]">{(tier as any).savings}</p>
-                  ) : (
-                    <div className="min-h-[16px] mt-2"></div>
-                  )}
                   <CardDescription className="text-sm mt-3 min-h-[20px]">{tier.subtext}</CardDescription>
-                  <div className="min-h-[14px] mt-1.5">
-                    {tier.costPerLead && <p className="text-[9px] text-primary font-semibold">{tier.costPerLead}</p>}
-                  </div>
                 </CardHeader>
 
                 <CardContent className="flex-grow px-6">
