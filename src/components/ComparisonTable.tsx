@@ -68,7 +68,7 @@ const ComparisonTable = () => {
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                 Feature
               </div>
-              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center border-x border-border text-[#F1A501]">
+              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center border-x border-border text-primary">
                 RealtyLeadsAI
               </div>
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground">
@@ -126,7 +126,7 @@ const ComparisonTable = () => {
                     <div className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-bold text-[#F1A501] mb-1">
+                        <p className="text-xs font-bold text-primary mb-1">
                           RealtyLeadsAI
                         </p>
                         <p className="text-sm font-medium">{row.realtyLeadsAI}</p>
