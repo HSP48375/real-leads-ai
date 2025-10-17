@@ -9,13 +9,8 @@ const allTiers = [
     price: "$97",
     subtext: "20-25 verified FSBO leads",
     costPerLead: "$3.88–$4.85 per verified lead",
-    description: "Perfect for testing the waters with verified FSBO leads.",
     features: [
       "20-25 verified FSBO leads",
-      "⚡ Delivered in under 1 hour",
-      "Primary city + 50-mile radius",
-      "Optional: Up to 5 additional cities",
-      "Google Sheets + CSV delivery",
       "Email support"
     ],
     cta: "GET STARTED"
@@ -25,15 +20,10 @@ const allTiers = [
     price: "$197",
     subtext: "40-60 verified FSBO leads",
     costPerLead: "$3.28–$4.93 per verified lead",
-    description: "Great for small agencies and independent agents.",
     featured: true,
     badge: "MOST POPULAR",
     features: [
       "40-60 verified FSBO leads",
-      "⚡ Delivered in under 1 hour",
-      "Primary city + 50-mile radius",
-      "Optional: Up to 5 additional cities",
-      "Google Sheets + CSV delivery",
       "Priority email support"
     ],
     cta: "GET STARTED"
@@ -43,13 +33,8 @@ const allTiers = [
     price: "$397",
     subtext: "80-100 verified FSBO leads",
     costPerLead: "$3.97–$4.96 per verified lead",
-    description: "Full territory coverage, best for serious realtors and broker teams.",
     features: [
       "80-100 verified FSBO leads",
-      "⚡ Delivered in under 1 hour",
-      "Primary city + 50-mile radius",
-      "Optional: Up to 5 additional cities",
-      "Google Sheets + CSV delivery",
       "Phone + email support"
     ],
     cta: "GET STARTED"
@@ -61,14 +46,9 @@ const allTiers = [
     savings: "Best value for high-volume agents",
     subtext: "120-150 verified FSBO leads per month",
     costPerLead: "$3.98–$4.98 per verified lead",
-    description: "For high-volume agents and teams needing consistent lead flow.",
     badge: "SUBSCRIPTION",
     features: [
       "120-150 verified FSBO leads per month",
-      "⚡ Delivered in under 1 hour",
-      "Primary city + 50-mile radius",
-      "Optional: Up to 5 additional cities",
-      "Google Sheets + CSV delivery",
       "Dedicated account manager",
       "Priority support"
     ],
@@ -85,9 +65,51 @@ const Pricing = () => {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground">
+          <p className="text-lg md:text-xl text-muted-foreground mb-8">
             All plans include fresh, geo-verified FSBO leads delivered in under 1 hour. Real homeowners, verified and ready—no recycled data.
           </p>
+          
+          {/* Universal Features */}
+          <div className="bg-card/80 backdrop-blur-glass border border-border rounded-2xl p-8 max-w-3xl mx-auto">
+            <h3 className="text-xl font-bold mb-6">What's Included In Every Plan:</h3>
+            <div className="grid md:grid-cols-2 gap-4 text-left">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <p className="font-semibold">Delivered in under 1 hour</p>
+                  <p className="text-sm text-muted-foreground">Most orders completed in 15-30 min</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📍</span>
+                <div>
+                  <p className="font-semibold">Primary city + 50-mile radius search</p>
+                  <p className="text-sm text-muted-foreground">Comprehensive territory coverage</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📞</span>
+                <div>
+                  <p className="font-semibold">Direct seller phone numbers + emails</p>
+                  <p className="text-sm text-muted-foreground">Contact info included</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🎯</span>
+                <div>
+                  <p className="font-semibold">Optional: Up to 5 additional cities</p>
+                  <p className="text-sm text-muted-foreground">Expand your reach</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 md:col-span-2">
+                <span className="text-2xl">📊</span>
+                <div>
+                  <p className="font-semibold">Google Sheets + CSV delivery</p>
+                  <p className="text-sm text-muted-foreground">Organized, easy-to-use format</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-12">
@@ -120,7 +142,6 @@ const Pricing = () => {
                   <div className="min-h-[14px] mt-1.5">
                     {tier.costPerLead && <p className="text-[9px] text-primary font-semibold">{tier.costPerLead}</p>}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-4 min-h-[40px]">{tier.description}</p>
                 </CardHeader>
 
                 <CardContent className="flex-grow px-6">
