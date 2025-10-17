@@ -21,12 +21,12 @@ serve(async (req) => {
   }
 
   try {
-    const { tier, primary_city, search_radius, additional_cities, name, email } = await req.json();
+    const { tier, billing, price, leads, primary_city, search_radius, additional_cities, name, email } = await req.json();
 
-    console.log("Creating checkout session:", { tier, primary_city, search_radius, additional_cities });
+    console.log("Creating checkout session:", { tier, billing, price, leads, primary_city, search_radius, additional_cities });
 
     // Validate inputs
-    if (!tier || !primary_city || !search_radius || !name || !email) {
+    if (!tier || !billing || !price || !leads || !primary_city || !search_radius || !name || !email) {
       throw new Error("Missing required fields");
     }
 
@@ -34,6 +34,9 @@ serve(async (req) => {
     if (!priceId) {
       throw new Error(`Invalid tier: ${tier}`);
     }
+    
+    // Determine Stripe mode based on billing type
+    const mode = billing === 'monthly' ? 'subscription' : 'payment';
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -57,11 +60,14 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: tier === "enterprise" ? "subscription" : "payment",
+      mode,
       success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
-      cancel_url: `${req.headers.get("origin")}/pricing?payment=cancelled`,
+      cancel_url: `${req.headers.get("origin")}/order?tier=${tier}&billing=${billing}&price=${price}&leads=${leads}&payment=cancelled`,
       metadata: {
         tier,
+        billing,
+        price: price.toString(),
+        leads,
         primary_city,
         search_radius: search_radius.toString(),
         additional_cities: JSON.stringify(additional_cities || []),

@@ -73,15 +73,19 @@ export type Database = {
       orders: {
         Row: {
           additional_cities: string[] | null
+          billing_type: string | null
           cities_searched: string[] | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
           delivered_at: string | null
           id: string
+          lead_count_range: string | null
           leads_count: number | null
           needs_additional_scraping: boolean | null
+          next_delivery_date: string | null
           next_scrape_date: string | null
+          price_paid: number | null
           primary_city: string
           refund_amount: number | null
           refund_reason: string | null
@@ -89,21 +93,26 @@ export type Database = {
           sheet_url: string | null
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered: number | null
           updated_at: string
         }
         Insert: {
           additional_cities?: string[] | null
+          billing_type?: string | null
           cities_searched?: string[] | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
           id?: string
+          lead_count_range?: string | null
           leads_count?: number | null
           needs_additional_scraping?: boolean | null
+          next_delivery_date?: string | null
           next_scrape_date?: string | null
+          price_paid?: number | null
           primary_city?: string
           refund_amount?: number | null
           refund_reason?: string | null
@@ -111,21 +120,26 @@ export type Database = {
           sheet_url?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string
         }
         Update: {
           additional_cities?: string[] | null
+          billing_type?: string | null
           cities_searched?: string[] | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
           id?: string
+          lead_count_range?: string | null
           leads_count?: number | null
           needs_additional_scraping?: boolean | null
+          next_delivery_date?: string | null
           next_scrape_date?: string | null
+          price_paid?: number | null
           primary_city?: string
           refund_amount?: number | null
           refund_reason?: string | null
@@ -133,6 +147,7 @@ export type Database = {
           sheet_url?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           tier?: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string

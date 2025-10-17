@@ -1,53 +1,97 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import GlowingCard from "@/components/GlowingCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Check } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import GlowingCard from "@/components/GlowingCard";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface OrderFormProps {
-  initialTier?: string;
+interface OrderParams {
+  tier: string;
+  billing: 'onetime' | 'monthly';
+  price: number;
+  leads: string;
 }
 
-const OrderForm = ({ initialTier = "growth" }: OrderFormProps) => {
+interface OrderFormProps {
+  orderParams: OrderParams;
+}
+
+const OrderForm = ({ orderParams }: OrderFormProps) => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     primary_city: "",
-    search_radius: "50",
+    search_radius: "25",
     additional_cities: "",
-    tier: initialTier,
+    tier: orderParams.tier,
+    billing: orderParams.billing,
+    price: orderParams.price
   });
-  const { toast } = useToast();
-
-  // Update tier when initialTier prop changes
-  useEffect(() => {
-    if (initialTier) {
-      setFormData(prev => ({ ...prev, tier: initialTier }));
-    }
-  }, [initialTier]);
+  
+  const tierFeatures: Record<string, string[]> = {
+    starter: [
+      "20-25 verified FSBO leads",
+      "Delivered within 24 hours",
+      "Phone, email, address for each",
+      "1 City Coverage"
+    ],
+    growth: [
+      "40-50 verified FSBO leads",
+      "Delivered within 24 hours",
+      "Phone, email, address for each",
+      "Up to 2 Cities",
+      "Priority Support"
+    ],
+    pro: [
+      "110-130 verified FSBO leads",
+      "Delivered within 12 hours",
+      "Phone, email, address for each",
+      "Up to 3 Cities",
+      "Lead Replacement Guarantee"
+    ],
+    enterprise: [
+      "150-200 verified FSBO leads",
+      "Delivered within 6 hours",
+      "Phone, email, address for each",
+      "Unlimited Cities",
+      "Dedicated Account Manager",
+      "Custom Territory Mapping"
+    ]
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Parse additional cities (comma-separated, limit to 5)
-      const additionalCitiesArray = formData.additional_cities
-        .split(",")
-        .map(c => c.trim())
-        .filter(c => c.length > 0)
-        .slice(0, 5);
+      console.log("Submitting order:", formData);
 
-      // Create Stripe checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      // Parse additional cities
+      const additionalCitiesArray = formData.additional_cities
+        ? formData.additional_cities.split(",").map(city => city.trim()).filter(Boolean)
+        : [];
+
+      // Call the create-checkout-session edge function
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           tier: formData.tier,
+          billing: formData.billing,
+          price: formData.price,
+          leads: orderParams.leads,
           primary_city: formData.primary_city,
           search_radius: parseInt(formData.search_radius),
           additional_cities: additionalCitiesArray,
@@ -56,31 +100,29 @@ const OrderForm = ({ initialTier = "growth" }: OrderFormProps) => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating checkout session:", error);
+        throw error;
+      }
+
+      console.log("Checkout session created:", data);
 
       // Redirect to Stripe checkout
       if (data.sessionUrl) {
         window.open(data.sessionUrl, '_blank');
         
         toast({
-          title: "Redirecting to Checkout",
-          description: "Complete your payment to start lead generation.",
+          title: "Checkout opened!",
+          description: "Complete your payment in the new tab.",
         });
-        
-        // Reset form
-        setFormData({
-          name: "",
-          email: "",
-          primary_city: "",
-          search_radius: "50",
-          additional_cities: "",
-          tier: "",
-        });
+      } else {
+        throw new Error("No session URL returned");
       }
     } catch (error) {
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -88,135 +130,187 @@ const OrderForm = ({ initialTier = "growth" }: OrderFormProps) => {
     }
   };
 
+  const features = tierFeatures[orderParams.tier] || [];
+  
   return (
-    <section id="order-form" className="py-20 relative">
-      <div className="container px-4">
-        <div className="max-w-2xl mx-auto">
-          <GlowingCard>
-            <Card className="backdrop-blur-glass bg-card/60 border-transparent shadow-none animate-fade-in">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Order Summary */}
+        <GlowingCard>
+          <Card className="border-0 h-full">
             <CardHeader>
-              <CardTitle className="text-3xl text-center">
-                Get Your <span className="text-primary font-bold">Verified Leads</span>
+              <CardTitle className="text-2xl font-bold">
+                Your Order Summary
               </CardTitle>
-              <CardDescription className="text-center text-base">
-                Fill out the form below and we'll deliver fresh, geo-verified leads in under 1 hour
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Plan</p>
+                  <p className="text-xl font-bold capitalize">{orderParams.tier}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground">Type</p>
+                  <p className="text-lg font-semibold">
+                    {orderParams.billing === 'monthly' ? 'Monthly Subscription' : 'One-Time Purchase'}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground">Price</p>
+                  <p className="text-3xl font-bold text-primary">
+                    ${orderParams.price}
+                    {orderParams.billing === 'monthly' && <span className="text-lg">/month</span>}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="font-semibold mb-3">What You Get:</p>
+                <ul className="space-y-2">
+                  {features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                  {orderParams.billing === 'monthly' && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-sm">New leads every month</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-sm">Cancel anytime</span>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/pricing')}
+              >
+                Change Plan
+              </Button>
+            </CardContent>
+          </Card>
+        </GlowingCard>
+
+        {/* Order Form */}
+        <GlowingCard>
+          <Card className="border-0 h-full">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">
+                Your Details
+              </CardTitle>
+              <CardDescription>
+                We'll create your account automatically
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
-                  />
-                </div>
-
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="john@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    placeholder="john@example.com"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="primary_city">Primary City or Home Base</Label>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="John Smith"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="primary_city">Primary City</Label>
                   <Input
                     id="primary_city"
-                    placeholder="e.g., Royal Oak, Birmingham, Farmington Hills"
+                    type="text"
                     value={formData.primary_city}
                     onChange={(e) => setFormData({ ...formData, primary_city: e.target.value })}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    placeholder="Detroit, Ann Arbor, Lansing"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="search_radius">Search Radius</Label>
-                  <Select value={formData.search_radius} onValueChange={(value) => setFormData({ ...formData, search_radius: value })} required>
-                    <SelectTrigger className="bg-background/50 border-border/50 focus:border-primary transition-colors">
-                      <SelectValue placeholder="Select radius" />
+                  <Select
+                    value={formData.search_radius}
+                    onValueChange={(value) => setFormData({ ...formData, search_radius: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="5">5 miles</SelectItem>
+                      <SelectItem value="10">10 miles</SelectItem>
                       <SelectItem value="25">25 miles</SelectItem>
-                      <SelectItem value="50">50 miles (recommended)</SelectItem>
-                      <SelectItem value="75">75 miles</SelectItem>
+                      <SelectItem value="50">50 miles</SelectItem>
                       <SelectItem value="100">100 miles</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    We'll find FSBO leads in your city plus all surrounding areas
-                  </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="additional_cities">Additional Cities (Optional)</Label>
                   <Input
                     id="additional_cities"
-                    placeholder="e.g., Ann Arbor, Ypsilanti"
+                    type="text"
                     value={formData.additional_cities}
                     onChange={(e) => setFormData({ ...formData, additional_cities: e.target.value })}
-                    className="bg-background/50 border-border/50 focus:border-primary transition-colors"
+                    placeholder="Royal Oak, Troy"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Add up to 5 cities that fall outside your radius (comma-separated)
+                    Comma-separated
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tier">Select Pricing Tier</Label>
-                  <Select value={formData.tier} onValueChange={(value) => setFormData({ ...formData, tier: value })} required>
-                    <SelectTrigger className="bg-background/50 border-border/50 focus:border-primary transition-colors">
-                      <SelectValue placeholder="Choose your plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="starter">Starter - $97 (15-20 verified FSBO leads)</SelectItem>
-                      <SelectItem value="growth">Growth - $197 (25-40 verified FSBO leads)</SelectItem>
-                      <SelectItem value="pro">Pro - $397 (50-75 verified FSBO leads)</SelectItem>
-                      <SelectItem value="enterprise">Enterprise - $597/month (80-120 verified FSBO leads per month)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-start gap-2 pt-2">
+                  <input type="checkbox" required className="mt-1" />
+                  <p className="text-xs text-muted-foreground">
+                    I agree to the <a href="/terms-of-service" className="underline">Terms of Service</a> and <a href="/privacy-policy" className="underline">Privacy Policy</a>
+                  </p>
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-gradient-gold hover:opacity-90 hover:shadow-gold-glow text-primary-foreground font-semibold shadow-gold transition-all duration-300 group relative overflow-hidden"
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold"
                   size="lg"
+                  disabled={isSubmitting}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <span className="relative z-10">Proceed to Payment</span>
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </>
-                  )}
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSubmitting ? "Processing..." : 
+                    orderParams.billing === 'monthly' ? "Start Subscription →" : "Continue to Payment →"
+                  }
                 </Button>
 
-                <p className="text-xs text-muted-foreground text-center mt-4">
-                  You'll be redirected to secure Stripe checkout. Your leads will be generated after payment confirmation.
+                <p className="text-center text-sm text-muted-foreground">
+                  Already have an account? <a href="/login" className="text-primary underline">Login</a>
                 </p>
               </form>
             </CardContent>
           </Card>
-          </GlowingCard>
-        </div>
+        </GlowingCard>
       </div>
-    </section>
+    </div>
   );
 };
 

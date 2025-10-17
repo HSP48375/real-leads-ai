@@ -6,22 +6,20 @@ import Footer from "@/components/Footer";
 
 const Order = () => {
   const [searchParams] = useSearchParams();
-  const tierParam = searchParams.get("tier");
   
-  // Default to growth if no tier specified
-  const [initialTier, setInitialTier] = useState<string>("growth");
-
-  useEffect(() => {
-    if (tierParam && ["starter", "growth", "pro", "enterprise"].includes(tierParam)) {
-      setInitialTier(tierParam);
-    }
-  }, [tierParam]);
+  // Extract all order params from URL
+  const orderParams = {
+    tier: searchParams.get("tier") || "growth",
+    billing: searchParams.get("billing") as 'onetime' | 'monthly' || "onetime",
+    price: parseInt(searchParams.get("price") || "197"),
+    leads: searchParams.get("leads") || "40-50"
+  };
 
   return (
     <div className="min-h-screen relative bg-background">
       <Header />
       <div className="pt-20">
-        <OrderForm initialTier={initialTier} />
+        <OrderForm orderParams={orderParams} />
       </div>
       <Footer />
     </div>
