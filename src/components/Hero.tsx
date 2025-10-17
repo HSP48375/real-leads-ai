@@ -56,7 +56,7 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl font-bold text-foreground max-w-2xl mx-auto">
-            Fresh FSBO leads delivered in under 1 hour. No cold calls. No stale lists.
+            Fresh FSBO leads delivered in under 1 hour. No cold calls. Your territory only.
           </p>
 
           {/* Value props */}
