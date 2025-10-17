@@ -63,18 +63,16 @@ const ComparisonTable = () => {
         <div className="max-w-5xl mx-auto">
           {/* Desktop Table */}
           <div className="hidden md:block mb-12">
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 items-start">
-              {/* Left Column - Features */}
-              <div className="rounded-3xl border border-border bg-card overflow-hidden">
-                {/* Header */}
-                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30 h-[88px] flex items-center">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-6">
+              {/* Column 1: Features */}
+              <div className="grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden">
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30 flex items-center">
                   Feature
                 </div>
-                {/* Rows */}
                 {comparisonData.map((row, index) => (
                   <div
                     key={row.feature}
-                    className={`p-6 font-medium text-foreground min-h-[100px] flex items-center ${
+                    className={`p-6 font-medium text-foreground flex items-center ${
                       index !== comparisonData.length - 1 ? "border-b border-border" : ""
                     }`}
                   >
@@ -83,19 +81,17 @@ const ComparisonTable = () => {
                 ))}
               </div>
 
-              {/* Middle Column - RealtyLeadsAI (with glow) */}
+              {/* Column 2: RealtyLeadsAI (with glow) */}
               <div className="relative z-10 transform scale-105">
                 <GlowingCard className="h-full glow-always-on">
-                  <div className="h-full flex flex-col rounded-3xl border border-border bg-card overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
-                    {/* Header */}
-                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30 h-[88px] flex items-center justify-center">
+                  <div className="h-full grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
+                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30 flex items-center justify-center">
                       RealtyLeadsAI
                     </div>
-                    {/* Rows */}
                     {comparisonData.map((row, index) => (
                       <div
                         key={row.feature}
-                        className={`p-6 min-h-[100px] flex items-center ${
+                        className={`p-6 flex items-center ${
                           index !== comparisonData.length - 1 ? "border-b border-border" : ""
                         }`}
                       >
@@ -111,17 +107,15 @@ const ComparisonTable = () => {
                 </GlowingCard>
               </div>
 
-              {/* Right Column - Traditional Services */}
-              <div className="rounded-3xl border border-border bg-card overflow-hidden">
-                {/* Header */}
-                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30 h-[88px] flex items-center justify-center">
+              {/* Column 3: Traditional Services */}
+              <div className="grid grid-rows-[auto_repeat(8,1fr)] rounded-3xl border border-border bg-card overflow-hidden">
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30 flex items-center justify-center">
                   Traditional Services
                 </div>
-                {/* Rows */}
                 {comparisonData.map((row, index) => (
                   <div
                     key={row.feature}
-                    className={`p-6 min-h-[100px] flex items-center ${
+                    className={`p-6 flex items-center ${
                       index !== comparisonData.length - 1 ? "border-b border-border" : ""
                     }`}
                   >
