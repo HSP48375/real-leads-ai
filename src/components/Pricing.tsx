@@ -70,7 +70,7 @@ const Pricing = () => {
           </p>
           
           {/* Universal Features */}
-          <div className="bg-card/80 backdrop-blur-glass border border-border rounded-2xl p-8 max-w-3xl mx-auto">
+          <div className="bg-card/80 backdrop-blur-glass border border-border rounded-2xl p-8 max-w-3xl mx-auto mb-16">
             <h3 className="text-xl font-bold mb-6">What's Included In Every Plan:</h3>
             <div className="grid md:grid-cols-2 gap-4 text-left">
               <div className="flex items-start gap-3">
@@ -90,18 +90,11 @@ const Pricing = () => {
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📞</span>
                 <div>
-                  <p className="font-semibold">Direct seller phone numbers + emails</p>
+                  <p className="font-semibold">Direct seller phone numbers</p>
                   <p className="text-sm text-muted-foreground">Contact info included</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🎯</span>
-                <div>
-                  <p className="font-semibold">Optional: Up to 5 additional cities</p>
-                  <p className="text-sm text-muted-foreground">Expand your reach</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 md:col-span-2">
                 <span className="text-2xl">📊</span>
                 <div>
                   <p className="font-semibold">Google Sheets + CSV delivery</p>
