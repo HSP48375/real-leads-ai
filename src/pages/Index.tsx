@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Hero from "@/components/Hero";
-import Features from "@/components/Features";
 import ComparisonTable from "@/components/ComparisonTable";
 import HowItWorks from "@/components/HowItWorks";
 import Pricing from "@/components/Pricing";
@@ -29,7 +28,6 @@ const Index = () => {
       {/* All content - add padding top to account for fixed header */}
       <div className="relative z-10 pt-20">
         <Hero />
-        <Features />
         <ComparisonTable />
         <HowItWorks />
         <Pricing />
