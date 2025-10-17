@@ -85,7 +85,7 @@ const ComparisonTable = () => {
 
               {/* Middle Column - RealtyLeadsAI (with glow) */}
               <div className="border-x border-border">
-                <GlowingCard className="h-full animate-[pulse-glow_5s_ease-in-out_infinite]">
+                <GlowingCard className="h-full glow-always-on">
                   <div className="h-full flex flex-col">
                     {/* Header */}
                     <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30">

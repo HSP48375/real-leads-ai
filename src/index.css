@@ -261,6 +261,50 @@ All colors MUST be HSL.
     z-index: 1;
   }
 
+  /* Always-on glow variant for comparison table */
+  .glow-card.glow-always-on {
+    animation: randomGlow 8s ease-in-out infinite;
+  }
+
+  .glow-card.glow-always-on::before,
+  .glow-card.glow-always-on::after,
+  .glow-card.glow-always-on > .glow {
+    opacity: 1 !important;
+  }
+
+  @keyframes randomGlow {
+    0% {
+      --pointer-x: 50%;
+      --pointer-y: 0%;
+      --pointer-deg: 0deg;
+      --pointer-d: 100;
+    }
+    25% {
+      --pointer-x: 100%;
+      --pointer-y: 50%;
+      --pointer-deg: 90deg;
+      --pointer-d: 100;
+    }
+    50% {
+      --pointer-x: 50%;
+      --pointer-y: 100%;
+      --pointer-deg: 180deg;
+      --pointer-d: 100;
+    }
+    75% {
+      --pointer-x: 0%;
+      --pointer-y: 50%;
+      --pointer-deg: 270deg;
+      --pointer-d: 100;
+    }
+    100% {
+      --pointer-x: 50%;
+      --pointer-y: 0%;
+      --pointer-deg: 360deg;
+      --pointer-d: 100;
+    }
+  }
+
   /* Bright gold glow for gradient text using design tokens */
   .text-gold-glow {
     text-shadow: 
