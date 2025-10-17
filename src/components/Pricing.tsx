@@ -68,13 +68,13 @@ const Pricing = () => {
   return (
     <section id="pricing" className="py-20 relative">
       <div className="container px-4">
-        <div className="text-center max-w-4xl mx-auto mb-12">
+        <div className="text-center max-w-4xl mx-auto mb-20">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-20">
           {allTiers.map((tier, index) => (
             <GlowingCard key={tier.name}>
               <Card 
