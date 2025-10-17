@@ -45,31 +45,31 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
   const tierFeatures: Record<string, string[]> = {
     starter: [
       "20-25 verified FSBO leads",
-      "Delivered within 24 hours",
-      "Phone, email, address for each",
-      "1 City Coverage"
+      "Phone number + property address",
+      "Choose your coverage area",
+      "Delivered within 1 hour",
+      "Email support"
     ],
     growth: [
       "40-50 verified FSBO leads",
-      "Delivered within 24 hours",
-      "Phone, email, address for each",
-      "Up to 2 Cities",
-      "Priority Support"
+      "Phone number + property address",
+      "Choose your coverage area",
+      "Delivered within 1 hour",
+      "Priority support"
     ],
     pro: [
       "110-130 verified FSBO leads",
-      "Delivered within 12 hours",
-      "Phone, email, address for each",
-      "Up to 3 Cities",
-      "Lead Replacement Guarantee"
+      "Phone number + property address",
+      "Choose your coverage area",
+      "Delivered within 1 hour",
+      "Priority support"
     ],
     enterprise: [
       "150-200 verified FSBO leads",
-      "Delivered within 6 hours",
-      "Phone, email, address for each",
-      "Unlimited Cities",
-      "Dedicated Account Manager",
-      "Custom Territory Mapping"
+      "Phone number + property address",
+      "Choose your coverage area",
+      "Delivered within 1 hour",
+      "Dedicated account manager"
     ]
   };
 
@@ -260,10 +260,9 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 miles</SelectItem>
-                      <SelectItem value="10">10 miles</SelectItem>
                       <SelectItem value="25">25 miles</SelectItem>
                       <SelectItem value="50">50 miles</SelectItem>
+                      <SelectItem value="75">75 miles</SelectItem>
                       <SelectItem value="100">100 miles</SelectItem>
                     </SelectContent>
                   </Select>
