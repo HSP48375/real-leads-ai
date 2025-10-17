@@ -51,17 +51,17 @@ const Hero = () => {
 
           {/* Main heading */}
           <h1 className="font-bold leading-tight text-[hsl(var(--headline))]">
-            <div className="text-5xl md:text-7xl lg:text-8xl">Real leads</div>
-            <div className="text-3xl md:text-5xl lg:text-6xl mt-2">you can rely on</div>
+            <div className="text-4xl md:text-6xl lg:text-7xl">Your next listing starts here.</div>
+            <div className="text-4xl md:text-6xl lg:text-7xl mt-2">Stop chasing. Start closing.</div>
           </h1>
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-foreground max-w-2xl mx-auto">
-            No cold calls. No chasing. Fresh FSBO leads delivered in under 1 hour—get leads faster than any competitor.
+            Done with stale lead lists? Fresh FSBO leads delivered in under 1 hour.
           </p>
 
           {/* Value props */}
-          <div className="flex flex-wrap justify-center gap-12 text-xl md:text-2xl lg:text-3xl font-bold text-foreground pt-32">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-base md:text-lg font-semibold text-foreground pt-32">
             <div className="flex items-center gap-2">
               <span>⚡ Delivered in under 1 hour</span>
             </div>
