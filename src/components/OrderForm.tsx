@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -132,8 +132,25 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
 
   const features = tierFeatures[orderParams.tier] || [];
   
+  const scrollToPricing = () => {
+    const element = document.getElementById('pricing');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/', { state: { scrollTo: 'pricing' } });
+    }
+  };
+  
   return (
     <div className="max-w-4xl mx-auto p-6">
+      <Button
+        variant="ghost"
+        onClick={scrollToPricing}
+        className="mb-6 text-primary hover:text-primary/90"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Change Plan
+      </Button>
       <div className="grid md:grid-cols-2 gap-8">
         {/* Order Summary */}
         <GlowingCard>
@@ -190,13 +207,6 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                 </ul>
               </div>
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => navigate('/pricing')}
-              >
-                Change Plan
-              </Button>
             </CardContent>
           </Card>
         </GlowingCard>

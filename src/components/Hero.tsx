@@ -99,7 +99,10 @@ const Hero = () => {
                 </div>
               </Link>
             ) : (
-              <Link to="/signup">
+              <button onClick={() => {
+                const element = document.getElementById('pricing');
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}>
                 <div ref={glowCardRef} className="glow-card inline-block">
                   <span className="glow"></span>
                   <div className="card-inner">
@@ -113,7 +116,7 @@ const Hero = () => {
                     </Button>
                   </div>
                 </div>
-              </Link>
+              </button>
             )}
           </div>
         </div>

@@ -109,17 +109,17 @@ const Header = () => {
           ) : (
             <>
               <Button
+                onClick={() => scrollToSection('pricing')}
+                className="hidden md:inline-flex bg-primary text-black hover:bg-primary/90"
+              >
+                Pricing
+              </Button>
+              <Button
                 variant="outline"
                 onClick={() => navigate('/login')}
                 className="hidden md:inline-flex border-primary text-primary hover:bg-primary/10"
               >
                 Login
-              </Button>
-              <Button
-                onClick={() => navigate('/signup')}
-                className="hidden md:inline-flex bg-primary text-black hover:bg-primary/90"
-              >
-                Sign Up
               </Button>
             </>
           )}
@@ -146,6 +146,14 @@ const Header = () => {
                   <>
                     <hr className="border-border" />
                     <Button
+                      onClick={() => {
+                        scrollToSection('pricing');
+                      }}
+                      className="w-full bg-primary text-black hover:bg-primary/90"
+                    >
+                      Pricing
+                    </Button>
+                    <Button
                       variant="outline"
                       onClick={() => {
                         navigate('/login');
@@ -154,15 +162,6 @@ const Header = () => {
                       className="w-full border-primary text-primary hover:bg-primary/10"
                     >
                       Login
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        navigate('/signup');
-                        setMobileMenuOpen(false);
-                      }}
-                      className="w-full bg-primary text-black hover:bg-primary/90"
-                    >
-                      Sign Up
                     </Button>
                   </>
                 )}
