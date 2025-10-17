@@ -63,52 +63,78 @@ const ComparisonTable = () => {
         <div className="max-w-5xl mx-auto">
           {/* Desktop Table */}
           <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card mb-12">
-            {/* Table Header */}
-            <div className="grid grid-cols-[2fr_2fr_2fr] border-b border-border bg-muted/30">
-              <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                Feature
+            <div className="grid grid-cols-[2fr_2fr_2fr]">
+              {/* Left Column - Features */}
+              <div>
+                {/* Header */}
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30">
+                  Feature
+                </div>
+                {/* Rows */}
+                {comparisonData.map((row, index) => (
+                  <div
+                    key={row.feature}
+                    className={`p-6 font-medium text-foreground ${
+                      index !== comparisonData.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    {row.feature}
+                  </div>
+                ))}
               </div>
-              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center border-x border-border text-primary">
-                RealtyLeadsAI
+
+              {/* Middle Column - RealtyLeadsAI (with glow) */}
+              <div className="border-x border-border">
+                <GlowingCard className="h-full animate-[pulse-glow_5s_ease-in-out_infinite]">
+                  <div className="h-full flex flex-col">
+                    {/* Header */}
+                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30">
+                      RealtyLeadsAI
+                    </div>
+                    {/* Rows */}
+                    {comparisonData.map((row, index) => (
+                      <div
+                        key={row.feature}
+                        className={`p-6 ${
+                          index !== comparisonData.length - 1 ? "border-b border-border" : ""
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm leading-relaxed font-medium">
+                            {row.realtyLeadsAI}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlowingCard>
               </div>
-              <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground">
-                Traditional Services
+
+              {/* Right Column - Traditional Services */}
+              <div>
+                {/* Header */}
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30">
+                  Traditional Services
+                </div>
+                {/* Rows */}
+                {comparisonData.map((row, index) => (
+                  <div
+                    key={row.feature}
+                    className={`p-6 ${
+                      index !== comparisonData.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <X className="w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm leading-relaxed text-muted-foreground">
+                        {row.traditional}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-
-            {/* Table Rows */}
-            {comparisonData.map((row, index) => (
-              <div
-                key={row.feature}
-                className={`grid grid-cols-[2fr_2fr_2fr] ${
-                  index !== comparisonData.length - 1 ? "border-b border-border" : ""
-                }`}
-              >
-                <div className="p-6 font-medium text-foreground">
-                  {row.feature}
-                </div>
-                <div className="border-x border-border relative">
-                  <GlowingCard className="h-full">
-                    <div className="p-6 h-full transition-all duration-300">
-                      <div className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm leading-relaxed font-medium">
-                          {row.realtyLeadsAI}
-                        </span>
-                      </div>
-                    </div>
-                  </GlowingCard>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-start gap-3">
-                    <X className="w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm leading-relaxed text-muted-foreground">
-                      {row.traditional}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
 
           {/* Mobile Cards */}
