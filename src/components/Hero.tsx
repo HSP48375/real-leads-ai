@@ -50,14 +50,13 @@ const Hero = () => {
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="font-bold leading-tight text-[hsl(var(--headline))]">
-            <div className="text-4xl md:text-6xl lg:text-7xl">Your next listing starts here.</div>
-            <div className="text-4xl md:text-6xl lg:text-7xl mt-2">Stop chasing. Start closing.</div>
+          <h1 className="font-bold leading-tight text-[hsl(var(--headline))] text-4xl md:text-6xl lg:text-7xl">
+            Stop chasing. Start closing.
           </h1>
 
           {/* Subheading */}
           <p className="text-xl md:text-2xl text-foreground max-w-2xl mx-auto">
-            Done with stale lead lists? Fresh FSBO leads delivered in under 1 hour.
+            Fresh FSBO leads delivered in under 1 hour. No cold calls. No stale lists.
           </p>
 
           {/* Value props */}
