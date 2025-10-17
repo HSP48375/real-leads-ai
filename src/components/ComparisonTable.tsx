@@ -67,7 +67,7 @@ const ComparisonTable = () => {
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                 Feature
               </div>
-              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center bg-amber-50/50 dark:bg-amber-950/20 border-x border-border text-[#F1A501]">
+              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center border-x border-border text-[#F1A501]">
                 RealtyLeadsAI
               </div>
               <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground">
@@ -86,7 +86,7 @@ const ComparisonTable = () => {
                 <div className="p-6 font-medium text-foreground">
                   {row.feature}
                 </div>
-                <div className="p-6 bg-amber-50/50 dark:bg-amber-950/20 border-x border-border transition-all duration-300 hover:shadow-[0_0_30px_rgba(241,165,1,0.3)]">
+                <div className="p-6 border-x border-border transition-all duration-300 hover:shadow-[0_0_30px_rgba(241,165,1,0.3)]">
                   <div className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm leading-relaxed font-medium">
@@ -117,7 +117,7 @@ const ComparisonTable = () => {
                   <h4 className="font-semibold text-sm">{row.feature}</h4>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-xl p-3">
+                  <div className="rounded-xl p-3 border border-border">
                     <div className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
                       <div>
