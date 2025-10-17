@@ -12,10 +12,6 @@ const CTA = () => {
               Be the First Agent They Call.
             </div>
           </h2>
-          
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Get fresh, geo-verified FSBO leads delivered to your inbox in under 1 hour. Real people. Real listings. Real results.
-          </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 

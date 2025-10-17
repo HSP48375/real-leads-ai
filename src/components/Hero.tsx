@@ -59,6 +59,11 @@ const Hero = () => {
             Built for realtors who demand quality over quantity.
           </p>
 
+          {/* Subheading */}
+          <p className="text-xl md:text-2xl font-bold text-foreground max-w-2xl mx-auto pt-4">
+            Fresh FSBO leads delivered in under 1 hour. No cold calls. Your territory only.
+          </p>
+
           {/* Value props */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-base md:text-lg font-semibold text-foreground pt-32">
             <div className="flex items-center gap-2">
