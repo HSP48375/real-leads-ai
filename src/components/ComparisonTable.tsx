@@ -54,7 +54,7 @@ const ComparisonTable = () => {
   };
 
   return (
-    <section className="py-20 relative">
+    <section className="pt-12 pb-20 relative">
       <div className="container px-4">
         <h2 className="text-center text-3xl md:text-4xl font-bold text-foreground mb-12">
           Why everyone's switching
