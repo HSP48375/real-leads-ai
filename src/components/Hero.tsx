@@ -37,7 +37,7 @@ const Hero = () => {
       {/* Radial accent overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,hsl(43,74%,66%,0.15),transparent_50%)] pointer-events-none"></div>
       
-      <div className="container relative z-10 px-4 text-center pt-16">
+      <div className="container relative z-10 px-4 text-center pt-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Badge with micro-parallax */}
           <MicroParallax offset={20}>
@@ -50,8 +50,9 @@ const Hero = () => {
           </MicroParallax>
 
           {/* Main heading */}
-          <h1 className="font-bold leading-tight text-3xl md:text-5xl lg:text-6xl text-[hsl(var(--headline))]">
-            Real leads you can rely on
+          <h1 className="font-bold leading-tight text-[hsl(var(--headline))]">
+            <div className="text-5xl md:text-7xl lg:text-8xl">Real leads</div>
+            <div className="text-3xl md:text-5xl lg:text-6xl mt-2">you can rely on</div>
           </h1>
 
           {/* Subheading */}
