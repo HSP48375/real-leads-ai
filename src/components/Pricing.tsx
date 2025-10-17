@@ -9,6 +9,10 @@ const allTiers = [
     price: "$97",
     subtext: "15-20 verified FSBO leads",
     features: [
+      "Delivered in under 1 hour",
+      "50-mile radius search",
+      "Direct phone numbers included",
+      "Google Sheets + CSV",
       "Email support"
     ],
     cta: "GET STARTED"
@@ -20,6 +24,10 @@ const allTiers = [
     featured: true,
     badge: "MOST POPULAR",
     features: [
+      "Delivered in under 1 hour",
+      "50-mile radius search",
+      "Direct phone numbers included",
+      "Google Sheets + CSV",
       "Priority email support"
     ],
     cta: "GET STARTED"
@@ -29,6 +37,10 @@ const allTiers = [
     price: "$397",
     subtext: "50-75 verified FSBO leads",
     features: [
+      "Delivered in under 1 hour",
+      "50-mile radius search",
+      "Direct phone numbers included",
+      "Google Sheets + CSV",
       "Phone + email support"
     ],
     cta: "GET STARTED"
@@ -40,6 +52,10 @@ const allTiers = [
     subtext: "80-120 verified FSBO leads per month",
     badge: "SUBSCRIPTION",
     features: [
+      "Delivered in under 1 hour",
+      "50-mile radius search",
+      "Direct phone numbers included",
+      "Google Sheets + CSV",
       "Dedicated account manager",
       "Priority support"
     ],
@@ -56,29 +72,6 @@ const Pricing = () => {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
-          
-          {/* Universal Features */}
-          <div className="bg-card/80 backdrop-blur-glass border border-border rounded-2xl p-8 max-w-3xl mx-auto mb-16">
-            <h3 className="text-xl font-bold mb-6">What's Included In Every Plan:</h3>
-            <div className="grid md:grid-cols-2 gap-4 text-left">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">⚡</span>
-                <p className="font-semibold">Delivered in under 1 hour</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">📍</span>
-                <p className="font-semibold">Primary city + 50-mile radius</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">📞</span>
-                <p className="font-semibold">Direct seller phone numbers</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">📊</span>
-                <p className="font-semibold">Google Sheets + CSV delivery</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-12">
