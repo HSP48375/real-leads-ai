@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import GlowingCard from "@/components/GlowingCard";
+import { useNavigate } from "react-router-dom";
 
 const allTiers = [
   {
@@ -64,6 +65,11 @@ const allTiers = [
 ];
 
 const Pricing = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = (tier: string) => {
+    navigate(`/order?tier=${tier}`);
+  };
 
   return (
     <section id="pricing" className="py-20 relative">
@@ -117,7 +123,7 @@ const Pricing = () => {
                         : 'bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground hover:shadow-gold'
                     }`}
                     size="lg"
-                    onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
+                    onClick={() => handleGetStarted(tier.name.toLowerCase())}
                   >
                     {tier.cta}
                   </Button>
@@ -176,7 +182,7 @@ const Pricing = () => {
                   <Button 
                     className="bg-primary text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-gold-glow px-8"
                     size="lg"
-                    onClick={() => document.getElementById('order-form')?.scrollIntoView({ behavior: 'smooth' })}
+                    onClick={() => handleGetStarted('enterprise')}
                   >
                     Contact for API Access
                   </Button>

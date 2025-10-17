@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const CTA = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-20 relative">
       <div className="container px-4">
@@ -17,7 +20,7 @@ const CTA = () => {
             <Button 
               size="lg" 
               className="bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold px-8 py-6 text-lg shadow-gold transition-all hover:shadow-xl group"
-              onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/order?tier=growth')}
             >
               Get Started Now
               <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />

@@ -255,7 +255,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
                   <span className="font-medium">Join 527+ agents closing more deals</span>
                 </div>
               </div>
-              <Link to="/#pricing">
+              <Link to="/order?tier=growth">
                 <Button 
                   size="lg"
                   className="px-8 py-6 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_40px_rgba(255,215,0,0.4)] group"

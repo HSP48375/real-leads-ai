@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,11 @@ import { Loader2 } from "lucide-react";
 import GlowingCard from "@/components/GlowingCard";
 import { supabase } from "@/integrations/supabase/client";
 
-const OrderForm = () => {
+interface OrderFormProps {
+  initialTier?: string;
+}
+
+const OrderForm = ({ initialTier = "growth" }: OrderFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -17,9 +21,16 @@ const OrderForm = () => {
     primary_city: "",
     search_radius: "50",
     additional_cities: "",
-    tier: "",
+    tier: initialTier,
   });
   const { toast } = useToast();
+
+  // Update tier when initialTier prop changes
+  useEffect(() => {
+    if (initialTier) {
+      setFormData(prev => ({ ...prev, tier: initialTier }));
+    }
+  }, [initialTier]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

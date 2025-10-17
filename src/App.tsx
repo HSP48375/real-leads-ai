@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Order from "./pages/Order";
 import Orders from "./pages/Orders";
 import Account from "./pages/Account";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/order" element={<Order />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/account" element={<Account />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
