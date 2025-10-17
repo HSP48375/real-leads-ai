@@ -115,7 +115,7 @@ const Pricing = () => {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 {tier.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary rounded-full shadow-gold whitespace-nowrap">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-primary rounded-full shadow-gold whitespace-nowrap z-10">
                     <span className="text-[10px] font-bold text-primary-foreground">{tier.badge}</span>
                   </div>
                 )}
