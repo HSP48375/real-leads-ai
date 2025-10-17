@@ -62,20 +62,16 @@ const Hero = () => {
           {/* Value props */}
           <div className="flex flex-wrap justify-center gap-12 text-lg md:text-xl text-foreground pt-32">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Real People</span>
+              <span>⚡ Delivered in under 1 hour</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Real Listings</span>
+              <span>📞 Direct seller phone numbers</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>Delivered in under 1 hour</span>
+              <span>📍 Territory-based targeting</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary"></div>
-              <span>No recycled data</span>
+              <span>🔄 Fresh leads, never recycled</span>
             </div>
           </div>
 
