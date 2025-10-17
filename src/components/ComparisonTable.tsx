@@ -62,53 +62,66 @@ const ComparisonTable = () => {
 
         <div className="max-w-5xl mx-auto">
           {/* Desktop Table */}
-          <div className="hidden md:block mb-12 relative">
-            {/* Middle column glow wrapper */}
-            <div className="absolute left-[calc(33.33%-12px)] top-0 bottom-0 w-[calc(33.33%+24px)] z-10 pointer-events-none">
-              <GlowingCard className="h-full glow-always-on">
-                <div className="h-full rounded-2xl"></div>
-              </GlowingCard>
-            </div>
-            
-            <div className="relative z-20 grid grid-cols-[1fr_1fr_1fr] gap-0 rounded-2xl border border-border bg-card overflow-hidden">
-              {/* Table Header */}
-              <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30">
-                Feature
-              </div>
-              <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border border-x border-border bg-muted/30 shadow-[0_0_20px_rgba(0,0,0,0.5)] relative z-10 scale-[1.02]">
-                RealtyLeadsAI
-              </div>
-              <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30">
-                Traditional Services
-              </div>
-
-              {/* Table Rows */}
-              {comparisonData.map((row, index) => (
-                <>
+          <div className="hidden md:block mb-12">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 items-start">
+              {/* Left Column - Features */}
+              <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                {/* Header */}
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/30 h-[88px] flex items-center">
+                  Feature
+                </div>
+                {/* Rows */}
+                {comparisonData.map((row, index) => (
                   <div
-                    key={`${row.feature}-left`}
-                    className={`p-6 font-medium text-foreground ${
+                    key={row.feature}
+                    className={`p-6 font-medium text-foreground min-h-[100px] flex items-center ${
                       index !== comparisonData.length - 1 ? "border-b border-border" : ""
                     }`}
                   >
                     {row.feature}
                   </div>
-                  <div
-                    key={`${row.feature}-middle`}
-                    className={`p-6 border-x border-border shadow-[0_0_20px_rgba(0,0,0,0.5)] relative z-10 scale-[1.02] ${
-                      index !== comparisonData.length - 1 ? "border-b border-border" : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm leading-relaxed font-medium">
-                        {row.realtyLeadsAI}
-                      </span>
+                ))}
+              </div>
+
+              {/* Middle Column - RealtyLeadsAI (with glow) */}
+              <div className="relative z-10 transform scale-105">
+                <GlowingCard className="h-full glow-always-on">
+                  <div className="h-full flex flex-col rounded-3xl border border-border bg-card overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
+                    {/* Header */}
+                    <div className="p-6 font-bold text-lg uppercase tracking-wide text-center text-primary border-b border-border bg-muted/30 h-[88px] flex items-center justify-center">
+                      RealtyLeadsAI
                     </div>
+                    {/* Rows */}
+                    {comparisonData.map((row, index) => (
+                      <div
+                        key={row.feature}
+                        className={`p-6 min-h-[100px] flex items-center ${
+                          index !== comparisonData.length - 1 ? "border-b border-border" : ""
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Check className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm leading-relaxed font-medium">
+                            {row.realtyLeadsAI}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </GlowingCard>
+              </div>
+
+              {/* Right Column - Traditional Services */}
+              <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                {/* Header */}
+                <div className="p-6 font-semibold text-sm uppercase tracking-wide text-center text-muted-foreground border-b border-border bg-muted/30 h-[88px] flex items-center justify-center">
+                  Traditional Services
+                </div>
+                {/* Rows */}
+                {comparisonData.map((row, index) => (
                   <div
-                    key={`${row.feature}-right`}
-                    className={`p-6 ${
+                    key={row.feature}
+                    className={`p-6 min-h-[100px] flex items-center ${
                       index !== comparisonData.length - 1 ? "border-b border-border" : ""
                     }`}
                   >
@@ -119,8 +132,8 @@ const ComparisonTable = () => {
                       </span>
                     </div>
                   </div>
-                </>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
