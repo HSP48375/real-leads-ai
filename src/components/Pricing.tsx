@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, ArrowRight } from "lucide-react";
@@ -8,22 +9,23 @@ const allTiers = [
   {
     name: "Starter",
     price: 97,
-    monthly: 47,
+    monthly: 87,
+    monthlySavings: 10,
     leads: "20-25",
     description: "Perfect for getting started",
     features: [
       "20-25 Verified FSBO Leads",
       "1 City Coverage",
       "Phone + Email + Address",
-      "Delivered Within 24 Hours",
-      "One-Time Purchase or Monthly"
+      "Delivered Within 24 Hours"
     ],
     tierValue: "starter"
   },
   {
     name: "Growth",
     price: 197,
-    monthly: 97,
+    monthly: 177,
+    monthlySavings: 20,
     leads: "40-50",
     description: "Most popular - Best value",
     features: [
@@ -31,8 +33,7 @@ const allTiers = [
       "Up to 2 Cities",
       "Phone + Email + Address",
       "Delivered Within 24 Hours",
-      "Priority Support",
-      "One-Time or Monthly"
+      "Priority Support"
     ],
     popular: true,
     tierValue: "growth"
@@ -40,7 +41,8 @@ const allTiers = [
   {
     name: "Pro",
     price: 397,
-    monthly: 197,
+    monthly: 357,
+    monthlySavings: 40,
     leads: "110-130",
     description: "For serious lead generation",
     features: [
@@ -48,15 +50,15 @@ const allTiers = [
       "Up to 3 Cities",
       "Phone + Email + Address",
       "Delivered Within 12 Hours",
-      "Priority Support",
-      "Lead Replacement Guarantee"
+      "Priority Support"
     ],
     tierValue: "pro"
   },
   {
     name: "Enterprise",
     price: 697,
-    monthly: 597,
+    monthly: 627,
+    monthlySavings: 70,
     leads: "150-200",
     description: "Maximum coverage & support",
     features: [
@@ -64,9 +66,7 @@ const allTiers = [
       "Unlimited Cities",
       "Phone + Email + Address",
       "Delivered Within 6 Hours",
-      "Dedicated Account Manager",
-      "Custom Territory Mapping",
-      "Lead Replacement Guarantee"
+      "Dedicated Account Manager"
     ],
     tierValue: "enterprise"
   }
@@ -74,6 +74,7 @@ const allTiers = [
 
 const Pricing = () => {
   const navigate = useNavigate();
+  const [billingType, setBillingType] = React.useState<'onetime' | 'monthly'>('onetime');
 
   const handleGetStarted = (tier: string, billing: 'onetime' | 'monthly', price: number, leads: string) => {
     navigate(`/order?tier=${tier}&billing=${billing}&price=${price}&leads=${leads}`);
@@ -82,10 +83,34 @@ const Pricing = () => {
   return (
     <section id="pricing" className="py-20 relative">
       <div className="container px-4">
-        <div className="text-center max-w-4xl mx-auto mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
+        <div className="text-center max-w-4xl mx-auto mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold mb-8">
             Choose Your Plan
           </h2>
+          
+          {/* Billing Toggle */}
+          <div className="inline-flex items-center gap-2 p-1 bg-card/60 backdrop-blur-glass border border-primary/20 rounded-full shadow-lg">
+            <button
+              onClick={() => setBillingType('onetime')}
+              className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                billingType === 'onetime'
+                  ? 'bg-primary text-primary-foreground shadow-gold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              One-Time
+            </button>
+            <button
+              onClick={() => setBillingType('monthly')}
+              className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                billingType === 'monthly'
+                  ? 'bg-primary text-primary-foreground shadow-gold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Monthly
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mt-20">
@@ -105,13 +130,18 @@ const Pricing = () => {
                 
                 <CardHeader className="pb-8 pt-10 px-6">
                   <CardTitle className="text-xl min-h-[28px]">{tier.name}</CardTitle>
-                  <div className="mt-4 min-h-[44px]">
-                    <span className="text-3xl font-bold">${tier.price}</span>
-                    <p className="text-sm text-muted-foreground mt-1">one-time</p>
-                    {tier.monthly && (
-                      <div className="text-sm text-muted-foreground">
-                        or ${tier.monthly}/month
-                      </div>
+                  <div className="mt-4 min-h-[64px]">
+                    {billingType === 'onetime' ? (
+                      <>
+                        <span className="text-3xl font-bold">${tier.price}</span>
+                        <p className="text-sm text-muted-foreground mt-1">one-time</p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold">${tier.monthly}</span>
+                        <span className="text-xl text-muted-foreground">/month</span>
+                        <p className="text-sm text-primary mt-1">Save ${tier.monthlySavings}/month</p>
+                      </>
                     )}
                   </div>
                   <CardDescription className="text-sm mt-3 min-h-[20px]">{tier.description}</CardDescription>
@@ -128,27 +158,25 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
 
-                <CardFooter className="pt-8 px-6 pb-6 flex-col gap-3">
+                <CardFooter className="pt-8 px-6 pb-6">
                   <Button 
                     className="w-full bg-gradient-gold hover:opacity-90 text-primary-foreground font-semibold shadow-gold transition-all hover:shadow-xl"
                     size="lg"
-                    onClick={() => handleGetStarted(tier.tierValue, 'onetime', tier.price, tier.leads)}
+                    onClick={() => handleGetStarted(
+                      tier.tierValue, 
+                      billingType, 
+                      billingType === 'onetime' ? tier.price : tier.monthly, 
+                      tier.leads
+                    )}
                   >
-                    Get Started - ${tier.price}
+                    {billingType === 'onetime' 
+                      ? `Get Started - $${tier.price}`
+                      : tier.tierValue === 'enterprise' 
+                        ? `Start Subscription - $${tier.monthly}/month`
+                        : `Subscribe - $${tier.monthly}/month`
+                    }
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
-                  
-                  {tier.monthly && (
-                    <Button 
-                      onClick={() => handleGetStarted(tier.tierValue, 'monthly', tier.monthly, tier.leads)}
-                      variant="outline"
-                      className="w-full border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5"
-                      size="lg"
-                    >
-                      {tier.tierValue === 'enterprise' ? 'Start Subscription' : 'Subscribe'} - ${tier.monthly}/month
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  )}
                 </CardFooter>
               </Card>
             </GlowingCard>
@@ -201,7 +229,7 @@ const Pricing = () => {
                   <Button 
                     className="bg-primary text-primary-foreground shadow-gold hover:opacity-90 hover:shadow-gold-glow px-8"
                     size="lg"
-                    onClick={() => handleGetStarted('enterprise', 'onetime', 697, '150-200')}
+                    onClick={() => handleGetStarted('enterprise', billingType, billingType === 'onetime' ? 697 : 627, '150-200')}
                   >
                     Contact for API Access
                   </Button>
