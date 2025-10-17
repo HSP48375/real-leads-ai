@@ -169,10 +169,10 @@ const OrderForm = () => {
                       <SelectValue placeholder="Choose your plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="starter">Starter - $97 (20-25 verified FSBO leads)</SelectItem>
-                      <SelectItem value="growth">Growth - $197 (40-60 verified FSBO leads)</SelectItem>
-                      <SelectItem value="pro">Pro - $397 (80-100 verified FSBO leads)</SelectItem>
-                      <SelectItem value="enterprise">Enterprise - $597/month (120-150 verified FSBO leads per month)</SelectItem>
+                      <SelectItem value="starter">Starter - $97 (15-20 verified FSBO leads)</SelectItem>
+                      <SelectItem value="growth">Growth - $197 (25-40 verified FSBO leads)</SelectItem>
+                      <SelectItem value="pro">Pro - $397 (50-75 verified FSBO leads)</SelectItem>
+                      <SelectItem value="enterprise">Enterprise - $597/month (80-120 verified FSBO leads per month)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

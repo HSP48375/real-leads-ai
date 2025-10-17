@@ -69,10 +69,10 @@ serve(async (req) => {
 
     // Determine lead quotas based on tier (aim for minimum, delight with extras)
     const quotas = {
-      starter: { min: 20, max: 25 },
-      growth: { min: 40, max: 60 },
-      pro: { min: 80, max: 100 },
-      enterprise: { min: 120, max: 150 },
+      starter: { min: 15, max: 20 },
+      growth: { min: 25, max: 40 },
+      pro: { min: 50, max: 75 },
+      enterprise: { min: 80, max: 120 },
     };
     
     const tierQuota = quotas[order.tier as keyof typeof quotas] || quotas.starter;

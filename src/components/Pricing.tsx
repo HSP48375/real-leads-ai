@@ -7,10 +7,10 @@ const allTiers = [
   {
     name: "Starter",
     price: "$97",
-    subtext: "20-25 verified FSBO leads",
-    costPerLead: "$3.88–$4.85 per verified lead",
+    subtext: "15-20 verified FSBO leads",
+    costPerLead: "$4.85–$6.47 per verified lead",
     features: [
-      "20-25 verified FSBO leads",
+      "15-20 verified FSBO leads",
       "Email support"
     ],
     cta: "GET STARTED"
@@ -18,12 +18,12 @@ const allTiers = [
   {
     name: "Growth",
     price: "$197",
-    subtext: "40-60 verified FSBO leads",
-    costPerLead: "$3.28–$4.93 per verified lead",
+    subtext: "25-40 verified FSBO leads",
+    costPerLead: "$4.93–$7.88 per verified lead",
     featured: true,
     badge: "MOST POPULAR",
     features: [
-      "40-60 verified FSBO leads",
+      "25-40 verified FSBO leads",
       "Priority email support"
     ],
     cta: "GET STARTED"
@@ -31,10 +31,10 @@ const allTiers = [
   {
     name: "Pro",
     price: "$397",
-    subtext: "80-100 verified FSBO leads",
-    costPerLead: "$3.97–$4.96 per verified lead",
+    subtext: "50-75 verified FSBO leads",
+    costPerLead: "$5.29–$7.94 per verified lead",
     features: [
-      "80-100 verified FSBO leads",
+      "50-75 verified FSBO leads",
       "Phone + email support"
     ],
     cta: "GET STARTED"
@@ -44,11 +44,11 @@ const allTiers = [
     price: "$597",
     period: "/month",
     savings: "Best value for high-volume agents",
-    subtext: "120-150 verified FSBO leads per month",
-    costPerLead: "$3.98–$4.98 per verified lead",
+    subtext: "80-120 verified FSBO leads per month",
+    costPerLead: "$4.98–$7.46 per verified lead",
     badge: "SUBSCRIPTION",
     features: [
-      "120-150 verified FSBO leads per month",
+      "80-120 verified FSBO leads per month",
       "Dedicated account manager",
       "Priority support"
     ],
