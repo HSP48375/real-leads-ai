@@ -60,7 +60,7 @@ const Hero = () => {
           </p>
 
           {/* Value props */}
-          <div className="flex flex-wrap justify-center gap-12 text-lg md:text-xl text-foreground pt-32">
+          <div className="flex flex-wrap justify-center gap-12 text-xl md:text-2xl lg:text-3xl font-bold text-foreground pt-32">
             <div className="flex items-center gap-2">
               <span>⚡ Delivered in under 1 hour</span>
             </div>
