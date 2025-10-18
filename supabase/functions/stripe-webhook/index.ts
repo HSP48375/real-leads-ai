@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+const stripe = new Stripe(Deno.env.get("STRIPE_TEST_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
 });
 
@@ -19,7 +19,7 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST");
     
     if (!webhookSecret) {
       console.error("STRIPE_WEBHOOK_SECRET not configured");

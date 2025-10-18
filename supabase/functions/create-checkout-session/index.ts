@@ -39,7 +39,7 @@ serve(async (req) => {
     const mode = billing === 'monthly' ? 'subscription' : 'payment';
 
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(Deno.env.get("STRIPE_TEST_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
