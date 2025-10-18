@@ -9,7 +9,7 @@ const corsHeaders = {
 
 // Stripe price IDs for each tier
 const PRICE_IDS = {
-  starter: "price_1SIezsE8tn1MdmKJC3OzkXb2",
+  starter: "price_1SJPqPE8tn1MdmKJYg83HFs7",
   growth: "price_1SIf0JE8tn1MdmKJNNosMyuZ",
   pro: "price_1SIf0UE8tn1MdmKJiOMeJEZ4",
   enterprise: "price_1SIf0gE8tn1MdmKJJV5TQz9e",
