@@ -28,9 +28,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      // Temporarily disable orders fetching until orders table is ready
-      // fetchDashboardData();
-      setLoading(false);
+      fetchDashboardData();
     }
   }, [user]);
 
@@ -50,11 +48,28 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
-    // Temporarily disabled until orders table is created.
-    // Graceful fallback: show empty state and zero stats without toasts.
-    setStats({ totalOrders: 0, totalLeads: 0, totalSpent: 0 });
-    setRecentOrders([]);
-    setLoading(false);
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_email', user!.email)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const totalOrders = orders?.length || 0;
+      const totalLeads = orders?.reduce((sum, order) => sum + (order.leads_count || 0), 0) || 0;
+      const totalSpent = orders?.reduce((sum, order) => sum + (order.price_paid || 0), 0) || 0;
+
+      setStats({ totalOrders, totalLeads, totalSpent });
+      setRecentOrders(orders?.slice(0, 5) || []);
+    } catch (error: any) {
+      console.error('Error fetching dashboard data:', error);
+      setStats({ totalOrders: 0, totalLeads: 0, totalSpent: 0 });
+      setRecentOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getPriceForTier = (tier: string) => {
