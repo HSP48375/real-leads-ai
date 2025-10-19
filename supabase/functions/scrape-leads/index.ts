@@ -247,52 +247,108 @@ serve(async (req) => {
       })
       .eq("id", orderId);
 
-    // Send email with sheet link
-    const emailSubject = needsAdditionalScraping 
-      ? `Your ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)} Leads - First Batch Delivered + More Coming!`
-      : "Your RealtyLeadsAI Verified Leads Are Ready";
-    
-    const emailBody = needsAdditionalScraping
-      ? `
-          <h1>Hi ${order.customer_name},</h1>
-          <p><strong>First batch delivered:</strong> ${enrichedLeads.length} verified FSBO homeowners</p>
-          <p>We're continuing to scrape your territory for the next 2 weeks to ensure you receive your guaranteed minimum of ${minimumQuota} leads.</p>
-          <p><strong>Plan tier:</strong> ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</p>
-          <p><strong>Location:</strong> ${order.primary_city}, MI</p>
-          <p><a href="${sheetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Current Leads</a></p>
-          <p>You'll receive additional batches as we find more FSBO sellers in your area. Your Google Sheet will be automatically updated with new leads.</p>
-          <p>Best regards,<br>RealtyLeadsAI Team</p>
-        `
-      : `
-          <h1>Hi ${order.customer_name},</h1>
-          <p>Your verified homeowner leads are ready!</p>
-          <p><strong>Leads delivered:</strong> ${enrichedLeads.length} verified FSBO homeowners</p>
-          <p><strong>Plan tier:</strong> ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</p>
-          <p><strong>Location:</strong> ${order.primary_city}, MI</p>
-          <p><a href="${sheetUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Leads</a></p>
-          <p>Your leads include verified contact information for homeowners selling their properties directly (FSBO) in the Metro Detroit area.</p>
-          <p>Best regards,<br>RealtyLeadsAI Team</p>
-        `;
+    // Only send email if we actually have leads to deliver
+    if (enrichedLeads.length > 0) {
+      const emailBody = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+              }
+              .container {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 30px;
+              }
+              h1 {
+                color: #1a3a2e;
+                font-size: 22px;
+                margin: 0 0 20px 0;
+              }
+              .lead-details {
+                background: #f9fafb;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+              }
+              .detail-line {
+                margin: 8px 0;
+              }
+              .cta-button {
+                display: inline-block;
+                background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+                color: #1a3a2e;
+                padding: 14px 28px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                margin: 20px 0;
+              }
+              .footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+                color: #6b7280;
+                font-size: 13px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Hi ${order.customer_name},</h1>
+              
+              <p><strong>Your leads are ready to download! 🎉</strong></p>
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "RealtyLeadsAI <onboarding@resend.dev>",
-        to: [order.customer_email],
-        subject: emailSubject,
-        html: emailBody,
-      }),
-    });
+              <div class="lead-details">
+                <div class="detail-line">✓ ${enrichedLeads.length} verified FSBO homeowners</div>
+                <div class="detail-line">✓ Plan: ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</div>
+                <div class="detail-line">✓ Location: ${order.primary_city}, MI</div>
+              </div>
 
-    if (!emailResponse.ok) {
-      console.error("Email send failed:", await emailResponse.text());
+              <div style="text-align: center;">
+                <a href="${sheetUrl}" class="cta-button">Download Your Leads</a>
+              </div>
+
+              <p>Your leads include verified contact information for homeowners selling their properties directly (FSBO).</p>
+              
+              <div class="footer">
+                Questions? Just reply to this email.
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "RealtyLeadsAI <onboarding@resend.dev>",
+          to: [order.customer_email],
+          subject: "Your Leads Are Ready to Download! 🎉",
+          html: emailBody,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.error("Email send failed:", await emailResponse.text());
+      } else {
+        logStep("Leads ready email sent successfully");
+      }
+    } else {
+      logStep("No leads found - skipping email notification");
     }
-
-    logStep("Email sent successfully");
 
     return new Response(
       JSON.stringify({

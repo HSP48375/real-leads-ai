@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     const passwordSetUrl = resetData.properties?.action_link || "";
 
     const emailResponse = await resend.emails.send({
-      from: "RealtyLeadsAI <hello@realtyleadsai.com>",
+      from: "RealtyLeadsAI <onboarding@resend.dev>",
       to: [email],
       subject: "Order Confirmed - Leads Arriving in 24hrs ✓",
       html: `
