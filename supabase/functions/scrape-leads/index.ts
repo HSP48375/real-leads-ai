@@ -378,7 +378,17 @@ async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
     body: JSON.stringify(input),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Apify API error (${response.status}): ${errorText}`);
+  }
+
   const runData = await response.json();
+  
+  if (!runData.data || !runData.data.id) {
+    throw new Error(`Apify API returned invalid response: ${JSON.stringify(runData)}`);
+  }
+  
   const runId = runData.data.id;
 
   // Wait for run to complete
