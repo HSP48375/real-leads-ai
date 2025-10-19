@@ -98,27 +98,22 @@ serve(async (req) => {
 
       // Send order confirmation email with password setup link
       try {
-        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-        const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-order-confirmation`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
+        console.log("Triggering order confirmation email for:", email);
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
+          body: {
             email: email,
             name: name || "there",
             tier,
             price: price_paid,
             leadCount: leads || "15-20",
             city: primary_city,
-          }),
+          },
         });
 
-        if (!emailResponse.ok) {
-          console.error("Failed to send order confirmation email:", await emailResponse.text());
+        if (emailError) {
+          console.error("Failed to send order confirmation email:", emailError);
         } else {
-          console.log("Order confirmation email sent successfully");
+          console.log("Order confirmation email sent successfully:", emailData);
         }
       } catch (emailError) {
         console.error("Error sending order confirmation email:", emailError);
@@ -126,14 +121,9 @@ serve(async (req) => {
 
       // Trigger lead scraping in background
       try {
-        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-        await fetch(`${SUPABASE_URL}/functions/v1/scrape-leads`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
+        console.log("Triggering lead scraping for order:", order.id);
+        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('scrape-leads', {
+          body: {
             orderId: order.id,
             orderType: billing,
             subscriptionId: order.stripe_subscription_id,
@@ -143,8 +133,14 @@ serve(async (req) => {
             radius: `${search_radius} miles`,
             leadCount: leads,
             deliveryDate: new Date().toISOString()
-          }),
+          },
         });
+
+        if (scrapeError) {
+          console.error("Failed to trigger lead scraping:", scrapeError);
+        } else {
+          console.log("Lead scraping triggered successfully:", scrapeData);
+        }
       } catch (err) {
         console.error("Background scraping error (checkout.session.completed):", err);
       }
