@@ -133,18 +133,32 @@ serve(async (req) => {
         console.error("Error sending order confirmation email:", emailError);
       }
 
-      // Trigger lead scraping in background (don't await - let it run async)
-      supabase.functions.invoke('scrape-leads', {
-        body: { orderId: order.id },
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error("Failed to trigger lead scraping:", error);
-        } else {
-          console.log("Lead scraping triggered successfully:", data);
-        }
-      }).catch(err => {
-        console.error("Background scraping error (checkout.session.completed):", err);
-      });
+      // Send order data to Make.com webhook
+      const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
+      if (makeWebhookUrl) {
+        fetch(makeWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: order.id,
+            user_id: order.user_id,
+            email: order.customer_email,
+            name: order.customer_name,
+            tier: order.tier,
+            city: order.primary_city,
+            radius: order.search_radius,
+            additional_cities: order.additional_cities,
+            price_paid: order.price_paid,
+            lead_count_range: order.lead_count_range,
+          }),
+        }).then(response => {
+          console.log("Make.com webhook triggered:", response.status);
+        }).catch(err => {
+          console.error("Error calling Make.com webhook:", err);
+        });
+      } else {
+        console.warn("MAKE_WEBHOOK_URL not configured");
+      }
 
       return new Response(
         JSON.stringify({ received: true, orderId: order.id }),
@@ -204,27 +218,28 @@ serve(async (req) => {
 
       console.log("Renewal order created:", newOrder.id);
 
-      // Trigger lead scraping for renewal
-      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-      
-      fetch(`${SUPABASE_URL}/functions/v1/scrape-leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-        body: JSON.stringify({
-          orderId: newOrder.id,
-          orderType: 'subscription',
-          subscriptionId: subscriptionId,
-          tier: originalOrder.tier,
-          email: originalOrder.customer_email,
-          cities: [originalOrder.primary_city, ...(originalOrder.additional_cities || [])],
-          radius: `${originalOrder.search_radius} miles`,
-          leadCount: originalOrder.lead_count_range,
-          deliveryDate: new Date().toISOString()
-        }),
-      }).catch(err => console.error("Background scraping error:", err));
+      // Send renewal order data to Make.com webhook
+      const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
+      if (makeWebhookUrl) {
+        fetch(makeWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: newOrder.id,
+            user_id: newOrder.user_id,
+            email: newOrder.customer_email,
+            name: newOrder.customer_name,
+            tier: newOrder.tier,
+            city: newOrder.primary_city,
+            radius: newOrder.search_radius,
+            additional_cities: newOrder.additional_cities,
+            price_paid: newOrder.price_paid,
+            lead_count_range: newOrder.lead_count_range,
+          }),
+        }).catch(err => console.error("Error calling Make.com webhook for renewal:", err));
+      } else {
+        console.warn("MAKE_WEBHOOK_URL not configured for renewal");
+      }
 
       // TODO: Send renewal notification email
 
