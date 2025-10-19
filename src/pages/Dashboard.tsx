@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Package, TrendingUp, DollarSign, Download, Play, MessageCircle, Lock, ArrowRight, Star } from 'lucide-react';
+import { Package, TrendingUp, DollarSign, Play, MessageCircle, Download, ArrowRight, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DashboardStats {
@@ -51,22 +51,30 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      console.log('Fetching orders for user:', user?.email);
+      
       const { data: orders, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_email', user!.email)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Raw orders from database:', orders);
 
       const totalOrders = orders?.length || 0;
       const totalLeads = orders?.reduce((sum, order) => sum + (order.leads_count || 0), 0) || 0;
       const totalSpent = orders?.reduce((sum, order) => sum + (order.price_paid || 0), 0) || 0;
 
+      console.log('Calculated stats:', { totalOrders, totalLeads, totalSpent });
+
       setStats({ totalOrders, totalLeads, totalSpent });
       setRecentOrders(orders?.slice(0, 5) || []);
     } catch (error: any) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Error in fetchDashboardData:', error);
       setStats({ totalOrders: 0, totalLeads: 0, totalSpent: 0 });
       setRecentOrders([]);
     } finally {
@@ -182,11 +190,6 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
     },
   ];
 
-  const previewOrders = [
-    { city: 'Metro Detroit', leads: 45, price: 197 },
-    { city: 'Ann Arbor', leads: 25, price: 97 },
-    { city: 'Royal Oak', leads: 18, price: 97 },
-  ];
 
   return (
     <DashboardLayout>
@@ -291,30 +294,12 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
             <h2 className="text-2xl font-bold text-foreground mb-6">Recent Orders</h2>
             
             {recentOrders.length === 0 ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {previewOrders.map((preview, index) => (
-                    <div
-                      key={index}
-                      className="relative bg-[rgba(31,41,55,0.5)] border border-border rounded-xl p-6 opacity-60"
-                    >
-                      <div className="absolute top-4 right-4">
-                        <Lock className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="font-semibold text-foreground">{preview.city}</h3>
-                        <p className="text-sm text-muted-foreground">{preview.leads} leads</p>
-                        <p className="text-lg font-bold text-primary">${preview.price}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-6 text-lg">Your orders will appear here</p>
-                  <Link to="/#pricing">
-                    <Button size="lg" className="px-8">Get Started</Button>
-                  </Link>
-                </div>
+              <div className="text-center py-12">
+                <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground mb-6 text-lg">No orders yet</p>
+                <Link to="/order">
+                  <Button size="lg" className="px-8">Order Your First Leads</Button>
+                </Link>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -351,15 +336,15 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
                           )}
                         </td>
                         <td className="py-4 px-4">
-                          {order.status === 'delivered' && (
+                          <Link to="/orders">
                             <Button
                               size="sm"
                               variant="ghost"
                               className="text-primary hover:text-primary/80 hover:bg-primary/10"
                             >
-                              <Download className="h-4 w-4" />
+                              View Details →
                             </Button>
-                          )}
+                          </Link>
                         </td>
                       </tr>
                     ))}
