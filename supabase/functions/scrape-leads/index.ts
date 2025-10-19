@@ -11,11 +11,11 @@ const GOOGLE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_J
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const GOOGLE_SHEETS_FOLDER_ID = Deno.env.get("GOOGLE_SHEETS_FOLDER_ID") || "";
 
-// Apify Actor IDs - using working actors from Apify store
+// Apify Actor IDs - verified working actors
 const SCRAPERS = {
-  zillow: "maxcopell~zillow-scraper", // Zillow scraper (all listings)
-  zillow_property: "afanasenko~zillow-property-agent-data-scraper", // Zillow with agent data
-  realtor: "compass~realtor-scraper", // Realtor.com scraper
+  zillow: "maxcopell~zillow-scraper",
+  realtor: "epctex~realtor-scraper",
+  fsbo: "dainty_screw~real-estate-fsbo-com-data-scraper",
 };
 
 const logStep = (step: string, details?: any) => {
@@ -93,42 +93,60 @@ serve(async (req) => {
     logStep("Starting scraper runs");
 
     for (const city of targetCities) {
-      // Zillow Basic Scraper
+      logStep(`Starting scrapers for city: ${city}`);
+
+      // Zillow Scraper
       try {
+        logStep(`Zillow scraper starting for ${city}`);
         const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
           searchUrls: [`https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`],
           maxItems: minimumQuota * 3,
         });
-        allLeads.push(...parseZillowBasicResults(zillowResults));
-        logStep(`Zillow scraper completed for ${city}`, { count: zillowResults.length });
+        const zillowLeads = parseZillowResults(zillowResults);
+        allLeads.push(...zillowLeads);
+        logStep(`Zillow scraper completed for ${city}`, { 
+          rawCount: zillowResults.length, 
+          parsedCount: zillowLeads.length,
+          sample: zillowLeads[0] || null
+        });
       } catch (e) {
         logStep(`Zillow scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
       }
 
-      // Zillow Property Scraper (with agent data for filtering)
-      try {
-        const zillowPropertyResults = await runApifyScraper(SCRAPERS.zillow_property, {
-          search: `${city}, MI`,
-          listingType: "forSaleByOwner",
-          maxItems: minimumQuota * 2,
-        });
-        allLeads.push(...parseZillowPropertyResults(zillowPropertyResults));
-        logStep(`Zillow property scraper completed for ${city}`, { count: zillowPropertyResults.length });
-      } catch (e) {
-        logStep(`Zillow property scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
-      }
-
       // Realtor.com Scraper
       try {
+        logStep(`Realtor scraper starting for ${city}`);
         const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
-          location: `${city}, MI`,
-          listingType: "fsbo",
+          startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/sby-1`],
           maxItems: minimumQuota * 2,
         });
-        allLeads.push(...parseRealtorResults(realtorResults));
-        logStep(`Realtor.com scraper completed for ${city}`, { count: realtorResults.length });
+        const realtorLeads = parseRealtorResults(realtorResults);
+        allLeads.push(...realtorLeads);
+        logStep(`Realtor scraper completed for ${city}`, { 
+          rawCount: realtorResults.length, 
+          parsedCount: realtorLeads.length,
+          sample: realtorLeads[0] || null
+        });
       } catch (e) {
-        logStep(`Realtor.com scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+        logStep(`Realtor scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      }
+
+      // FSBO.com Scraper
+      try {
+        logStep(`FSBO scraper starting for ${city}`);
+        const fsboResults = await runApifyScraper(SCRAPERS.fsbo, {
+          startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
+          maxItems: minimumQuota * 2,
+        });
+        const fsboLeads = parseFSBOResults(fsboResults);
+        allLeads.push(...fsboLeads);
+        logStep(`FSBO scraper completed for ${city}`, { 
+          rawCount: fsboResults.length, 
+          parsedCount: fsboLeads.length,
+          sample: fsboLeads[0] || null
+        });
+      } catch (e) {
+        logStep(`FSBO scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -171,7 +189,7 @@ serve(async (req) => {
     logStep("Applied tier quota", { finalCount: finalLeads.length, minimum: minimumQuota, maximum: maximumQuota });
 
     // Check if we met minimum quota - handle partial delivery if needed
-    let orderStatus = "delivered";
+    let orderStatus = "completed";
     let needsAdditionalScraping = false;
     let nextScrapeDate = null;
 
@@ -360,86 +378,89 @@ serve(async (req) => {
 });
 
 async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
-  const response = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+  logStep(`Running Apify actor: ${actorId}`, { input });
+  
+  const response = await fetch(
+    `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
+    logStep(`Apify API error for ${actorId}`, { status: response.status, error: errorText });
     throw new Error(`Apify API error (${response.status}): ${errorText}`);
   }
 
-  const runData = await response.json();
-  
-  if (!runData.data || !runData.data.id) {
-    throw new Error(`Apify API returned invalid response: ${JSON.stringify(runData)}`);
-  }
-  
-  const runId = runData.data.id;
-
-  // Wait for run to complete
-  let status = "RUNNING";
-  while (status === "RUNNING") {
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    const statusResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}?token=${APIFY_API_KEY}`);
-    const statusData = await statusResponse.json();
-    status = statusData.data.status;
-  }
-
-  // Get results
-  const resultsResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items?token=${APIFY_API_KEY}`);
-  return await resultsResponse.json();
+  const results = await response.json();
+  logStep(`Apify actor ${actorId} completed`, { resultCount: results.length });
+  return results;
 }
 
-function parseZillowBasicResults(results: any[]): Lead[] {
+function parseZillowResults(results: any[]): Lead[] {
   return results
-    .filter(item => item.hdpData?.homeInfo?.listing_sub_type?.is_FSBA === true)
+    .filter(item => {
+      // Filter for FSBO listings only
+      const isFSBO = item.hdpData?.homeInfo?.listing_sub_type?.is_FSBA === true ||
+                     item.statusText?.toLowerCase().includes('fsbo') ||
+                     item.brokerName?.toLowerCase().includes('owner');
+      return isFSBO && item.address;
+    })
     .map(item => ({
       seller_name: item.brokerName || undefined,
       contact: undefined,
-      address: item.address || item.addressStreet,
+      address: item.address || item.addressStreet || `${item.addressCity}, ${item.addressState}`,
       city: item.addressCity,
-      state: item.addressState,
+      state: item.addressState || "MI",
       zip: item.addressZipcode,
-      price: item.unformattedPrice?.toString() || item.price,
+      price: item.unformattedPrice?.toString() || item.price?.replace(/[^0-9]/g, ''),
       url: item.detailUrl || `https://www.zillow.com/homedetails/${item.zpid}_zpid/`,
       source: "Zillow FSBO",
       date_listed: undefined,
     }));
 }
 
-function parseZillowPropertyResults(results: any[]): Lead[] {
+function parseRealtorResults(results: any[]): Lead[] {
   return results
-    .filter(item => !item.agentName || item.agentName.toLowerCase().includes('owner'))
+    .filter(item => {
+      // Filter for FSBO or owner listings
+      const isFSBO = item.listing_type?.toLowerCase().includes('fsbo') ||
+                     item.broker?.name?.toLowerCase().includes('owner') ||
+                     !item.broker?.name;
+      return isFSBO && item.location?.address?.line;
+    })
     .map(item => ({
-      seller_name: item.agentName || undefined,
-      contact: item.cellPhone || item.agentEmail || undefined,
-      address: item.streetAddress,
-      city: item.city,
-      state: item.state,
-      zip: item.zipcode,
-      price: item.price?.toString(),
-      url: item.hdpUrl,
-      source: "Zillow FSBO",
-      date_listed: undefined,
+      seller_name: item.broker?.name || undefined,
+      contact: item.broker?.phone || undefined,
+      address: item.location?.address?.line,
+      city: item.location?.address?.city,
+      state: item.location?.address?.state_code || "MI",
+      zip: item.location?.address?.postal_code,
+      price: item.list_price?.toString() || item.price?.toString(),
+      url: item.rdc_web_url || item.href,
+      source: "Realtor.com FSBO",
+      date_listed: item.list_date,
     }));
 }
 
-function parseRealtorResults(results: any[]): Lead[] {
-  return results.map(item => ({
-    seller_name: item.agent?.name || null,
-    contact: item.agent?.phone || item.agent?.email || null,
-    address: item.location?.address?.line,
-    city: item.location?.address?.city,
-    state: item.location?.address?.state_code,
-    zip: item.location?.address?.postal_code,
-    price: item.list_price?.toString(),
-    url: item.permalink,
-    source: "Realtor.com FSBO",
-    date_listed: item.list_date,
-  }));
+function parseFSBOResults(results: any[]): Lead[] {
+  return results
+    .filter(item => item.address || item.propertyAddress)
+    .map(item => ({
+      seller_name: item.ownerName || item.sellerName || undefined,
+      contact: item.phone || item.email || undefined,
+      address: item.address || item.propertyAddress,
+      city: item.city,
+      state: item.state || "MI",
+      zip: item.zipCode || item.zip,
+      price: item.askingPrice?.toString() || item.price?.toString(),
+      url: item.listingUrl || item.url,
+      source: "FSBO.com",
+      date_listed: item.listingDate || item.datePosted,
+    }));
 }
 
 function removeDuplicates(leads: Lead[]): Lead[] {
