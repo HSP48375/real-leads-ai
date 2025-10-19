@@ -32,10 +32,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending order confirmation email to:", email);
 
-    // Generate password reset link
+    // Generate password reset link with explicit redirect to /reset-password
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email: email,
+      options: { redirectTo: 'https://real-leads-ai.lovable.app/reset-password' },
     });
 
     if (resetError) {
