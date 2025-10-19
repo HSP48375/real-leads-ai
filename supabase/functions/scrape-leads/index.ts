@@ -155,7 +155,9 @@ serve(async (req) => {
         lead.seller_name?.toLowerCase().includes('real estate group') ||
         lead.seller_name?.toLowerCase().includes('mls');
       
-      return !hasAgentIndicators && lead.source.toLowerCase().includes('fsbo');
+      // Keep leads that either have "fsbo" in source OR don't have agent indicators
+      // This allows Facebook Marketplace and other sources while filtering agents
+      return !hasAgentIndicators || lead.source.toLowerCase().includes('fsbo');
     });
 
     logStep("Filtered out agent listings", { count: fsboOnly.length });
@@ -520,7 +522,17 @@ async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
     }),
   });
 
+  if (!createResponse.ok) {
+    const error = await createResponse.text();
+    throw new Error(`Failed to create Google Sheet: ${error}`);
+  }
+
   const sheet = await createResponse.json();
+  
+  if (!sheet.spreadsheetId) {
+    throw new Error(`Google Sheets API did not return spreadsheetId: ${JSON.stringify(sheet)}`);
+  }
+  
   const spreadsheetId = sheet.spreadsheetId;
 
   // Populate with data

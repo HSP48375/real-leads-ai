@@ -121,31 +121,18 @@ serve(async (req) => {
         console.error("Error sending order confirmation email:", emailError);
       }
 
-      // Trigger lead scraping in background
-      try {
-        console.log("Triggering lead scraping for order:", order.id);
-        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('scrape-leads', {
-          body: {
-            orderId: order.id,
-            orderType: billing,
-            subscriptionId: order.stripe_subscription_id,
-            tier,
-            email,
-            cities: [primary_city, ...additional_cities],
-            radius: `${search_radius} miles`,
-            leadCount: leads,
-            deliveryDate: new Date().toISOString()
-          },
-        });
-
-        if (scrapeError) {
-          console.error("Failed to trigger lead scraping:", scrapeError);
+      // Trigger lead scraping in background (don't await - let it run async)
+      supabase.functions.invoke('scrape-leads', {
+        body: { orderId: order.id },
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error("Failed to trigger lead scraping:", error);
         } else {
-          console.log("Lead scraping triggered successfully:", scrapeData);
+          console.log("Lead scraping triggered successfully:", data);
         }
-      } catch (err) {
+      }).catch(err => {
         console.error("Background scraping error (checkout.session.completed):", err);
-      }
+      });
 
       return new Response(
         JSON.stringify({ received: true, orderId: order.id }),
