@@ -13,10 +13,9 @@ const GOOGLE_SHEETS_FOLDER_ID = Deno.env.get("GOOGLE_SHEETS_FOLDER_ID") || "";
 
 // Apify Actor IDs - using working actors from Apify store
 const SCRAPERS = {
-  zillow_fsbo: "maxcopell~zillow-scraper", // Verified Zillow scraper
-  craigslist: "ivanvs~craigslist-scraper", // Verified Craigslist scraper
-  facebook_marketplace: "clockworks~facebook-marketplace-scraper", // Facebook Marketplace (may require cookies; best-effort)
-  fsbo_com: "apify~web-scraper", // General web scraper for FSBO.com
+  zillow: "maxcopell~zillow-scraper", // Zillow scraper (all listings)
+  zillow_property: "afanasenko~zillow-property-agent-data-scraper", // Zillow with agent data
+  realtor: "compass~realtor-scraper", // Realtor.com scraper
 };
 
 const logStep = (step: string, details?: any) => {
@@ -94,54 +93,42 @@ serve(async (req) => {
     logStep("Starting scraper runs");
 
     for (const city of targetCities) {
-      // Zillow FSBO Scraper
+      // Zillow Basic Scraper
       try {
-        const zillowResults = await runApifyScraper(SCRAPERS.zillow_fsbo, {
-          search: `${city} MI fsbo`,
-          listingType: "forSaleByOwner",
-          maxItems: minimumQuota * 2,
+        const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
+          searchUrls: [`https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`],
+          maxItems: minimumQuota * 3,
         });
-        allLeads.push(...parseZillowResults(zillowResults));
+        allLeads.push(...parseZillowBasicResults(zillowResults));
         logStep(`Zillow scraper completed for ${city}`, { count: zillowResults.length });
       } catch (e) {
         logStep(`Zillow scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
       }
 
-      // Craigslist FSBO Scraper
+      // Zillow Property Scraper (with agent data for filtering)
       try {
-        const craigslistResults = await runApifyScraper(SCRAPERS.craigslist, {
-          startUrls: [`https://detroit.craigslist.org/search/reo?query=fsbo+${city}`],
+        const zillowPropertyResults = await runApifyScraper(SCRAPERS.zillow_property, {
+          search: `${city}, MI`,
+          listingType: "forSaleByOwner",
           maxItems: minimumQuota * 2,
         });
-        allLeads.push(...parseCraigslistResults(craigslistResults));
-        logStep(`Craigslist scraper completed for ${city}`, { count: craigslistResults.length });
+        allLeads.push(...parseZillowPropertyResults(zillowPropertyResults));
+        logStep(`Zillow property scraper completed for ${city}`, { count: zillowPropertyResults.length });
       } catch (e) {
-        logStep(`Craigslist scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+        logStep(`Zillow property scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
       }
 
-      // Facebook Marketplace Scraper
+      // Realtor.com Scraper
       try {
-        const fbResults = await runApifyScraper(SCRAPERS.facebook_marketplace, {
-          startUrls: [`https://www.facebook.com/marketplace/${city.toLowerCase().replace(/\s+/g, '')}/search?query=house%20for%20sale%20by%20owner`],
+        const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
+          location: `${city}, MI`,
+          listingType: "fsbo",
           maxItems: minimumQuota * 2,
         });
-        allLeads.push(...parseFacebookResults(fbResults));
-        logStep(`Facebook Marketplace scraper completed for ${city}`, { count: fbResults.length });
+        allLeads.push(...parseRealtorResults(realtorResults));
+        logStep(`Realtor.com scraper completed for ${city}`, { count: realtorResults.length });
       } catch (e) {
-        logStep(`Facebook scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
-      }
-
-      // FSBO.com Scraper
-      try {
-        const fsboResults = await runApifyScraper(SCRAPERS.fsbo_com, {
-          startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
-          maxCrawlDepth: 1,
-          maxItems: minimumQuota * 2,
-        });
-        allLeads.push(...parseFSBOResults(fsboResults));
-        logStep(`FSBO.com scraper completed for ${city}`, { count: fsboResults.length });
-      } catch (e) {
-        logStep(`FSBO.com scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+        logStep(`Realtor.com scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -406,63 +393,52 @@ async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
   return await resultsResponse.json();
 }
 
-function parseZillowResults(results: any[]): Lead[] {
-  return results.map(item => ({
-    seller_name: item.contactName || item.listingAgent || null,
-    contact: item.contactPhone || item.email || null,
-    address: item.address || item.streetAddress,
-    city: item.city,
-    state: item.state,
-    zip: item.zipcode,
-    price: item.price?.toString(),
-    url: item.url,
-    source: "Zillow FSBO",
-    date_listed: item.dateListed,
-  }));
+function parseZillowBasicResults(results: any[]): Lead[] {
+  return results
+    .filter(item => item.hdpData?.homeInfo?.listing_sub_type?.is_FSBA === true)
+    .map(item => ({
+      seller_name: item.brokerName || undefined,
+      contact: undefined,
+      address: item.address || item.addressStreet,
+      city: item.addressCity,
+      state: item.addressState,
+      zip: item.addressZipcode,
+      price: item.unformattedPrice?.toString() || item.price,
+      url: item.detailUrl || `https://www.zillow.com/homedetails/${item.zpid}_zpid/`,
+      source: "Zillow FSBO",
+      date_listed: undefined,
+    }));
 }
 
-function parseCraigslistResults(results: any[]): Lead[] {
-  return results.map(item => ({
-    seller_name: item.posterName || null,
-    contact: item.phoneNumber || item.email || null,
-    address: item.address || item.location,
-    city: item.city || "Detroit",
-    state: "MI",
-    zip: item.postalCode || null,
-    price: item.price?.toString(),
-    url: item.url,
-    source: "Craigslist FSBO",
-    date_listed: item.postedDate,
-  }));
+function parseZillowPropertyResults(results: any[]): Lead[] {
+  return results
+    .filter(item => !item.agentName || item.agentName.toLowerCase().includes('owner'))
+    .map(item => ({
+      seller_name: item.agentName || undefined,
+      contact: item.cellPhone || item.agentEmail || undefined,
+      address: item.streetAddress,
+      city: item.city,
+      state: item.state,
+      zip: item.zipcode,
+      price: item.price?.toString(),
+      url: item.hdpUrl,
+      source: "Zillow FSBO",
+      date_listed: undefined,
+    }));
 }
 
-function parseFacebookResults(results: any[]): Lead[] {
+function parseRealtorResults(results: any[]): Lead[] {
   return results.map(item => ({
-    seller_name: item.sellerName || item.marketplace_listing_title || undefined,
-    contact: undefined,
-    address: item.location || item.marketplace_listing_location,
-    city: item.city || "Detroit",
-    state: "MI",
-    zip: undefined,
-    price: item.price?.toString() || item.marketplace_listing_price,
-    url: item.url,
-    source: "Facebook Marketplace",
-    date_listed: item.creationTime,
-  }));
-}
-
-function parseFSBOResults(results: any[]): Lead[] {
-  return results.map(item => ({
-    seller_name: item.ownerName || item.sellerName || null,
-    contact: item.phone || item.email || null,
-    address: item.address || item.propertyAddress,
-    city: item.city,
-    state: item.state || "MI",
-    zip: item.zipCode,
-    price: item.askingPrice?.toString() || item.price,
-    url: item.listingUrl || item.url,
-    source: "FSBO.com",
-    date_listed: item.listingDate,
+    seller_name: item.agent?.name || null,
+    contact: item.agent?.phone || item.agent?.email || null,
+    address: item.location?.address?.line,
+    city: item.location?.address?.city,
+    state: item.location?.address?.state_code,
+    zip: item.location?.address?.postal_code,
+    price: item.list_price?.toString(),
+    url: item.permalink,
+    source: "Realtor.com FSBO",
+    date_listed: item.list_date,
   }));
 }
 
