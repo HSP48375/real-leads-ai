@@ -133,31 +133,28 @@ serve(async (req) => {
         console.error("Error sending order confirmation email:", emailError);
       }
 
-      // Send order data to Make.com webhook
-      const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
-      if (makeWebhookUrl) {
-        fetch(makeWebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            order_id: order.id,
-            user_id: order.user_id,
-            email: order.customer_email,
-            name: order.customer_name,
-            tier: order.tier,
-            city: order.primary_city,
-            radius: order.search_radius,
-            additional_cities: order.additional_cities,
-            price_paid: order.price_paid,
-            lead_count_range: order.lead_count_range,
-          }),
-        }).then(response => {
-          console.log("Make.com webhook triggered:", response.status);
-        }).catch(err => {
-          console.error("Error calling Make.com webhook:", err);
+      // Trigger native lead scraping automation
+      try {
+        console.log("Triggering scrape-leads for order:", order.id);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        
+        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceRoleKey}`,
+          },
+          body: JSON.stringify({ orderId: order.id }),
         });
-      } else {
-        console.warn("MAKE_WEBHOOK_URL not configured");
+
+        if (!scrapeResponse.ok) {
+          console.error("Failed to trigger scrape-leads:", await scrapeResponse.text());
+        } else {
+          console.log("Lead scraping automation started successfully");
+        }
+      } catch (scrapeError) {
+        console.error("Error triggering scrape-leads:", scrapeError);
       }
 
       return new Response(
@@ -218,27 +215,28 @@ serve(async (req) => {
 
       console.log("Renewal order created:", newOrder.id);
 
-      // Send renewal order data to Make.com webhook
-      const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
-      if (makeWebhookUrl) {
-        fetch(makeWebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            order_id: newOrder.id,
-            user_id: newOrder.user_id,
-            email: newOrder.customer_email,
-            name: newOrder.customer_name,
-            tier: newOrder.tier,
-            city: newOrder.primary_city,
-            radius: newOrder.search_radius,
-            additional_cities: newOrder.additional_cities,
-            price_paid: newOrder.price_paid,
-            lead_count_range: newOrder.lead_count_range,
-          }),
-        }).catch(err => console.error("Error calling Make.com webhook for renewal:", err));
-      } else {
-        console.warn("MAKE_WEBHOOK_URL not configured for renewal");
+      // Trigger native lead scraping automation for renewal
+      try {
+        console.log("Triggering scrape-leads for renewal order:", newOrder.id);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        
+        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceRoleKey}`,
+          },
+          body: JSON.stringify({ orderId: newOrder.id }),
+        });
+
+        if (!scrapeResponse.ok) {
+          console.error("Failed to trigger scrape-leads for renewal:", await scrapeResponse.text());
+        } else {
+          console.log("Lead scraping automation started successfully for renewal");
+        }
+      } catch (scrapeError) {
+        console.error("Error triggering scrape-leads for renewal:", scrapeError);
       }
 
       // TODO: Send renewal notification email
