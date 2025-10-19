@@ -14,12 +14,25 @@ const Orders = () => {
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchOrders();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Add timeout for loading state
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('Request timed out. Please refresh the page.');
+      }
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -33,16 +46,33 @@ const Orders = () => {
   }, [searchTerm, orders]);
 
   const fetchOrders = async () => {
+    if (!user?.email) {
+      setError('No user email found');
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('Fetching orders for:', user.email);
+      
       const { data, error } = await supabase
         .from('orders')
         .select('*')
+        .eq('customer_email', user.email)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Orders fetched:', data?.length || 0);
       setOrders(data || []);
       setFilteredOrders(data || []);
+      setError(null);
     } catch (error: any) {
+      console.error('Failed to load orders:', error);
+      setError(error.message || 'Failed to load orders');
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
@@ -138,8 +168,20 @@ const Orders = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading your orders...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <p className="text-destructive">{error}</p>
+          <Button onClick={fetchOrders}>Retry</Button>
         </div>
       </DashboardLayout>
     );
