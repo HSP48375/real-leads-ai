@@ -61,7 +61,7 @@ serve(async (req) => {
         },
       ],
       mode,
-      success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
+      success_url: `${req.headers.get("origin")}/payment-success?email=${encodeURIComponent(email)}`,
       cancel_url: `${req.headers.get("origin")}/order?tier=${tier}&billing=${billing}&price=${price}&leads=${leads}&payment=cancelled`,
       metadata: {
         tier,
