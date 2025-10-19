@@ -10,12 +10,12 @@ const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 const GOOGLE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON") || "{}");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-// Apify Actor IDs for each scraper (verified working actors)
+// Apify Actor IDs - using working actors from Apify store
 const SCRAPERS = {
-  zillow_fsbo: "apify~real-estate-scraper",
-  craigslist: "apify~craigslist-housing-scraper",
-  facebook_marketplace: "apify~facebook-marketplace-scraper",
-  fsbo_com: "apify~web-scraper",
+  zillow_fsbo: "maxcopell/zillow-scraper", // Verified Zillow scraper
+  craigslist: "ivanvs/craigslist-scraper", // Verified Craigslist scraper
+  facebook_marketplace: "clockworks/facebook-marketplace-scraper", // Facebook Marketplace
+  fsbo_com: "apify/web-scraper", // General web scraper for FSBO.com
 };
 
 const logStep = (step: string, details?: any) => {
@@ -96,8 +96,9 @@ serve(async (req) => {
       // Zillow FSBO Scraper
       try {
         const zillowResults = await runApifyScraper(SCRAPERS.zillow_fsbo, {
-          search: `${city}, MI FSBO`,
-          maxItems: minimumQuota * 2, // Aim for minimum, but allow scrapers to return more
+          search: `${city} MI fsbo`,
+          listingType: "forSaleByOwner",
+          maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseZillowResults(zillowResults));
         logStep(`Zillow scraper completed for ${city}`, { count: zillowResults.length });
@@ -108,7 +109,7 @@ serve(async (req) => {
       // Craigslist FSBO Scraper
       try {
         const craigslistResults = await runApifyScraper(SCRAPERS.craigslist, {
-          searchQueries: [`https://detroit.craigslist.org/search/reo?query=fsbo+${city}`],
+          startUrls: [`https://detroit.craigslist.org/search/reo?query=fsbo+${city}`],
           maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseCraigslistResults(craigslistResults));
@@ -120,8 +121,7 @@ serve(async (req) => {
       // Facebook Marketplace Scraper
       try {
         const fbResults = await runApifyScraper(SCRAPERS.facebook_marketplace, {
-          search: "house for sale by owner",
-          location: `${city}, MI`,
+          startUrls: [`https://www.facebook.com/marketplace/${city.toLowerCase().replace(/\s+/g, '')}/search?query=house%20for%20sale%20by%20owner`],
           maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseFacebookResults(fbResults));
@@ -133,7 +133,8 @@ serve(async (req) => {
       // FSBO.com Scraper
       try {
         const fsboResults = await runApifyScraper(SCRAPERS.fsbo_com, {
-          location: city,
+          startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
+          maxCrawlDepth: 1,
           maxItems: minimumQuota * 2,
         });
         allLeads.push(...parseFSBOResults(fsboResults));
@@ -574,12 +575,13 @@ async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
 }
 
 async function createJWT(serviceAccount: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  
   const header = {
     alg: "RS256",
     typ: "JWT",
   };
 
-  const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: serviceAccount.client_email,
     scope: "https://www.googleapis.com/auth/spreadsheets",
@@ -588,20 +590,72 @@ async function createJWT(serviceAccount: any): Promise<string> {
     iat: now,
   };
 
-  const encodedHeader = btoa(JSON.stringify(header));
-  const encodedClaim = btoa(JSON.stringify(claim));
+  // Base64url encode (RFC 4648)
+  const base64UrlEncode = (str: string) => {
+    return btoa(str)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedClaim = base64UrlEncode(JSON.stringify(claim));
   const unsignedToken = `${encodedHeader}.${encodedClaim}`;
 
-  // Note: This is simplified - in production, use proper JWT signing
-  // For now, we'll use the service account directly with Google API
+  // Import the private key for RS256 signing
+  const privateKeyPem = serviceAccount.private_key;
+  
+  // Convert PEM to ArrayBuffer for signing
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  const pemContents = privateKeyPem
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s/g, "");
+  
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+
+  // Import key for RSASSA-PKCS1-v1_5 (RS256)
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryDer,
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256",
+    },
+    false,
+    ["sign"]
+  );
+
+  // Sign the unsigned token
+  const encoder = new TextEncoder();
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    encoder.encode(unsignedToken)
+  );
+
+  // Base64url encode the signature
+  const signatureArray = new Uint8Array(signature);
+  const signatureBase64 = btoa(String.fromCharCode(...signatureArray));
+  const encodedSignature = signatureBase64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+
+  const signedJwt = `${unsignedToken}.${encodedSignature}`;
+
+  // Exchange JWT for access token
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: unsignedToken,
-    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${signedJwt}`,
   });
+
+  if (!tokenResponse.ok) {
+    const error = await tokenResponse.text();
+    throw new Error(`Failed to get access token: ${error}`);
+  }
 
   const tokenData = await tokenResponse.json();
   return tokenData.access_token;
