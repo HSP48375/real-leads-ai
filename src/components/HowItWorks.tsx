@@ -30,7 +30,7 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <section className="py-20 md:py-24 relative bg-background">
+    <section id="how-it-works" className="py-20 md:py-24 relative bg-background">
       <div className="container px-4">
         {/* Header */}
         <div className="text-center mb-16">
