@@ -50,12 +50,19 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
+    if (!user?.email) {
+      console.log('No user email, skipping fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log('Fetching orders for user:', user?.email);
+      console.log('Fetching orders for user:', user.email);
       
       const { data: orders, error } = await supabase
         .from('orders')
         .select('*')
+        .eq('customer_email', user.email)
         .order('created_at', { ascending: false });
 
       if (error) {
