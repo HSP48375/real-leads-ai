@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import GlowingCard from "@/components/GlowingCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface OrderParams {
   tier: string;
@@ -30,6 +31,7 @@ interface OrderFormProps {
 const OrderForm = ({ orderParams }: OrderFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -97,6 +99,7 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
           additional_cities: additionalCitiesArray,
           name: formData.name,
           email: formData.email,
+          user_id: user?.id || null,
         },
       });
 

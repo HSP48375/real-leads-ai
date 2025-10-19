@@ -52,6 +52,7 @@ serve(async (req) => {
       })();
       const name = metadata.name ?? metadata.customer_name ?? session.customer_details?.name ?? null;
       const email = session.customer_email ?? session.customer_details?.email ?? metadata.email ?? null;
+      const user_id = metadata.user_id || null;
 
       // Prefer Stripe reported amount; fallback to metadata.price
       const price_paid = typeof session.amount_total === "number"
@@ -68,6 +69,7 @@ serve(async (req) => {
         .insert({
           customer_name: name,
           customer_email: email,
+          user_id: user_id || null,
           primary_city,
           search_radius,
           additional_cities,

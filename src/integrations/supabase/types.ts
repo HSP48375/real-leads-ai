@@ -97,6 +97,7 @@ export type Database = {
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered: number | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           additional_cities?: string[] | null
@@ -124,6 +125,7 @@ export type Database = {
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           additional_cities?: string[] | null
@@ -151,6 +153,7 @@ export type Database = {
           tier?: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
