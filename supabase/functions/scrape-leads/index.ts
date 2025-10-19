@@ -12,10 +12,10 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 // Apify Actor IDs for each scraper (verified working actors)
 const SCRAPERS = {
-  zillow_fsbo: "apify/real-estate-scraper",
-  craigslist: "apify/craigslist-housing-scraper",
-  facebook_marketplace: "apify/facebook-marketplace-scraper",
-  fsbo_com: "apify/web-scraper",
+  zillow_fsbo: "apify~real-estate-scraper",
+  craigslist: "apify~craigslist-housing-scraper",
+  facebook_marketplace: "apify~facebook-marketplace-scraper",
+  fsbo_com: "apify~web-scraper",
 };
 
 const logStep = (step: string, details?: any) => {
