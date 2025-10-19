@@ -9,13 +9,14 @@ const corsHeaders = {
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 const GOOGLE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON") || "{}");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const GOOGLE_SHEETS_FOLDER_ID = Deno.env.get("GOOGLE_SHEETS_FOLDER_ID") || "";
 
 // Apify Actor IDs - using working actors from Apify store
 const SCRAPERS = {
-  zillow_fsbo: "maxcopell/zillow-scraper", // Verified Zillow scraper
-  craigslist: "ivanvs/craigslist-scraper", // Verified Craigslist scraper
-  facebook_marketplace: "clockworks/facebook-marketplace-scraper", // Facebook Marketplace
-  fsbo_com: "apify/web-scraper", // General web scraper for FSBO.com
+  zillow_fsbo: "maxcopell~zillow-scraper", // Verified Zillow scraper
+  craigslist: "ivanvs~craigslist-scraper", // Verified Craigslist scraper
+  facebook_marketplace: "clockworks~facebook-marketplace-scraper", // Facebook Marketplace (may require cookies; best-effort)
+  fsbo_com: "apify~web-scraper", // General web scraper for FSBO.com
 };
 
 const logStep = (step: string, details?: any) => {
@@ -486,7 +487,7 @@ async function enrichContacts(leads: Lead[]): Promise<Lead[]> {
   if (needsEnrichment.length === 0) return leads;
 
   try {
-    const enrichResults = await runApifyScraper("dainty_screw/reverse-contact-enricher", {
+    const enrichResults = await runApifyScraper("dainty_screw~reverse-contact-enricher", {
       addresses: needsEnrichment.map(l => l.address),
     });
 
@@ -514,38 +515,34 @@ async function enrichContacts(leads: Lead[]): Promise<Lead[]> {
 
 async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
   const jwt = await createJWT(GOOGLE_SERVICE_ACCOUNT);
-  
-  // Create new spreadsheet
-  const createResponse = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
+
+  if (!GOOGLE_SHEETS_FOLDER_ID) {
+    throw new Error("Missing GOOGLE_SHEETS_FOLDER_ID secret. Create/share a Drive folder and set this secret.");
+  }
+
+  // Create spreadsheet directly in the shared folder via Drive API
+  const createDriveFile = await fetch("https://www.googleapis.com/drive/v3/files", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${jwt}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      properties: {
-        title: `RealtyLeadsAI - ${order.customer_name} - ${new Date().toLocaleDateString()}`,
-      },
-      sheets: [{
-        properties: { title: "Verified Leads" },
-      }],
+      name: `RealtyLeadsAI - ${order.customer_name} - ${new Date().toLocaleDateString()}`,
+      mimeType: "application/vnd.google-apps.spreadsheet",
+      parents: [GOOGLE_SHEETS_FOLDER_ID],
     }),
   });
 
-  if (!createResponse.ok) {
-    const error = await createResponse.text();
+  if (!createDriveFile.ok) {
+    const error = await createDriveFile.text();
     throw new Error(`Failed to create Google Sheet: ${error}`);
   }
 
-  const sheet = await createResponse.json();
-  
-  if (!sheet.spreadsheetId) {
-    throw new Error(`Google Sheets API did not return spreadsheetId: ${JSON.stringify(sheet)}`);
-  }
-  
-  const spreadsheetId = sheet.spreadsheetId;
+  const driveFile = await createDriveFile.json();
+  const spreadsheetId = driveFile.id;
 
-  // Populate with data
+  // Initialize header + data using Sheets API
   const values = [
     ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Listing URL", "Date Listed"],
     ...leads.map(lead => [
@@ -584,7 +581,7 @@ async function createJWT(serviceAccount: any): Promise<string> {
 
   const claim = {
     iss: serviceAccount.client_email,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
+    scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets",
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now,
