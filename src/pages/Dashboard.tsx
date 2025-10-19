@@ -29,9 +29,30 @@ const Dashboard = () => {
     if (!user) {
       setLoading(false);
       return;
-    }
+    };
     fetchUserProfile();
     fetchDashboardData();
+  }, [user]);
+
+  // Realtime updates: refresh dashboard when orders related to this user change
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        const row: any = payload.new ?? payload.old;
+        if (!row) return;
+        if (row.user_id === user.id || row.customer_email === user.email) {
+          console.log('Realtime update for your orders detected, refreshing stats...');
+          fetchDashboardData();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchUserProfile = async () => {
@@ -58,11 +79,12 @@ const Dashboard = () => {
 
     try {
       console.log('Fetching orders for user:', user.email);
+      console.log('Auth user debug:', { id: user.id, email: user.email });
       
       const { data: orders, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_email', user.email)
+        .or(`user_id.eq.${user.id},customer_email.eq.${user.email}`)
         .order('created_at', { ascending: false });
 
       if (error) {
