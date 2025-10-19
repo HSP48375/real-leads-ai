@@ -29,13 +29,30 @@ const ResetPassword = () => {
 
   useEffect(() => {
     document.title = 'Create Password | Real Leads';
-    // Detect recovery token in URL hash
+    
+    // Extract recovery tokens from URL hash
     const hash = window.location.hash ? window.location.hash.substring(1) : '';
     const params = new URLSearchParams(hash);
     const type = params.get('type');
     const accessToken = params.get('access_token');
-    if (type === 'recovery' && accessToken) {
+    const refreshToken = params.get('refresh_token');
+    
+    // If we have recovery tokens, establish the session
+    if (type === 'recovery' && accessToken && refreshToken) {
       setIsRecovery(true);
+      
+      // Set the session from the recovery tokens
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Error setting session from recovery tokens:', error);
+          setTokenError('This link is invalid or has expired.');
+          setShowResend(true);
+          toast.error('Invalid or expired reset link. Please request a new one.');
+        }
+      });
     }
   }, []);
 
