@@ -135,11 +135,22 @@ serve(async (req) => {
 
       // Trigger native lead scraping automation
       try {
-        console.log("Triggering scrape-leads for order:", order.id);
+        console.log("=== ATTEMPTING TO TRIGGER SCRAPE-LEADS ===");
+        console.log("Order ID:", order.id);
+        console.log("Order Status:", order.status);
+        console.log("Customer Email:", order.customer_email);
+        
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
         
-        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
+        console.log("Supabase URL:", supabaseUrl);
+        console.log("Service Role Key exists:", !!supabaseServiceRoleKey);
+        
+        const scrapeEndpoint = `${supabaseUrl}/functions/v1/scrape-leads`;
+        console.log("Calling endpoint:", scrapeEndpoint);
+        console.log("Request body:", JSON.stringify({ orderId: order.id }));
+        
+        const scrapeResponse = await fetch(scrapeEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -148,13 +159,22 @@ serve(async (req) => {
           body: JSON.stringify({ orderId: order.id }),
         });
 
+        console.log("Scrape-leads response status:", scrapeResponse.status);
+        const responseText = await scrapeResponse.text();
+        console.log("Scrape-leads response body:", responseText);
+
         if (!scrapeResponse.ok) {
-          console.error("Failed to trigger scrape-leads:", await scrapeResponse.text());
+          console.error("❌ FAILED to trigger scrape-leads - Status:", scrapeResponse.status);
+          console.error("❌ Response:", responseText);
         } else {
-          console.log("Lead scraping automation started successfully");
+          console.log("✅ Lead scraping automation started successfully");
+          console.log("✅ Response:", responseText);
         }
       } catch (scrapeError) {
-        console.error("Error triggering scrape-leads:", scrapeError);
+        console.error("❌ EXCEPTION triggering scrape-leads:");
+        console.error("Error type:", scrapeError?.constructor?.name);
+        console.error("Error message:", scrapeError instanceof Error ? scrapeError.message : String(scrapeError));
+        console.error("Error stack:", scrapeError instanceof Error ? scrapeError.stack : "No stack trace");
       }
 
       return new Response(
