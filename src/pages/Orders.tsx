@@ -24,7 +24,7 @@ const Orders = () => {
   useEffect(() => {
     if (searchTerm) {
       const filtered = orders.filter(order =>
-        order.city.toLowerCase().includes(searchTerm.toLowerCase())
+        (order.primary_city || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredOrders(filtered);
     } else {
@@ -123,7 +123,7 @@ const Orders = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${order.city}-leads-${new Date(order.created_at).toLocaleDateString()}.csv`;
+      a.download = `${order.primary_city}-leads-${new Date(order.created_at).toLocaleDateString()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -195,11 +195,11 @@ const Orders = () => {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
+                   <tbody>
                     {filteredOrders.map((order) => (
                       <tr key={order.id} className="border-b border-border">
                         <td className="py-3 px-4 text-sm">{formatDate(order.created_at)}</td>
-                        <td className="py-3 px-4 font-medium">{order.city}</td>
+                        <td className="py-3 px-4 font-medium">{order.primary_city}</td>
                         <td className="py-3 px-4 text-sm">{getTierLabel(order.tier)}</td>
                         <td className="py-3 px-4 text-sm">{order.leads_count || 0}</td>
                         <td className="py-3 px-4 font-medium">${getPriceForTier(order.tier)}</td>

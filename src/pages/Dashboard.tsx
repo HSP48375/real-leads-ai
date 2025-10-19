@@ -26,10 +26,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchUserProfile();
-      fetchDashboardData();
+    if (!user) {
+      setLoading(false);
+      return;
     }
+    fetchUserProfile();
+    fetchDashboardData();
   }, [user]);
 
   const fetchUserProfile = async () => {
@@ -38,7 +40,7 @@ const Dashboard = () => {
         .from('profiles')
         .select('full_name')
         .eq('id', user!.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setUserName(data?.full_name || '');
@@ -334,7 +336,7 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
                         className={`border-b border-border ${index % 2 === 0 ? 'bg-muted/5' : ''}`}
                       >
                         <td className="py-4 px-4 text-sm">{formatDate(order.created_at)}</td>
-                        <td className="py-4 px-4 font-medium">{order.city}</td>
+                        <td className="py-4 px-4 font-medium">{order.primary_city}</td>
                         <td className="py-4 px-4 text-sm">{order.leads_count || 0}</td>
                         <td className="py-4 px-4 font-medium">${getPriceForTier(order.tier)}</td>
                         <td className="py-4 px-4">

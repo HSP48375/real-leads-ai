@@ -27,7 +27,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         .from('profiles')
         .select('full_name')
         .eq('id', user!.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setUserName(data?.full_name || '');
