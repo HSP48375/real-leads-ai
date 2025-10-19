@@ -96,6 +96,34 @@ serve(async (req) => {
         price_paid,
       });
 
+      // Send order confirmation email with password setup link
+      try {
+        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+        const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-order-confirmation`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            email: email,
+            name: name || "there",
+            tier,
+            price: price_paid,
+            leadCount: leads || "15-20",
+            city: primary_city,
+          }),
+        });
+
+        if (!emailResponse.ok) {
+          console.error("Failed to send order confirmation email:", await emailResponse.text());
+        } else {
+          console.log("Order confirmation email sent successfully");
+        }
+      } catch (emailError) {
+        console.error("Error sending order confirmation email:", emailError);
+      }
+
       // Trigger lead scraping in background
       try {
         const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
