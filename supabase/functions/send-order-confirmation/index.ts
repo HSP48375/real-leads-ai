@@ -109,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
 
               <div class="order-details">
                 <div class="detail-line">✓ ${leadCount} FSBO leads for ${city}</div>
-                <div class="detail-line">✓ $${(price / 100).toFixed(2)} paid</div>
+                <div class="detail-line">✓ $${price.toFixed(2)} paid</div>
                 <div class="detail-line">✓ Delivery: Within 24 hours</div>
               </div>
 

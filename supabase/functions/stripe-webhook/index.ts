@@ -64,12 +64,23 @@ serve(async (req) => {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         : null;
 
+      // Check if user already exists with this email
+      let finalUserId = user_id || null;
+      if (!finalUserId && email) {
+        const { data: existingUser } = await supabase.auth.admin.listUsers();
+        const matchedUser = existingUser.users.find(u => u.email === email);
+        if (matchedUser) {
+          finalUserId = matchedUser.id;
+          console.log("Found existing user for email:", { email, userId: finalUserId });
+        }
+      }
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           customer_name: name,
           customer_email: email,
-          user_id: user_id || null,
+          user_id: finalUserId,
           primary_city,
           search_radius,
           additional_cities,
@@ -96,6 +107,7 @@ serve(async (req) => {
         sessionId: session.id,
         payment_status: session.payment_status,
         price_paid,
+        user_id: finalUserId,
       });
 
       // Send order confirmation email with password setup link
