@@ -21,9 +21,9 @@ serve(async (req) => {
   }
 
   try {
-    const { tier, billing, price, leads, primary_city, search_radius, additional_cities, name, email, user_id } = await req.json();
+    const { tier, billing, price, leads, primary_city, search_radius, additional_cities, name, email } = await req.json();
 
-    console.log("Creating checkout session:", { tier, billing, price, leads, primary_city, search_radius, additional_cities, user_id });
+    console.log("Creating checkout session:", { tier, billing, hasEmail: !!email });
 
     // Validate inputs
     if (!tier || !billing || !price || !leads || !primary_city || !search_radius || !name || !email) {
@@ -73,11 +73,11 @@ serve(async (req) => {
         additional_cities: JSON.stringify(additional_cities || []),
         name,
         email,
-        user_id: user_id || "",
+        // Security: user_id is derived on server from email, not trusted from client
       },
     });
 
-    console.log("Checkout session created:", session.id);
+    console.log("Checkout session created successfully");
 
     return new Response(
       JSON.stringify({ sessionUrl: session.url }),

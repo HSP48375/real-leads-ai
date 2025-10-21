@@ -99,7 +99,7 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
           additional_cities: additionalCitiesArray,
           name: formData.name,
           email: formData.email,
-          user_id: user?.id || null,
+          // Security: Never send user_id from client - server derives it from email
         },
       });
 

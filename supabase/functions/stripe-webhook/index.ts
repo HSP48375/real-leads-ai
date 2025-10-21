@@ -34,12 +34,11 @@ serve(async (req) => {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata || {};
 
-      console.log("checkout.session.completed payload:", {
-        sessionId: session.id,
-        customer_email: session.customer_email || session.customer_details?.email,
-        amount_total: session.amount_total,
-        payment_status: session.payment_status,
-        metadata,
+      console.log("checkout.session.completed:", {
+        hasEmail: !!(session.customer_email || session.customer_details?.email),
+        amountCents: session.amount_total,
+        paymentStatus: session.payment_status,
+        tier: metadata.tier,
       });
 
       const tier = metadata.tier ?? metadata.plan ?? "starter";
@@ -52,7 +51,6 @@ serve(async (req) => {
       })();
       const name = metadata.name ?? metadata.customer_name ?? session.customer_details?.name ?? null;
       const email = session.customer_email ?? session.customer_details?.email ?? metadata.email ?? null;
-      const user_id = metadata.user_id || null;
 
       // Prefer Stripe reported amount; fallback to metadata.price
       const price_paid = typeof session.amount_total === "number"
@@ -64,14 +62,14 @@ serve(async (req) => {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         : null;
 
-      // Check if user already exists with this email
-      let finalUserId = user_id || null;
-      if (!finalUserId && email) {
+      // Security: Always derive user_id from email lookup, never trust client-supplied value
+      let finalUserId = null;
+      if (email) {
         const { data: existingUser } = await supabase.auth.admin.listUsers();
         const matchedUser = existingUser.users.find(u => u.email === email);
         if (matchedUser) {
           finalUserId = matchedUser.id;
-          console.log("Found existing user for email:", { email, userId: finalUserId });
+          console.log("User matched by email");
         }
       }
 
@@ -102,12 +100,10 @@ serve(async (req) => {
         throw new Error(`Failed to create order: ${orderError.message}`);
       }
 
-      console.log("Order created from checkout.session.completed:", {
-        orderId: order.id,
-        sessionId: session.id,
-        payment_status: session.payment_status,
-        price_paid,
-        user_id: finalUserId,
+      console.log("Order created:", {
+        orderIdPrefix: order.id.substring(0, 8) + "...",
+        status: order.status,
+        tier,
       });
 
       // Send order confirmation email with password setup link
@@ -135,22 +131,12 @@ serve(async (req) => {
 
       // Trigger native lead scraping automation
       try {
-        console.log("=== ATTEMPTING TO TRIGGER SCRAPE-LEADS ===");
-        console.log("Order ID:", order.id);
-        console.log("Order Status:", order.status);
-        console.log("Customer Email:", order.customer_email);
+        console.log("Triggering scrape-leads...");
         
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
         
-        console.log("Supabase URL:", supabaseUrl);
-        console.log("Service Role Key exists:", !!supabaseServiceRoleKey);
-        
-        const scrapeEndpoint = `${supabaseUrl}/functions/v1/scrape-leads`;
-        console.log("Calling endpoint:", scrapeEndpoint);
-        console.log("Request body:", JSON.stringify({ orderId: order.id }));
-        
-        const scrapeResponse = await fetch(scrapeEndpoint, {
+        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -159,22 +145,13 @@ serve(async (req) => {
           body: JSON.stringify({ orderId: order.id }),
         });
 
-        console.log("Scrape-leads response status:", scrapeResponse.status);
-        const responseText = await scrapeResponse.text();
-        console.log("Scrape-leads response body:", responseText);
-
         if (!scrapeResponse.ok) {
-          console.error("❌ FAILED to trigger scrape-leads - Status:", scrapeResponse.status);
-          console.error("❌ Response:", responseText);
+          console.error("Failed to trigger scrape-leads, status:", scrapeResponse.status);
         } else {
-          console.log("✅ Lead scraping automation started successfully");
-          console.log("✅ Response:", responseText);
+          console.log("Lead scraping started successfully");
         }
       } catch (scrapeError) {
-        console.error("❌ EXCEPTION triggering scrape-leads:");
-        console.error("Error type:", scrapeError?.constructor?.name);
-        console.error("Error message:", scrapeError instanceof Error ? scrapeError.message : String(scrapeError));
-        console.error("Error stack:", scrapeError instanceof Error ? scrapeError.stack : "No stack trace");
+        console.error("Error triggering scrape-leads:", scrapeError instanceof Error ? scrapeError.message : String(scrapeError));
       }
 
       return new Response(
@@ -271,10 +248,8 @@ serve(async (req) => {
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as Stripe.PaymentIntent;
       console.log("payment_intent.succeeded:", {
-        id: pi.id,
-        amount: pi.amount,
+        amountCents: pi.amount,
         currency: pi.currency,
-        customer: pi.customer,
         status: pi.status,
       });
 
@@ -357,9 +332,8 @@ serve(async (req) => {
         }
 
         console.log("Order created from payment_intent.succeeded:", {
-          orderId: order.id,
-          payment_intent: pi.id,
-          sessionId: session.id,
+          orderIdPrefix: order.id.substring(0, 8) + "...",
+          tier: metadata.tier,
         });
 
         return new Response(
@@ -382,9 +356,7 @@ serve(async (req) => {
         ? charge.payment_intent
         : (charge.payment_intent as any)?.id;
       console.log("charge.succeeded:", {
-        chargeId: charge.id,
-        payment_intent: piId,
-        amount: charge.amount,
+        amountCents: charge.amount,
         currency: charge.currency,
         paid: charge.paid,
       });
