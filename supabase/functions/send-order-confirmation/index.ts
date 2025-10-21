@@ -33,10 +33,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending order confirmation email to:", email);
 
     // Generate password reset link with explicit redirect to /reset-password
+    const redirectUrl = `${Deno.env.get("SUPABASE_URL")?.replace('vnuvhreveoyclasgtnpr.supabase.co', 'real-leads-ai.lovable.app') || 'https://real-leads-ai.lovable.app'}/reset-password`;
+    
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email: email,
-      options: { redirectTo: 'https://real-leads-ai.lovable.app/reset-password' },
+      options: { redirectTo: redirectUrl },
     });
 
     if (resetError) {
@@ -49,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "RealtyLeadsAI <onboarding@resend.dev>",
       to: [email],
-      subject: "Order Confirmed - Leads Arriving in 24hrs ✓",
+      subject: "Order Confirmed - Leads Arriving in 1 Hour ✓",
       html: `
         <!DOCTYPE html>
         <html>
@@ -111,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div class="order-details">
                 <div class="detail-line">✓ ${leadCount} FSBO leads for ${city}</div>
                 <div class="detail-line">✓ $${price.toFixed(2)} paid</div>
-                <div class="detail-line">✓ Delivery: Within 24 hours</div>
+                <div class="detail-line">✓ Delivery: Within 1 hour</div>
               </div>
 
               <p><strong>🔐 Set Your Password</strong></p>
