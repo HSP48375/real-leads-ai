@@ -33,7 +33,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending order confirmation email to:", email);
 
     // Generate password reset link with explicit redirect to /reset-password
-    const redirectUrl = `${Deno.env.get("SUPABASE_URL")?.replace('vnuvhreveoyclasgtnpr.supabase.co', 'real-leads-ai.lovable.app') || 'https://real-leads-ai.lovable.app'}/reset-password`;
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") || req.headers.get("origin") || 'https://real-leads-ai.lovable.app';
+    const redirectUrl = `${appBaseUrl}/reset-password`;
     
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: 'recovery',

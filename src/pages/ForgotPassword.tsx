@@ -62,7 +62,7 @@ const ForgotPassword = () => {
 
             <div className="bg-card border border-border rounded-lg p-6 space-y-4">
               <p className="text-sm text-muted-foreground">
-                Click the link in the email to reset your password. The link will expire in 1 hour.
+                Click the link in the email to reset your password. The link will expire in 24 hours.
               </p>
               <p className="text-sm text-muted-foreground">
                 Didn't receive the email? Check your spam folder or{' '}

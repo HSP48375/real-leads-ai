@@ -30,12 +30,14 @@ const ResetPassword = () => {
   useEffect(() => {
     document.title = 'Create Password | Real Leads';
     
-    // Extract recovery tokens from URL hash
+    // Extract recovery tokens from URL hash or query params
     const hash = window.location.hash ? window.location.hash.substring(1) : '';
-    const params = new URLSearchParams(hash);
-    const type = params.get('type');
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
+    const hashParams = new URLSearchParams(hash);
+    const searchParams = new URLSearchParams(window.location.search);
+
+    const type = hashParams.get('type') || searchParams.get('type');
+    const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
     
     // If we have recovery tokens, establish the session
     if (type === 'recovery' && accessToken && refreshToken) {
