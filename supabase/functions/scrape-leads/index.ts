@@ -117,7 +117,7 @@ serve(async (req) => {
       try {
         logStep(`Realtor scraper starting for ${city}`);
         const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
-          startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/sby-1`],
+          startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1`],
           maxItems: minimumQuota * 2,
         });
         const realtorLeads = parseRealtorResults(realtorResults);
@@ -152,18 +152,26 @@ serve(async (req) => {
 
     logStep("All scrapers completed", { totalLeads: allLeads.length });
 
-    // CRITICAL: Filter out agent-listed properties
+    // CRITICAL: Filter out agent-listed properties - FSBO ONLY
     const fsboOnly = allLeads.filter(lead => {
-      const hasAgentIndicators = 
-        lead.seller_name?.toLowerCase().includes('agent') ||
-        lead.seller_name?.toLowerCase().includes('broker') ||
-        lead.seller_name?.toLowerCase().includes('realty') ||
-        lead.seller_name?.toLowerCase().includes('real estate group') ||
-        lead.seller_name?.toLowerCase().includes('mls');
+      const sellerNameLower = lead.seller_name?.toLowerCase() || '';
       
-      // Keep leads that either have "fsbo" in source OR don't have agent indicators
-      // This allows Facebook Marketplace and other sources while filtering agents
-      return !hasAgentIndicators || lead.source.toLowerCase().includes('fsbo');
+      // Comprehensive agent/broker/realtor indicators
+      const agentKeywords = [
+        'agent', 'broker', 'realty', 'realtor',
+        'real estate group', 'mls', 'listing agent', 'sellers agent',
+        'brokerage', 're/max', 'remax', 'coldwell', 'keller williams',
+        'century 21', 'century21', 'sotheby', 'compass', 'exp realty',
+        'berkshire hathaway', 'weichert', 'baird & warner',
+        'engel & völkers', 'better homes', 'homesmart', 'real living'
+      ];
+      
+      const hasAgentIndicators = agentKeywords.some(keyword => 
+        sellerNameLower.includes(keyword)
+      );
+      
+      // STRICT: Only keep leads with NO agent indicators
+      return !hasAgentIndicators;
     });
 
     logStep("Filtered out agent listings", { count: fsboOnly.length });
@@ -426,15 +434,32 @@ function parseZillowResults(results: any[]): Lead[] {
 function parseRealtorResults(results: any[]): Lead[] {
   return results
     .filter(item => {
-      // Filter for FSBO or owner listings
-      const isFSBO = item.listing_type?.toLowerCase().includes('fsbo') ||
-                     item.broker?.name?.toLowerCase().includes('owner') ||
-                     !item.broker?.name;
-      return isFSBO && item.location?.address?.line;
+      // STRICT FSBO filtering - only keep explicitly marked FSBO listings
+      const listingType = item.listing_type?.toLowerCase() || '';
+      const brokerName = item.broker?.name?.toLowerCase() || '';
+      const statusText = item.status_text?.toLowerCase() || '';
+      
+      // Must be explicitly marked as FSBO
+      const isExplicitlyFSBO = 
+        listingType.includes('fsbo') ||
+        listingType.includes('for sale by owner') ||
+        statusText.includes('fsbo') ||
+        statusText.includes('for sale by owner');
+      
+      // Exclude if there's ANY broker/agent information present
+      const hasBrokerInfo = 
+        (item.broker && item.broker.name && !brokerName.includes('owner')) ||
+        (item.agent && item.agent.name) ||
+        item.office?.name ||
+        item.listing_agent ||
+        item.showing_agent;
+      
+      // Only keep if explicitly FSBO AND no broker info
+      return isExplicitlyFSBO && !hasBrokerInfo && item.location?.address?.line;
     })
     .map(item => ({
-      seller_name: item.broker?.name || undefined,
-      contact: item.broker?.phone || undefined,
+      seller_name: item.owner?.name || item.seller?.name || undefined,
+      contact: item.owner?.phone || item.seller?.phone || undefined,
       address: item.location?.address?.line,
       city: item.location?.address?.city,
       state: item.location?.address?.state_code || "MI",
