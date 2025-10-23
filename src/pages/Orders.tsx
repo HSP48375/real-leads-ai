@@ -230,6 +230,7 @@ const Orders = () => {
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">City</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Radius</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tier</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Leads</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Amount</th>
@@ -238,10 +239,11 @@ const Orders = () => {
                     </tr>
                   </thead>
                    <tbody>
-                    {filteredOrders.map((order) => (
+                     {filteredOrders.map((order) => (
                       <tr key={order.id} className="border-b border-border">
                         <td className="py-3 px-4 text-sm">{formatDate(order.created_at)}</td>
                         <td className="py-3 px-4 font-medium">{order.primary_city}</td>
+                        <td className="py-3 px-4 text-sm">{order.radius_used ? `${order.radius_used}mi` : '-'}</td>
                         <td className="py-3 px-4 text-sm">{getTierLabel(order.tier)}</td>
                         <td className="py-3 px-4 text-sm">{order.leads_count || 0}</td>
                         <td className="py-3 px-4 font-medium">${getPriceForTier(order.tier)}</td>

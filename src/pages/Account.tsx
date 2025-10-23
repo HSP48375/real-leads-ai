@@ -31,6 +31,7 @@ const passwordSchema = z.object({
 const Account = () => {
   const { user, signOut } = useAuth();
   const [fullName, setFullName] = useState('');
+  const [accountCredit, setAccountCredit] = useState(0);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,12 +47,13 @@ const Account = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, account_credit')
         .eq('id', user!.id)
         .single();
 
       if (error) throw error;
       setFullName(data?.full_name || '');
+      setAccountCredit(data?.account_credit || 0);
     } catch (error: any) {
       toast.error('Failed to load profile');
     } finally {
@@ -136,6 +138,22 @@ const Account = () => {
             Manage your account information and preferences
           </p>
         </div>
+
+        {/* Account Credit */}
+        {accountCredit > 0 && (
+          <Card className="border-primary/50 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-primary">Account Credit</CardTitle>
+              <CardDescription>Available credit from partial deliveries</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-primary">${accountCredit.toFixed(2)}</div>
+              <p className="text-sm text-muted-foreground mt-2">
+                This credit will be automatically applied to your next order
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Profile Information */}
         <Card>

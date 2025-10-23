@@ -11,11 +11,25 @@ const GOOGLE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_J
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const GOOGLE_SHEETS_FOLDER_ID = Deno.env.get("GOOGLE_SHEETS_FOLDER_ID") || "";
 
-// Apify Actor IDs - verified working actors
+// Feature flags for data sources (defaults to FALSE, enable via secrets)
+const CRAIGSLIST_ENABLED = Deno.env.get("CRAIGSLIST_ENABLED") === "true";
+const PREFORECLOSURE_ENABLED = Deno.env.get("PREFORECLOSURE_ENABLED") === "true";
+const TAX_DELINQUENT_ENABLED = Deno.env.get("TAX_DELINQUENT_ENABLED") === "true";
+const FRBO_ENABLED = Deno.env.get("FRBO_ENABLED") === "true";
+const PAID_DATA_API_ENABLED = Deno.env.get("PAID_DATA_API_ENABLED") === "true";
+
+// Cost control limits
+const MAX_ITEMS_PER_SCRAPER = 150;
+const MAX_API_CALLS_PER_ORDER = 500;
+const SCRAPING_BUDGET_LIMIT = parseFloat(Deno.env.get("SCRAPING_BUDGET_LIMIT") || "5");
+
+// Apify Actor IDs - Active sources
 const SCRAPERS = {
   zillow: "maxcopell~zillow-scraper",
   realtor: "epctex~realtor-scraper",
   fsbo: "dainty_screw~real-estate-fsbo-com-data-scraper",
+  // Placeholder for future sources
+  craigslist: "PLACEHOLDER_CRAIGSLIST_ACTOR", // Enable when actor <$15/mo
 };
 
 const logStep = (step: string, details?: any) => {
@@ -32,7 +46,15 @@ interface Lead {
   price?: string;
   url?: string;
   source: string;
+  source_type: 'fsbo' | 'preforeclosure' | 'auction' | 'tax_delinquent' | 'frbo';
   date_listed?: string;
+}
+
+interface ScrapingMetrics {
+  itemsRequested: number;
+  itemsDelivered: number;
+  estimatedCost: number;
+  apiCalls: number;
 }
 
 serve(async (req) => {
@@ -66,7 +88,7 @@ serve(async (req) => {
 
     logStep("Order retrieved", { tier: order.tier, primary_city: order.primary_city });
 
-    // Determine lead quotas based on tier (aim for minimum, delight with extras)
+    // Determine lead quotas based on tier
     const quotas = {
       starter: { min: 15, max: 20 },
       growth: { min: 25, max: 40 },
@@ -79,90 +101,75 @@ serve(async (req) => {
     const maximumQuota = tierQuota.max;
     logStep("Lead quota", { minimum: minimumQuota, maximum: maximumQuota });
 
-    // Build target cities list based on radius and additional cities
-    const targetCities = [order.primary_city];
-    if (order.additional_cities && order.additional_cities.length > 0) {
-      targetCities.push(...order.additional_cities);
-    }
-    
-    logStep("Target cities determined", { cities: targetCities, radius: order.search_radius });
+    // Initialize scraping metrics for cost tracking
+    const metrics: ScrapingMetrics = {
+      itemsRequested: 0,
+      itemsDelivered: 0,
+      estimatedCost: 0,
+      apiCalls: 0,
+    };
 
-    // Run all scrapers in parallel for all target cities
-    const allLeads: Lead[] = [];
+    // RADIUS-BASED SEARCH with auto-expansion
+    const radiusOptions = [25, 35, 45, 60]; // Miles from city center
+    let currentRadiusIndex = 0;
+    let finalRadius = order.search_radius || radiusOptions[0];
+    let allLeads: Lead[] = [];
+    const sourceBreakdown: Record<string, number> = {};
 
-    logStep("Starting scraper runs");
+    // Try increasing radius until we meet minimum quota or hit max radius
+    while (currentRadiusIndex < radiusOptions.length && allLeads.length < minimumQuota) {
+      finalRadius = radiusOptions[currentRadiusIndex];
+      logStep(`Attempting scraping with radius: ${finalRadius} miles from ${order.primary_city}`);
 
-    for (const city of targetCities) {
-      logStep(`Starting scrapers for city: ${city}`);
+      // Reset leads for this radius attempt
+      allLeads = [];
 
-      // Zillow Scraper
-      try {
-        logStep(`Zillow scraper starting for ${city}`);
-        const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
-          searchUrls: [`https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`],
-          maxItems: minimumQuota * 3,
-        });
-        const zillowLeads = parseZillowResults(zillowResults);
-        allLeads.push(...zillowLeads);
-        logStep(`Zillow scraper completed for ${city}`, { 
-          rawCount: zillowResults.length, 
-          parsedCount: zillowLeads.length,
-          sample: zillowLeads[0] || null
-        });
-      } catch (e) {
-        logStep(`Zillow scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      // Run all active scrapers
+      const scrapingResults = await runAllScrapers(
+        order.primary_city,
+        finalRadius,
+        minimumQuota,
+        metrics
+      );
+
+      allLeads = scrapingResults.leads;
+      Object.assign(sourceBreakdown, scrapingResults.breakdown);
+
+      // Check budget limits
+      if (metrics.estimatedCost > SCRAPING_BUDGET_LIMIT) {
+        logStep("BUDGET LIMIT EXCEEDED", { cost: metrics.estimatedCost, limit: SCRAPING_BUDGET_LIMIT });
+        
+        // Send admin alert
+        await sendAdminAlert(order, metrics);
+        
+        break;
       }
 
-      // Realtor.com Scraper
-      try {
-        logStep(`Realtor scraper starting for ${city}`);
-        const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
-          startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1`],
-          maxItems: minimumQuota * 2,
-        });
-        const realtorLeads = parseRealtorResults(realtorResults);
-        allLeads.push(...realtorLeads);
-        logStep(`Realtor scraper completed for ${city}`, { 
-          rawCount: realtorResults.length, 
-          parsedCount: realtorLeads.length,
-          sample: realtorLeads[0] || null
-        });
-      } catch (e) {
-        logStep(`Realtor scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
+      // If we met quota, great! Otherwise try next radius
+      if (allLeads.length >= minimumQuota) {
+        logStep("Minimum quota met", { leads: allLeads.length, radius: finalRadius });
+        break;
       }
 
-      // FSBO.com Scraper
-      try {
-        logStep(`FSBO scraper starting for ${city}`);
-        const fsboResults = await runApifyScraper(SCRAPERS.fsbo, {
-          startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
-          maxItems: minimumQuota * 2,
-        });
-        const fsboLeads = parseFSBOResults(fsboResults);
-        allLeads.push(...fsboLeads);
-        logStep(`FSBO scraper completed for ${city}`, { 
-          rawCount: fsboResults.length, 
-          parsedCount: fsboLeads.length,
-          sample: fsboLeads[0] || null
-        });
-      } catch (e) {
-        logStep(`FSBO scraper error for ${city}`, { error: e instanceof Error ? e.message : String(e) });
-      }
+      currentRadiusIndex++;
     }
 
-    logStep("All scrapers completed", { totalLeads: allLeads.length });
+    logStep("Scraping completed", { 
+      totalLeads: allLeads.length, 
+      finalRadius, 
+      cost: metrics.estimatedCost,
+      apiCalls: metrics.apiCalls 
+    });
 
-    // CRITICAL: Filter out agent-listed properties - FSBO ONLY
-    const fsboOnly = allLeads.filter(lead => {
+    // Filter out agent-listed properties - FSBO/owner-listing ONLY
+    const ownerListingsOnly = allLeads.filter(lead => {
       const sellerNameLower = lead.seller_name?.toLowerCase() || '';
       
-      // Comprehensive agent/broker/realtor indicators
       const agentKeywords = [
-        'agent', 'broker', 'realty', 'realtor',
-        'real estate group', 'mls', 'listing agent', 'sellers agent',
-        'brokerage', 're/max', 'remax', 'coldwell', 'keller williams',
-        'century 21', 'century21', 'sotheby', 'compass', 'exp realty',
-        'berkshire hathaway', 'weichert', 'baird & warner',
+        'agent', 'broker', 'realty', 'realtor', 'real estate group', 'mls', 
+        'listing agent', 'sellers agent', 'brokerage', 're/max', 'remax', 
+        'coldwell', 'keller williams', 'century 21', 'century21', 'sotheby', 
+        'compass', 'exp realty', 'berkshire hathaway', 'weichert', 'baird & warner',
         'engel & völkers', 'better homes', 'homesmart', 'real living'
       ];
       
@@ -170,14 +177,13 @@ serve(async (req) => {
         sellerNameLower.includes(keyword)
       );
       
-      // STRICT: Only keep leads with NO agent indicators
       return !hasAgentIndicators;
     });
 
-    logStep("Filtered out agent listings", { count: fsboOnly.length });
+    logStep("Filtered agent listings", { count: ownerListingsOnly.length });
 
-    // Remove duplicates based on address
-    const uniqueLeads = removeDuplicates(fsboOnly);
+    // Remove duplicates
+    const uniqueLeads = removeDuplicates(ownerListingsOnly);
     logStep("Removed duplicates", { count: uniqueLeads.length });
 
     // Check against existing database leads
@@ -190,47 +196,66 @@ serve(async (req) => {
       lead => !existingAddresses.has(normalizeAddress(lead.address))
     );
 
-    logStep("Filtered out existing leads", { newCount: newLeads.length });
+    logStep("Filtered existing leads", { newCount: newLeads.length });
 
-    // Limit to maximum quota (but deliver all if naturally found up to max)
+    // Limit to maximum quota
     const finalLeads = newLeads.slice(0, maximumQuota);
-    logStep("Applied tier quota", { finalCount: finalLeads.length, minimum: minimumQuota, maximum: maximumQuota });
+    logStep("Applied tier quota", { finalCount: finalLeads.length });
 
-    // Check if we met minimum quota - handle partial delivery if needed
+    // PARTIAL DELIVERY & CREDIT LOGIC
     let orderStatus = "completed";
     let needsAdditionalScraping = false;
     let nextScrapeDate = null;
+    let creditAmount = 0;
 
     if (finalLeads.length < minimumQuota) {
-      // Mark as partial delivery and schedule re-scrapes
+      // Calculate credit for unmet quota
+      const deliveredPercent = finalLeads.length / minimumQuota;
+      const unmetPercent = 1 - deliveredPercent;
+      creditAmount = Math.round(order.price_paid * unmetPercent);
+
+      // Update customer's account credit
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("account_credit")
+        .eq("id", order.user_id)
+        .single();
+
+      const currentCredit = profile?.account_credit || 0;
+      await supabase
+        .from("profiles")
+        .update({ account_credit: currentCredit + creditAmount })
+        .eq("id", order.user_id);
+
       orderStatus = "partial_delivery";
       needsAdditionalScraping = true;
-      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-      logStep("Partial delivery - scheduling re-scrapes", { 
-        found: finalLeads.length, 
-        minimum: minimumQuota,
-        nextScrape: nextScrapeDate 
+      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      logStep("Partial delivery - credit applied", { 
+        delivered: finalLeads.length,
+        promised: minimumQuota,
+        creditAmount,
+        nextScrape: nextScrapeDate
       });
-    } else {
-      logStep("Minimum quota met", { found: finalLeads.length, minimum: minimumQuota });
     }
 
-    // Enrich contacts using Reverse Contact Enricher
+    // Enrich contacts
     const enrichedLeads = await enrichContacts(finalLeads);
     logStep("Contact enrichment completed");
 
-    // Store leads in database
+    // Store leads in database with source_type
     const leadsToInsert = enrichedLeads.map(lead => ({
       order_id: orderId,
       seller_name: lead.seller_name || "Unknown",
       contact: lead.contact || null,
       address: lead.address,
-      city: lead.city || order.city,
+      city: lead.city || order.primary_city,
       state: lead.state || "MI",
       zip: lead.zip || null,
       price: lead.price || null,
       url: lead.url || null,
       source: lead.source,
+      source_type: lead.source_type,
       date_listed: lead.date_listed || new Date().toISOString(),
     }));
 
@@ -245,10 +270,10 @@ serve(async (req) => {
     logStep("Leads stored in database", { count: leadsToInsert.length });
 
     // Create Google Sheet
-    const sheetUrl = await createGoogleSheet(order, enrichedLeads);
+    const sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
     logStep("Google Sheet created", { url: sheetUrl });
 
-    // Update order with sheet URL, status, and scraping info
+    // Update order with comprehensive tracking
     await supabase
       .from("orders")
       .update({
@@ -257,119 +282,27 @@ serve(async (req) => {
         delivered_at: new Date().toISOString(),
         leads_count: enrichedLeads.length,
         total_leads_delivered: enrichedLeads.length,
-        cities_searched: targetCities,
+        cities_searched: [order.primary_city],
+        radius_used: finalRadius,
+        scraping_cost: metrics.estimatedCost,
+        source_breakdown: sourceBreakdown,
         needs_additional_scraping: needsAdditionalScraping,
         next_scrape_date: nextScrapeDate?.toISOString(),
       })
       .eq("id", orderId);
 
-    // Only send email if we actually have leads to deliver
+    // Send email notification
     if (enrichedLeads.length > 0) {
-      const emailBody = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                max-width: 600px;
-                margin: 0 auto;
-                padding: 20px;
-              }
-              .container {
-                background: #ffffff;
-                border: 1px solid #e5e7eb;
-                border-radius: 8px;
-                padding: 30px;
-              }
-              h1 {
-                color: #1a3a2e;
-                font-size: 22px;
-                margin: 0 0 20px 0;
-              }
-              .lead-details {
-                background: #f9fafb;
-                padding: 15px;
-                border-radius: 6px;
-                margin: 20px 0;
-              }
-              .detail-line {
-                margin: 8px 0;
-              }
-              .cta-button {
-                display: inline-block;
-                background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-                color: #1a3a2e;
-                padding: 14px 28px;
-                text-decoration: none;
-                border-radius: 6px;
-                font-weight: 600;
-                margin: 20px 0;
-              }
-              .footer {
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 1px solid #e5e7eb;
-                color: #6b7280;
-                font-size: 13px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>Hi ${order.customer_name},</h1>
-              
-              <p><strong>Your leads are ready to download! 🎉</strong></p>
-
-              <div class="lead-details">
-                <div class="detail-line">✓ ${enrichedLeads.length} verified FSBO homeowners</div>
-                <div class="detail-line">✓ Plan: ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</div>
-                <div class="detail-line">✓ Location: ${order.primary_city}, MI</div>
-              </div>
-
-              <div style="text-align: center;">
-                <a href="${sheetUrl}" class="cta-button">Download Your Leads</a>
-              </div>
-
-              <p>Your leads include verified contact information for homeowners selling their properties directly (FSBO).</p>
-              
-              <div class="footer">
-                Questions? Just reply to this email.
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      const emailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "RealtyLeadsAI <onboarding@resend.dev>",
-          to: [order.customer_email],
-          subject: "Your Leads Are Ready to Download! 🎉",
-          html: emailBody,
-        }),
-      });
-
-      if (!emailResponse.ok) {
-        console.error("Email send failed:", await emailResponse.text());
-      } else {
-        logStep("Leads ready email sent successfully");
-      }
-    } else {
-      logStep("No leads found - skipping email notification");
+      await sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         leadsDelivered: enrichedLeads.length,
+        radiusUsed: finalRadius,
+        creditApplied: creditAmount,
+        sourceBreakdown,
         sheetUrl,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -385,8 +318,117 @@ serve(async (req) => {
   }
 });
 
+// ============= SCRAPING FUNCTIONS =============
+
+async function runAllScrapers(
+  city: string,
+  radius: number,
+  targetLeads: number,
+  metrics: ScrapingMetrics
+): Promise<{ leads: Lead[], breakdown: Record<string, number> }> {
+  const allLeads: Lead[] = [];
+  const breakdown: Record<string, number> = {};
+
+  // Zillow Scraper
+  try {
+    if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
+    
+    logStep(`Zillow scraper for ${city} (${radius}mi radius)`);
+    const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
+      searchUrls: [`https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`],
+      maxItems: Math.min(targetLeads * 3, MAX_ITEMS_PER_SCRAPER),
+    });
+    
+    metrics.apiCalls++;
+    metrics.itemsRequested += targetLeads * 3;
+    metrics.estimatedCost += 0.5; // Estimate $0.50 per run
+    
+    const leads = parseZillowResults(zillowResults);
+    allLeads.push(...leads);
+    breakdown["Zillow FSBO"] = leads.length;
+    logStep(`Zillow completed`, { count: leads.length });
+  } catch (e) {
+    logStep(`Zillow error`, { error: e instanceof Error ? e.message : String(e) });
+  }
+
+  // Realtor.com Scraper
+  try {
+    if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
+    
+    logStep(`Realtor scraper for ${city} (${radius}mi radius)`);
+    const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
+      startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1`],
+      maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
+    });
+    
+    metrics.apiCalls++;
+    metrics.itemsRequested += targetLeads * 2;
+    metrics.estimatedCost += 1.0; // Estimate $1.00 per run
+    
+    const leads = parseRealtorResults(realtorResults);
+    allLeads.push(...leads);
+    breakdown["Realtor.com FSBO"] = leads.length;
+    logStep(`Realtor completed`, { count: leads.length });
+  } catch (e) {
+    logStep(`Realtor error`, { error: e instanceof Error ? e.message : String(e) });
+  }
+
+  // FSBO.com Scraper
+  try {
+    if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
+    
+    logStep(`FSBO scraper for ${city} (${radius}mi radius)`);
+    const fsboResults = await runApifyScraper(SCRAPERS.fsbo, {
+      startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
+      maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
+    });
+    
+    metrics.apiCalls++;
+    metrics.itemsRequested += targetLeads * 2;
+    metrics.estimatedCost += 0.4; // Estimate $0.40 per run
+    
+    const leads = parseFSBOResults(fsboResults);
+    allLeads.push(...leads);
+    breakdown["FSBO.com"] = leads.length;
+    logStep(`FSBO completed`, { count: leads.length });
+  } catch (e) {
+    logStep(`FSBO error`, { error: e instanceof Error ? e.message : String(e) });
+  }
+
+  // FEATURE-FLAGGED SOURCES
+
+  if (CRAIGSLIST_ENABLED) {
+    logStep("Craigslist scraper DISABLED - enable CRAIGSLIST_ENABLED flag");
+    // Placeholder for future Craigslist integration
+  }
+
+  if (PREFORECLOSURE_ENABLED) {
+    logStep("Pre-foreclosure data DISABLED - enable PREFORECLOSURE_ENABLED flag");
+    // Placeholder for distressed property API
+  }
+
+  if (TAX_DELINQUENT_ENABLED) {
+    logStep("Tax-delinquent data DISABLED - enable TAX_DELINQUENT_ENABLED flag");
+    // Placeholder for tax delinquent property API
+  }
+
+  if (FRBO_ENABLED) {
+    logStep("FRBO (landlord) data DISABLED - enable FRBO_ENABLED flag");
+    // Placeholder for "For Rent By Owner" scraping
+  }
+
+  if (PAID_DATA_API_ENABLED) {
+    logStep("Paid data APIs DISABLED - enable PAID_DATA_API_ENABLED flag");
+    // Placeholder for ATTOM/Estated/PropStream integration
+  }
+
+  metrics.itemsDelivered = allLeads.length;
+
+  return { leads: allLeads, breakdown };
+}
+
 async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
-  logStep(`Running Apify actor: ${actorId}`, { input });
+  logStep(`Running Apify actor: ${actorId}`);
   
   const response = await fetch(
     `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_API_KEY}`,
@@ -399,19 +441,20 @@ async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    logStep(`Apify API error for ${actorId}`, { status: response.status, error: errorText });
-    throw new Error(`Apify API error (${response.status}): ${errorText}`);
+    logStep(`Apify error`, { status: response.status, error: errorText });
+    throw new Error(`Apify error (${response.status}): ${errorText}`);
   }
 
   const results = await response.json();
-  logStep(`Apify actor ${actorId} completed`, { resultCount: results.length });
+  logStep(`Apify completed`, { count: results.length });
   return results;
 }
+
+// ============= PARSING FUNCTIONS =============
 
 function parseZillowResults(results: any[]): Lead[] {
   return results
     .filter(item => {
-      // Filter for FSBO listings only
       const isFSBO = item.hdpData?.homeInfo?.listing_sub_type?.is_FSBA === true ||
                      item.statusText?.toLowerCase().includes('fsbo') ||
                      item.brokerName?.toLowerCase().includes('owner');
@@ -427,6 +470,7 @@ function parseZillowResults(results: any[]): Lead[] {
       price: item.unformattedPrice?.toString() || item.price?.replace(/[^0-9]/g, ''),
       url: item.detailUrl || `https://www.zillow.com/homedetails/${item.zpid}_zpid/`,
       source: "Zillow FSBO",
+      source_type: "fsbo" as const,
       date_listed: undefined,
     }));
 }
@@ -434,19 +478,16 @@ function parseZillowResults(results: any[]): Lead[] {
 function parseRealtorResults(results: any[]): Lead[] {
   return results
     .filter(item => {
-      // STRICT FSBO filtering - only keep explicitly marked FSBO listings
       const listingType = item.listing_type?.toLowerCase() || '';
       const brokerName = item.broker?.name?.toLowerCase() || '';
       const statusText = item.status_text?.toLowerCase() || '';
       
-      // Must be explicitly marked as FSBO
       const isExplicitlyFSBO = 
         listingType.includes('fsbo') ||
         listingType.includes('for sale by owner') ||
         statusText.includes('fsbo') ||
         statusText.includes('for sale by owner');
       
-      // Exclude if there's ANY broker/agent information present
       const hasBrokerInfo = 
         (item.broker && item.broker.name && !brokerName.includes('owner')) ||
         (item.agent && item.agent.name) ||
@@ -454,7 +495,6 @@ function parseRealtorResults(results: any[]): Lead[] {
         item.listing_agent ||
         item.showing_agent;
       
-      // Only keep if explicitly FSBO AND no broker info
       return isExplicitlyFSBO && !hasBrokerInfo && item.location?.address?.line;
     })
     .map(item => ({
@@ -467,6 +507,7 @@ function parseRealtorResults(results: any[]): Lead[] {
       price: item.list_price?.toString() || item.price?.toString(),
       url: item.rdc_web_url || item.href,
       source: "Realtor.com FSBO",
+      source_type: "fsbo" as const,
       date_listed: item.list_date,
     }));
 }
@@ -484,9 +525,12 @@ function parseFSBOResults(results: any[]): Lead[] {
       price: item.askingPrice?.toString() || item.price?.toString(),
       url: item.listingUrl || item.url,
       source: "FSBO.com",
+      source_type: "fsbo" as const,
       date_listed: item.listingDate || item.datePosted,
     }));
 }
+
+// ============= UTILITY FUNCTIONS =============
 
 function removeDuplicates(leads: Lead[]): Lead[] {
   const seen = new Set<string>();
@@ -503,7 +547,6 @@ function normalizeAddress(address: string): string {
 }
 
 async function enrichContacts(leads: Lead[]): Promise<Lead[]> {
-  // Run contact enrichment for leads without contact info
   const needsEnrichment = leads.filter(lead => !lead.contact);
   
   if (needsEnrichment.length === 0) return leads;
@@ -535,14 +578,15 @@ async function enrichContacts(leads: Lead[]): Promise<Lead[]> {
   }
 }
 
-async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
+// ============= GOOGLE SHEETS & NOTIFICATIONS =============
+
+async function createGoogleSheet(order: any, leads: Lead[], radius: number): Promise<string> {
   const jwt = await createJWT(GOOGLE_SERVICE_ACCOUNT);
 
   if (!GOOGLE_SHEETS_FOLDER_ID) {
-    throw new Error("Missing GOOGLE_SHEETS_FOLDER_ID secret. Create/share a Drive folder and set this secret.");
+    throw new Error("Missing GOOGLE_SHEETS_FOLDER_ID");
   }
 
-  // Create spreadsheet directly in the shared folder via Drive API
   const createDriveFile = await fetch("https://www.googleapis.com/drive/v3/files", {
     method: "POST",
     headers: {
@@ -564,9 +608,8 @@ async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
   const driveFile = await createDriveFile.json();
   const spreadsheetId = driveFile.id;
 
-  // Initialize header + data using Sheets API
   const values = [
-    ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Listing URL", "Date Listed"],
+    ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Type", "Listing URL", "Date Listed"],
     ...leads.map(lead => [
       lead.seller_name || "",
       lead.contact || "",
@@ -576,6 +619,7 @@ async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
       lead.zip || "",
       lead.price || "",
       lead.source,
+      lead.source_type,
       lead.url || "",
       lead.date_listed || "",
     ]),
@@ -591,6 +635,143 @@ async function createGoogleSheet(order: any, leads: Lead[]): Promise<string> {
   });
 
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+}
+
+async function sendLeadsReadyEmail(
+  order: any,
+  leads: Lead[],
+  sheetUrl: string,
+  radius: number,
+  creditAmount: number
+): Promise<void> {
+  const creditMessage = creditAmount > 0 
+    ? `<div style="background: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+         <strong>⚠️ Partial Delivery:</strong> We found ${leads.length} leads in your area. 
+         <strong>$${creditAmount} credit has been applied</strong> to your account for future orders.
+       </div>`
+    : "";
+
+  const emailBody = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .container {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 30px;
+          }
+          h1 {
+            color: #1a3a2e;
+            font-size: 22px;
+            margin: 0 0 20px 0;
+          }
+          .lead-details {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+          }
+          .detail-line {
+            margin: 8px 0;
+          }
+          .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #1a3a2e;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 0;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 13px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Hi ${order.customer_name},</h1>
+          
+          <p><strong>Your leads are ready to download! 🎉</strong></p>
+
+          ${creditMessage}
+
+          <div class="lead-details">
+            <div class="detail-line">✓ ${leads.length} verified owner-listing leads</div>
+            <div class="detail-line">✓ Plan: ${order.tier.charAt(0).toUpperCase() + order.tier.slice(1)}</div>
+            <div class="detail-line">✓ Location: ${order.primary_city}, MI (${radius}-mile radius)</div>
+          </div>
+
+          <div style="text-align: center;">
+            <a href="${sheetUrl}" class="cta-button">Download Your Leads</a>
+          </div>
+
+          <p>Your leads cover up to a ${radius}-mile radius from ${order.primary_city} and include verified contact information for homeowners selling their properties directly.</p>
+          
+          <div class="footer">
+            Questions? Just reply to this email.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "RealtyLeadsAI <onboarding@resend.dev>",
+      to: [order.customer_email],
+      subject: "Your Leads Are Ready to Download! 🎉",
+      html: emailBody,
+    }),
+  });
+
+  logStep("Email sent successfully");
+}
+
+async function sendAdminAlert(order: any, metrics: ScrapingMetrics): Promise<void> {
+  const adminEmail = Deno.env.get("ADMIN_EMAIL");
+  if (!adminEmail) return;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "RealtyLeadsAI Alerts <onboarding@resend.dev>",
+      to: [adminEmail],
+      subject: `⚠️ High Scraping Costs - Order ${order.id}`,
+      html: `
+        <h2>Scraping Cost Alert</h2>
+        <p><strong>Order ID:</strong> ${order.id}</p>
+        <p><strong>Customer:</strong> ${order.customer_email}</p>
+        <p><strong>Estimated Cost:</strong> $${metrics.estimatedCost.toFixed(2)}</p>
+        <p><strong>Budget Limit:</strong> $${SCRAPING_BUDGET_LIMIT}</p>
+        <p><strong>API Calls:</strong> ${metrics.apiCalls}</p>
+      `,
+    }),
+  });
 }
 
 async function createJWT(serviceAccount: any): Promise<string> {
@@ -609,7 +790,6 @@ async function createJWT(serviceAccount: any): Promise<string> {
     iat: now,
   };
 
-  // Base64url encode (RFC 4648)
   const base64UrlEncode = (str: string) => {
     return btoa(str)
       .replace(/\+/g, '-')
@@ -621,10 +801,7 @@ async function createJWT(serviceAccount: any): Promise<string> {
   const encodedClaim = base64UrlEncode(JSON.stringify(claim));
   const unsignedToken = `${encodedHeader}.${encodedClaim}`;
 
-  // Import the private key for RS256 signing
   const privateKeyPem = serviceAccount.private_key;
-  
-  // Convert PEM to ArrayBuffer for signing
   const pemHeader = "-----BEGIN PRIVATE KEY-----";
   const pemFooter = "-----END PRIVATE KEY-----";
   const pemContents = privateKeyPem
@@ -634,7 +811,6 @@ async function createJWT(serviceAccount: any): Promise<string> {
   
   const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
 
-  // Import key for RSASSA-PKCS1-v1_5 (RS256)
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
     binaryDer,
@@ -646,7 +822,6 @@ async function createJWT(serviceAccount: any): Promise<string> {
     ["sign"]
   );
 
-  // Sign the unsigned token
   const encoder = new TextEncoder();
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
@@ -654,7 +829,6 @@ async function createJWT(serviceAccount: any): Promise<string> {
     encoder.encode(unsignedToken)
   );
 
-  // Base64url encode the signature
   const signatureArray = new Uint8Array(signature);
   const signatureBase64 = btoa(String.fromCharCode(...signatureArray));
   const encodedSignature = signatureBase64
@@ -664,7 +838,6 @@ async function createJWT(serviceAccount: any): Promise<string> {
 
   const signedJwt = `${unsignedToken}.${encodedSignature}`;
 
-  // Exchange JWT for access token
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

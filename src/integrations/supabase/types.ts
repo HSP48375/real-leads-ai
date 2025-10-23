@@ -26,6 +26,7 @@ export type Database = {
           price: string | null
           seller_name: string | null
           source: string
+          source_type: string | null
           state: string | null
           url: string | null
           zip: string | null
@@ -41,6 +42,7 @@ export type Database = {
           price?: string | null
           seller_name?: string | null
           source: string
+          source_type?: string | null
           state?: string | null
           url?: string | null
           zip?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           price?: string | null
           seller_name?: string | null
           source?: string
+          source_type?: string | null
           state?: string | null
           url?: string | null
           zip?: string | null
@@ -87,10 +90,13 @@ export type Database = {
           next_scrape_date: string | null
           price_paid: number | null
           primary_city: string
+          radius_used: number | null
           refund_amount: number | null
           refund_reason: string | null
+          scraping_cost: number | null
           search_radius: number
           sheet_url: string | null
+          source_breakdown: Json | null
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
           stripe_subscription_id: string | null
@@ -115,10 +121,13 @@ export type Database = {
           next_scrape_date?: string | null
           price_paid?: number | null
           primary_city?: string
+          radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null
+          scraping_cost?: number | null
           search_radius?: number
           sheet_url?: string | null
+          source_breakdown?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           stripe_subscription_id?: string | null
@@ -143,10 +152,13 @@ export type Database = {
           next_scrape_date?: string | null
           price_paid?: number | null
           primary_city?: string
+          radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null
+          scraping_cost?: number | null
           search_radius?: number
           sheet_url?: string | null
+          source_breakdown?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           stripe_subscription_id?: string | null
@@ -159,18 +171,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_credit: number | null
           created_at: string
           full_name: string | null
           id: string
           updated_at: string
         }
         Insert: {
+          account_credit?: number | null
           created_at?: string
           full_name?: string | null
           id: string
           updated_at?: string
         }
         Update: {
+          account_credit?: number | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -183,10 +198,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_email: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_user_email: { Args: never; Returns: string }
     }
     Enums: {
       order_status:
