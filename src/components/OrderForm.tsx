@@ -9,8 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Check, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Check, ArrowLeft, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import GlowingCard from "@/components/GlowingCard";
@@ -33,6 +33,7 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastOrderData, setLastOrderData] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -43,6 +44,71 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     billing: orderParams.billing,
     price: orderParams.price
   });
+
+  // Fetch user profile and last order on mount for logged-in users
+  useEffect(() => {
+    if (user) {
+      fetchUserDataAndLastOrder();
+    }
+  }, [user]);
+
+  const fetchUserDataAndLastOrder = async () => {
+    try {
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user!.id)
+        .maybeSingle();
+
+      // Fetch last order
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('*')
+        .or(`user_id.eq.${user!.id},customer_email.eq.${user!.email}`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const lastOrder = orders?.[0];
+      
+      if (lastOrder) {
+        setLastOrderData(lastOrder);
+        // Auto-fill form with last order data
+        setFormData(prev => ({
+          ...prev,
+          name: lastOrder.customer_name || profile?.full_name || "",
+          email: user!.email || lastOrder.customer_email || "",
+          primary_city: lastOrder.primary_city || "",
+          search_radius: lastOrder.search_radius?.toString() || "25",
+          additional_cities: lastOrder.additional_cities?.join(", ") || "",
+        }));
+      } else {
+        // Just pre-fill name and email for new customers
+        setFormData(prev => ({
+          ...prev,
+          name: profile?.full_name || "",
+          email: user!.email || "",
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  const handleUsePreviousSettings = () => {
+    if (lastOrderData) {
+      setFormData(prev => ({
+        ...prev,
+        primary_city: lastOrderData.primary_city || "",
+        search_radius: lastOrderData.search_radius?.toString() || "25",
+        additional_cities: lastOrderData.additional_cities?.join(", ") || "",
+      }));
+      toast({
+        title: "Settings applied",
+        description: "Previous order settings have been loaded.",
+      });
+    }
+  };
   
   const tierFeatures: Record<string, string[]> = {
     starter: [
@@ -227,6 +293,18 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {lastOrderData && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleUsePreviousSettings}
+                    className="w-full mb-2 border-primary/50 hover:border-primary hover:bg-primary/10"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Use Previous Order Settings
+                  </Button>
+                )}
+                
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input
@@ -236,6 +314,7 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
                     placeholder="john@example.com"
+                    disabled={!!user}
                   />
                 </div>
 
