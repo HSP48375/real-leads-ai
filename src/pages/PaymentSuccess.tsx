@@ -7,11 +7,13 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState<string>("");
   const [isResending, setIsResending] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     // Try to get email from session storage or URL
@@ -68,65 +70,65 @@ const PaymentSuccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
-                <div className="flex items-start gap-3">
-                  <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">Check Your Email</h3>
-                    {email && (
+              {!user && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">Check Your Email</h3>
+                      {email && (
+                        <p className="text-sm text-muted-foreground">
+                          We sent an email to <span className="font-medium text-foreground">{email}</span>
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
-                        We sent an email to <span className="font-medium text-foreground">{email}</span>
+                        Click the <strong>"Set Password"</strong> button in the email to:
                       </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      Click the <strong>"Set Password"</strong> button in the email to:
-                    </p>
-                    <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                      <li>Create your account password</li>
-                      <li>Access your dashboard</li>
-                      <li>View your order status</li>
-                    </ul>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+                        <li>Create your account password</li>
+                        <li>Access your dashboard</li>
+                        <li>View your order status</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-3">
                 <h4 className="font-semibold">What happens next?</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">1.</span>
-                    <span>Check your email inbox (and spam folder)</span>
+                    <span className="text-primary font-bold">•</span>
+                    <span>Your leads are being prepared now</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">2.</span>
-                    <span>Click "Set Password" to create your account</span>
+                    <span className="text-primary font-bold">•</span>
+                    <span>You'll receive an email when ready (under 60 min)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">3.</span>
-                    <span>Your verified FSBO leads will be delivered within 24 hours</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">4.</span>
-                    <span>Access your leads via your dashboard or email</span>
+                    <span className="text-primary font-bold">•</span>
+                    <span>Check your dashboard to download leads</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="pt-4 border-t space-y-3">
-                <Button
-                  onClick={handleResendEmail}
-                  variant="outline"
-                  className="w-full"
-                  disabled={isResending || !email}
-                >
-                  {isResending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Resend Email
-                </Button>
-                
-                <p className="text-xs text-center text-muted-foreground">
-                  Didn't receive the email? Check your spam folder or click Resend.
-                </p>
-              </div>
+              {!user && (
+                <div className="pt-4 border-t space-y-3">
+                  <Button
+                    onClick={handleResendEmail}
+                    variant="outline"
+                    className="w-full"
+                    disabled={isResending || !email}
+                  >
+                    {isResending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Resend Email
+                  </Button>
+                  
+                  <p className="text-xs text-center text-muted-foreground">
+                    Didn't receive the email? Check your spam folder or click Resend.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
