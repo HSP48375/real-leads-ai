@@ -287,9 +287,11 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
               <CardTitle className="text-2xl font-bold">
                 Your Details
               </CardTitle>
-              <CardDescription>
-                We'll create your account automatically
-              </CardDescription>
+              {!user && (
+                <CardDescription>
+                  We'll create your account automatically
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -393,9 +395,11 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                   }
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  Already have an account? <a href="/login" className="text-primary underline">Login</a>
-                </p>
+                {!user && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Already have an account? <a href="/login" className="text-primary underline">Login</a>
+                  </p>
+                )}
               </form>
             </CardContent>
           </Card>
