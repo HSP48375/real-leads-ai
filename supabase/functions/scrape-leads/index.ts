@@ -358,20 +358,21 @@ async function runAllScrapers(
     logStep(`Zillow error`, { error: e instanceof Error ? e.message : String(e) });
   }
 
-  // Realtor.com Scraper
+  // Realtor.com Scraper (epctex/realtor-scraper)
   try {
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`Realtor scraper for ${city} (${radius}mi radius)`);
+    // Using correct format for epctex/realtor-scraper: startUrls as array of strings
+    // FSBO filter: /fsbo/ in URL path filters for "For Sale By Owner" listings only
     const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
-      startUrls: [{ url: `https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1` }],
-      proxy: { useApifyProxy: true },
+      startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo`],
       maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
     });
     
     metrics.apiCalls++;
     metrics.itemsRequested += targetLeads * 2;
-    metrics.estimatedCost += 1.0; // Estimate $1.00 per run
+    metrics.estimatedCost += 0.004; // $0.004 per run based on user testing
     
     const rLeads = parseRealtorResults(realtorResults);
     allLeads.push(...rLeads);
