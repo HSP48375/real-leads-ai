@@ -65,8 +65,8 @@ serve(async (req) => {
       // Security: Always derive user_id from email lookup, never trust client-supplied value
       let finalUserId = null;
       if (email) {
-        const { data: existingUser } = await supabase.auth.admin.listUsers();
-        const matchedUser = existingUser.users.find(u => u.email === email);
+        const { data: existingUsers } = await supabase.auth.admin.listUsers();
+        const matchedUser = existingUsers?.users?.find((u: { email?: string; id: string }) => u.email === email) || null;
         if (matchedUser) {
           finalUserId = matchedUser.id;
           console.log("User matched by email");

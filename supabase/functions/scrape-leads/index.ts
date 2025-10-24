@@ -269,9 +269,15 @@ serve(async (req) => {
 
     logStep("Leads stored in database", { count: leadsToInsert.length });
 
-    // Create Google Sheet
-    const sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
-    logStep("Google Sheet created", { url: sheetUrl });
+    // Create Google Sheet (graceful fallback on permission errors)
+    let sheetUrl: string | null = null;
+    try {
+      sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
+      logStep("Google Sheet created", { url: sheetUrl });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
+    }
 
     // Update order with comprehensive tracking
     await supabase
@@ -292,7 +298,7 @@ serve(async (req) => {
       .eq("id", orderId);
 
     // Send email notification
-    if (enrichedLeads.length > 0) {
+    if (enrichedLeads.length > 0 && sheetUrl) {
       await sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount);
     }
 
@@ -334,8 +340,9 @@ async function runAllScrapers(
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`Zillow scraper for ${city} (${radius}mi radius)`);
+    const zillowUrl = `https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`;
     const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
-      searchUrls: [`https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`],
+      searchUrls: [{ url: zillowUrl }],
       maxItems: Math.min(targetLeads * 3, MAX_ITEMS_PER_SCRAPER),
     });
     
@@ -343,10 +350,10 @@ async function runAllScrapers(
     metrics.itemsRequested += targetLeads * 3;
     metrics.estimatedCost += 0.5; // Estimate $0.50 per run
     
-    const leads = parseZillowResults(zillowResults);
-    allLeads.push(...leads);
-    breakdown["Zillow FSBO"] = leads.length;
-    logStep(`Zillow completed`, { count: leads.length });
+    const zLeads = parseZillowResults(zillowResults);
+    allLeads.push(...zLeads);
+    breakdown["Zillow FSBO"] = zLeads.length;
+    logStep(`Zillow completed`, { count: zLeads.length });
   } catch (e) {
     logStep(`Zillow error`, { error: e instanceof Error ? e.message : String(e) });
   }
@@ -357,7 +364,8 @@ async function runAllScrapers(
     
     logStep(`Realtor scraper for ${city} (${radius}mi radius)`);
     const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
-      startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1`],
+      startUrls: [{ url: `https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo/sby-1` }],
+      proxy: { useApifyProxy: true },
       maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
     });
     
@@ -365,10 +373,10 @@ async function runAllScrapers(
     metrics.itemsRequested += targetLeads * 2;
     metrics.estimatedCost += 1.0; // Estimate $1.00 per run
     
-    const leads = parseRealtorResults(realtorResults);
-    allLeads.push(...leads);
-    breakdown["Realtor.com FSBO"] = leads.length;
-    logStep(`Realtor completed`, { count: leads.length });
+    const rLeads = parseRealtorResults(realtorResults);
+    allLeads.push(...rLeads);
+    breakdown["Realtor.com FSBO"] = rLeads.length;
+    logStep(`Realtor completed`, { count: rLeads.length });
   } catch (e) {
     logStep(`Realtor error`, { error: e instanceof Error ? e.message : String(e) });
   }
@@ -379,7 +387,7 @@ async function runAllScrapers(
     
     logStep(`FSBO scraper for ${city} (${radius}mi radius)`);
     const fsboResults = await runApifyScraper(SCRAPERS.fsbo, {
-      startUrls: [`https://www.fsbo.com/search?location=${encodeURIComponent(city + ', MI')}`],
+      searchQueries: [`${city}, MI`],
       maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
     });
     
@@ -387,10 +395,10 @@ async function runAllScrapers(
     metrics.itemsRequested += targetLeads * 2;
     metrics.estimatedCost += 0.4; // Estimate $0.40 per run
     
-    const leads = parseFSBOResults(fsboResults);
-    allLeads.push(...leads);
-    breakdown["FSBO.com"] = leads.length;
-    logStep(`FSBO completed`, { count: leads.length });
+    const fLeads = parseFSBOResults(fsboResults);
+    allLeads.push(...fLeads);
+    breakdown["FSBO.com"] = fLeads.length;
+    logStep(`FSBO completed`, { count: fLeads.length });
   } catch (e) {
     logStep(`FSBO error`, { error: e instanceof Error ? e.message : String(e) });
   }
@@ -599,9 +607,55 @@ async function createGoogleSheet(order: any, leads: Lead[], radius: number): Pro
       parents: [GOOGLE_SHEETS_FOLDER_ID],
     }),
   });
-
+ 
   if (!createDriveFile.ok) {
     const error = await createDriveFile.text();
+    // Fallback: retry without parent folder if insufficient permissions
+    if (error.includes("insufficientParentPermissions") || error.includes("Insufficient permissions for the specified parent")) {
+      const retry = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `RealtyLeadsAI - ${order.customer_name} - ${new Date().toLocaleDateString()}`,
+          mimeType: "application/vnd.google-apps.spreadsheet",
+        }),
+      });
+      if (!retry.ok) {
+        const retryErr = await retry.text();
+        throw new Error(`Failed to create Google Sheet (fallback): ${retryErr}`);
+      }
+      const retryFile = await retry.json();
+      const spreadsheetId = retryFile.id;
+      // continue to write values below using spreadsheetId
+      const values = [
+        ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Type", "Listing URL", "Date Listed"],
+        ...leads.map(lead => [
+          lead.seller_name || "",
+          lead.contact || "",
+          lead.address,
+          lead.city || "",
+          lead.state || "",
+          lead.zip || "",
+          lead.price || "",
+          lead.source,
+          lead.source_type,
+          lead.url || "",
+          lead.date_listed || "",
+        ]),
+      ];
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=RAW`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ values }),
+      });
+      return `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+    }
     throw new Error(`Failed to create Google Sheet: ${error}`);
   }
 
