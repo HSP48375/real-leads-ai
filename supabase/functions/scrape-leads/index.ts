@@ -239,7 +239,7 @@ serve(async (req) => {
       });
     }
 
-    // Enrich contacts
+    // Enrich contacts (fast) then store leads immediately
     const enrichedLeads = await enrichContacts(finalLeads);
     logStep("Contact enrichment completed");
 
@@ -269,47 +269,103 @@ serve(async (req) => {
 
     logStep("Leads stored in database", { count: leadsToInsert.length });
 
-    // Create Google Sheet (graceful fallback on permission errors)
-    let sheetUrl: string | null = null;
-    try {
-      sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
-      logStep("Google Sheet created", { url: sheetUrl });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
-    }
-
-    // Update order with comprehensive tracking
+    // Update order immediately with partial progress to avoid losing results on timeout
     await supabase
       .from("orders")
       .update({
-        sheet_url: sheetUrl,
-        status: orderStatus,
-        delivered_at: new Date().toISOString(),
+        status: "processing",
         leads_count: enrichedLeads.length,
         total_leads_delivered: enrichedLeads.length,
         cities_searched: [order.primary_city],
         radius_used: finalRadius,
         scraping_cost: metrics.estimatedCost,
         source_breakdown: sourceBreakdown,
-        needs_additional_scraping: needsAdditionalScraping,
-        next_scrape_date: nextScrapeDate?.toISOString(),
       })
       .eq("id", orderId);
 
-    // Send email notification
-    if (enrichedLeads.length > 0 && sheetUrl) {
-      await sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount);
-    }
+    // Defer heavy tasks (Google Sheet + final email + final status) to background
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        // PARTIAL DELIVERY & CREDIT LOGIC
+        let orderStatus = "completed";
+        let needsAdditionalScraping = false;
+        let nextScrapeDate: string | null = null;
+        let creditAmount = 0;
 
+        if (enrichedLeads.length < minimumQuota) {
+          const deliveredPercent = enrichedLeads.length / minimumQuota;
+          const unmetPercent = 1 - deliveredPercent;
+          creditAmount = Math.round(order.price_paid * unmetPercent);
+
+          // Update customer's account credit
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("account_credit")
+            .eq("id", order.user_id)
+            .single();
+
+          const currentCredit = profile?.account_credit || 0;
+          await supabase
+            .from("profiles")
+            .update({ account_credit: currentCredit + creditAmount })
+            .eq("id", order.user_id);
+
+          orderStatus = "partial_delivery";
+          needsAdditionalScraping = true;
+          nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+          logStep("Partial delivery - credit applied", {
+            delivered: enrichedLeads.length,
+            promised: minimumQuota,
+            creditAmount,
+            nextScrape: nextScrapeDate,
+          });
+        }
+
+        // Try to create Google Sheet; if it fails we still keep leads in DB and partial email can be sent later
+        let sheetUrl: string | null = null;
+        try {
+          sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
+          logStep("Google Sheet created", { url: sheetUrl });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
+        }
+
+        // Finalize order
+        await supabase
+          .from("orders")
+          .update({
+            sheet_url: sheetUrl,
+            status: orderStatus,
+            delivered_at: new Date().toISOString(),
+            leads_count: enrichedLeads.length,
+            total_leads_delivered: enrichedLeads.length,
+            cities_searched: [order.primary_city],
+            radius_used: finalRadius,
+            scraping_cost: metrics.estimatedCost,
+            source_breakdown: sourceBreakdown,
+            needs_additional_scraping: needsAdditionalScraping,
+            next_scrape_date: nextScrapeDate,
+          })
+          .eq("id", orderId);
+
+        // Send email notification if we have any leads and a sheet URL
+        if (enrichedLeads.length > 0 && sheetUrl) {
+          await sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount);
+        }
+      } catch (bgErr) {
+        logStep("ERROR", { message: `Background finalize failed: ${bgErr instanceof Error ? bgErr.message : String(bgErr)}` });
+      }
+    })());
+
+    // Return quickly to avoid timeouts; background task will finish the rest
     return new Response(
       JSON.stringify({
         success: true,
         leadsDelivered: enrichedLeads.length,
         radiusUsed: finalRadius,
-        creditApplied: creditAmount,
         sourceBreakdown,
-        sheetUrl,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -383,6 +439,7 @@ async function runAllScrapers(
     const realtorResults = await runApifyScraper(SCRAPERS.realtor, {
       startUrls: [`https://www.realtor.com/realestateandhomes-search/${city.replace(/\s+/g, '_')}_MI/type-single-family-home/fsbo`],
       maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
+      proxy: { useApifyProxy: true }
     });
     
     metrics.apiCalls++;
@@ -405,6 +462,7 @@ async function runAllScrapers(
     const fsboResults = await runApifyScraper(SCRAPERS.fsbo, {
       searchQueries: [`${city}, MI`],
       maxItems: Math.min(targetLeads * 2, MAX_ITEMS_PER_SCRAPER),
+      proxy: { useApifyProxy: true }
     });
     
     metrics.apiCalls++;
