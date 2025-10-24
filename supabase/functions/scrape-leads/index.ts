@@ -340,7 +340,22 @@ async function runAllScrapers(
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`Zillow scraper for ${city} (${radius}mi radius)`);
-    const zillowUrl = `https://www.zillow.com/${city.toLowerCase().replace(/\s+/g, '-')}-mi/fsbo/`;
+    // Build Zillow search URL with required searchQueryState and FSBO filter
+    const zillowQueryState = {
+      usersSearchTerm: `${city}, MI`,
+      filterState: {
+        isForSaleByOwner: { value: true },
+        isForSaleByAgent: { value: false },
+        isAuction: { value: false },
+        isNewConstruction: { value: false },
+        isComingSoon: { value: false },
+        isForSaleForeclosure: { value: false },
+      },
+      isMapVisible: true,
+      isListVisible: true,
+    } as Record<string, any>;
+
+    const zillowUrl = `https://www.zillow.com/homes/for_sale/?searchQueryState=${encodeURIComponent(JSON.stringify(zillowQueryState))}`;
     const zillowResults = await runApifyScraper(SCRAPERS.zillow, {
       searchUrls: [{ url: zillowUrl }],
       maxItems: Math.min(targetLeads * 3, MAX_ITEMS_PER_SCRAPER),
