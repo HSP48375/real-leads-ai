@@ -202,48 +202,11 @@ serve(async (req) => {
     const finalLeads = newLeads.slice(0, maximumQuota);
     logStep("Applied tier quota", { finalCount: finalLeads.length });
 
-    // PARTIAL DELIVERY & CREDIT LOGIC
-    let orderStatus = "completed";
-    let needsAdditionalScraping = false;
-    let nextScrapeDate = null;
-    let creditAmount = 0;
-
-    if (finalLeads.length < minimumQuota) {
-      // Calculate credit for unmet quota
-      const deliveredPercent = finalLeads.length / minimumQuota;
-      const unmetPercent = 1 - deliveredPercent;
-      creditAmount = Math.round(order.price_paid * unmetPercent);
-
-      // Update customer's account credit
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("account_credit")
-        .eq("id", order.user_id)
-        .single();
-
-      const currentCredit = profile?.account_credit || 0;
-      await supabase
-        .from("profiles")
-        .update({ account_credit: currentCredit + creditAmount })
-        .eq("id", order.user_id);
-
-      orderStatus = "partial_delivery";
-      needsAdditionalScraping = true;
-      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      
-      logStep("Partial delivery - credit applied", { 
-        delivered: finalLeads.length,
-        promised: minimumQuota,
-        creditAmount,
-        nextScrape: nextScrapeDate
-      });
-    }
-
     // Enrich contacts (fast) then store leads immediately
     const enrichedLeads = await enrichContacts(finalLeads);
     logStep("Contact enrichment completed");
 
-    // Store leads in database with source_type
+    // Store leads in database with source_type - CRITICAL: must complete before any timeout
     const leadsToInsert = enrichedLeads.map(lead => ({
       order_id: orderId,
       seller_name: lead.seller_name || "Unknown",
@@ -269,103 +232,94 @@ serve(async (req) => {
 
     logStep("Leads stored in database", { count: leadsToInsert.length });
 
-    // Update order immediately with partial progress to avoid losing results on timeout
+    // PARTIAL DELIVERY & CREDIT LOGIC
+    let orderStatus = "completed";
+    let needsAdditionalScraping = false;
+    let nextScrapeDate: string | null = null;
+    let creditAmount = 0;
+
+    if (enrichedLeads.length < minimumQuota) {
+      const deliveredPercent = enrichedLeads.length / minimumQuota;
+      const unmetPercent = 1 - deliveredPercent;
+      creditAmount = Math.round(order.price_paid * unmetPercent);
+
+      // Update customer's account credit
+      if (order.user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("account_credit")
+          .eq("id", order.user_id)
+          .single();
+
+        const currentCredit = profile?.account_credit || 0;
+        await supabase
+          .from("profiles")
+          .update({ account_credit: currentCredit + creditAmount })
+          .eq("id", order.user_id);
+      }
+
+      orderStatus = "partial_delivery";
+      needsAdditionalScraping = true;
+      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      logStep("Partial delivery - credit applied", {
+        delivered: enrichedLeads.length,
+        promised: minimumQuota,
+        creditAmount,
+        nextScrape: nextScrapeDate,
+      });
+    }
+
+    // Create Google Sheet (with graceful fallback) - this is the slow part
+    let sheetUrl: string | null = null;
+    try {
+      sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
+      logStep("Google Sheet created", { url: sheetUrl });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
+      // Continue without sheet - we still have leads in DB
+    }
+
+    // Finalize order with all details
     await supabase
       .from("orders")
       .update({
-        status: "processing",
+        sheet_url: sheetUrl,
+        status: orderStatus,
+        delivered_at: new Date().toISOString(),
         leads_count: enrichedLeads.length,
         total_leads_delivered: enrichedLeads.length,
         cities_searched: [order.primary_city],
         radius_used: finalRadius,
         scraping_cost: metrics.estimatedCost,
         source_breakdown: sourceBreakdown,
+        needs_additional_scraping: needsAdditionalScraping,
+        next_scrape_date: nextScrapeDate,
       })
       .eq("id", orderId);
 
-    // Defer heavy tasks (Google Sheet + final email + final status) to background
-    EdgeRuntime.waitUntil((async () => {
-      try {
-        // PARTIAL DELIVERY & CREDIT LOGIC
-        let orderStatus = "completed";
-        let needsAdditionalScraping = false;
-        let nextScrapeDate: string | null = null;
-        let creditAmount = 0;
+    logStep("Order finalized", { status: orderStatus });
 
-        if (enrichedLeads.length < minimumQuota) {
-          const deliveredPercent = enrichedLeads.length / minimumQuota;
-          const unmetPercent = 1 - deliveredPercent;
-          creditAmount = Math.round(order.price_paid * unmetPercent);
+    // Send email notification - fire-and-forget to avoid blocking response
+    if (enrichedLeads.length > 0 && sheetUrl) {
+      // Non-blocking email send
+      sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount)
+        .catch(emailErr => logStep("Email send failed", { error: emailErr instanceof Error ? emailErr.message : String(emailErr) }));
+    } else if (enrichedLeads.length > 0 && !sheetUrl) {
+      // Partial delivery notification - leads saved but sheet failed
+      logStep("Partial completion - leads in DB but no sheet URL");
+    }
 
-          // Update customer's account credit
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("account_credit")
-            .eq("id", order.user_id)
-            .single();
-
-          const currentCredit = profile?.account_credit || 0;
-          await supabase
-            .from("profiles")
-            .update({ account_credit: currentCredit + creditAmount })
-            .eq("id", order.user_id);
-
-          orderStatus = "partial_delivery";
-          needsAdditionalScraping = true;
-          nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-          logStep("Partial delivery - credit applied", {
-            delivered: enrichedLeads.length,
-            promised: minimumQuota,
-            creditAmount,
-            nextScrape: nextScrapeDate,
-          });
-        }
-
-        // Try to create Google Sheet; if it fails we still keep leads in DB and partial email can be sent later
-        let sheetUrl: string | null = null;
-        try {
-          sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
-          logStep("Google Sheet created", { url: sheetUrl });
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
-        }
-
-        // Finalize order
-        await supabase
-          .from("orders")
-          .update({
-            sheet_url: sheetUrl,
-            status: orderStatus,
-            delivered_at: new Date().toISOString(),
-            leads_count: enrichedLeads.length,
-            total_leads_delivered: enrichedLeads.length,
-            cities_searched: [order.primary_city],
-            radius_used: finalRadius,
-            scraping_cost: metrics.estimatedCost,
-            source_breakdown: sourceBreakdown,
-            needs_additional_scraping: needsAdditionalScraping,
-            next_scrape_date: nextScrapeDate,
-          })
-          .eq("id", orderId);
-
-        // Send email notification if we have any leads and a sheet URL
-        if (enrichedLeads.length > 0 && sheetUrl) {
-          await sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount);
-        }
-      } catch (bgErr) {
-        logStep("ERROR", { message: `Background finalize failed: ${bgErr instanceof Error ? bgErr.message : String(bgErr)}` });
-      }
-    })());
-
-    // Return quickly to avoid timeouts; background task will finish the rest
     return new Response(
       JSON.stringify({
         success: true,
         leadsDelivered: enrichedLeads.length,
         radiusUsed: finalRadius,
+        creditApplied: creditAmount,
         sourceBreakdown,
+        sheetUrl,
+        status: orderStatus,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
