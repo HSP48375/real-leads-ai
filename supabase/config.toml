@@ -2,6 +2,7 @@ project_id = "vnuvhreveoyclasgtnpr"
 
 [functions.scrape-leads]
 verify_jwt = false
+timeout_sec = 600
 
 [functions.process-order]
 verify_jwt = false
