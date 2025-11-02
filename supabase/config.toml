@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.send-leads-ready]
 verify_jwt = false
+
+[functions.check-email-exists]
+verify_jwt = false

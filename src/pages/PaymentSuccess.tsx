@@ -70,7 +70,19 @@ const PaymentSuccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {!user && (
+              {user ? (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1" />
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">Welcome Back!</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Your leads are being prepared now. You'll receive an email when they're ready (under 60 minutes).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
                   <div className="flex items-start gap-3">
                     <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />

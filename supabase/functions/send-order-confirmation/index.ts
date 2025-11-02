@@ -32,28 +32,121 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending order confirmation email to:", email);
 
-    // Generate password reset link with explicit redirect to /reset-password
+    // Check if user already exists and has confirmed their email (set password)
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    // If user exists and has confirmed email, they already set their password
+    const isExistingUser = existingUser && existingUser.email_confirmed_at !== null;
+
+    console.log("User exists:", !!existingUser, "Email confirmed:", !!isExistingUser);
+
     const appBaseUrl = Deno.env.get("APP_BASE_URL") || req.headers.get("origin") || 'https://real-leads-ai.lovable.app';
-    const redirectUrl = `${appBaseUrl}/reset-password`;
     
-    const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: { redirectTo: redirectUrl },
-    });
+    let emailHtml = "";
+    let subject = "";
 
-    if (resetError) {
-      console.error("Error generating password reset link:", resetError);
-      throw resetError;
-    }
+    if (isExistingUser) {
+      // Existing user - don't show password setup
+      subject = "Order Confirmed - Leads Arriving in 1 Hour ✓";
+      emailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+              }
+              .container {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 30px;
+              }
+              h1 {
+                color: #1a3a2e;
+                font-size: 22px;
+                margin: 0 0 20px 0;
+              }
+              .order-details {
+                background: #f9fafb;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+              }
+              .detail-line {
+                margin: 8px 0;
+              }
+              .cta-button {
+                display: inline-block;
+                background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+                color: #1a3a2e;
+                padding: 14px 28px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                margin: 20px 0;
+              }
+              .footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+                color: #6b7280;
+                font-size: 13px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Hi ${name},</h1>
+              
+              <p>Your order is confirmed! 🎉</p>
 
-    const passwordSetUrl = resetData.properties?.action_link || "";
+              <div class="order-details">
+                <div class="detail-line">✓ ${leadCount} FSBO leads for ${city}</div>
+                <div class="detail-line">✓ $${price.toFixed(2)} paid</div>
+                <div class="detail-line">✓ Delivery: Within 1 hour</div>
+              </div>
 
-    const emailResponse = await resend.emails.send({
-      from: "RealtyLeadsAI <onboarding@resend.dev>",
-      to: [email],
-      subject: "Order Confirmed - Leads Arriving in 1 Hour ✓",
-      html: `
+              <p><strong>📊 Your Leads Are Being Prepared</strong></p>
+              <p>We're scraping fresh FSBO leads for ${city} right now. You'll receive another email when they're ready (typically under 60 minutes).</p>
+
+              <div style="text-align: center;">
+                <a href="${appBaseUrl}/dashboard" class="cta-button">View Dashboard</a>
+              </div>
+
+              <p>Once ready, you can download your leads from your dashboard.</p>
+              
+              <div class="footer">
+                Questions? Just reply to this email.
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else {
+      // New user - show password setup
+      const redirectUrl = `${appBaseUrl}/reset-password`;
+      
+      const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
+        options: { redirectTo: redirectUrl },
+      });
+
+      if (resetError) {
+        console.error("Error generating password reset link:", resetError);
+        throw resetError;
+      }
+
+      const passwordSetUrl = resetData.properties?.action_link || "";
+      subject = "Order Confirmed - Set Your Password ✓";
+      
+      emailHtml = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -132,7 +225,14 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
           </body>
         </html>
-      `,
+      `;
+    }
+
+    const emailResponse = await resend.emails.send({
+      from: "RealtyLeadsAI <onboarding@resend.dev>",
+      to: [email],
+      subject: subject,
+      html: emailHtml,
     });
 
     console.log("Order confirmation email sent successfully:", emailResponse);
