@@ -107,7 +107,13 @@ const PaymentSuccess = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary font-bold">•</span>
-                    <span>Check your dashboard to download leads</span>
+                    <span>
+                      {user ? (
+                        "Check your dashboard to download leads"
+                      ) : (
+                        "Set your password to access your dashboard and download leads"
+                      )}
+                    </span>
                   </li>
                 </ul>
               </div>

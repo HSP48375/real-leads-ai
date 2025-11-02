@@ -148,6 +148,43 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     try {
       console.log("Submitting order:", formData);
 
+      // Check if email exists for guest checkout
+      if (!user) {
+        try {
+          // Try to check if user exists by attempting to send a reset email
+          // If email doesn't exist, Supabase won't throw an error (security by design)
+          // So we check by trying to sign in with a placeholder
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: '__CHECK_EMAIL_EXISTS__' // This will fail but tells us if email exists
+          });
+          
+          // If we get a "Invalid login credentials" error, email exists but password is wrong
+          // If we get "Email not confirmed" error, email exists
+          if (signInError && (
+            signInError.message.includes('Invalid login credentials') ||
+            signInError.message.includes('Email not confirmed') ||
+            signInError.message.includes('email') && !signInError.message.includes('invalid')
+          )) {
+            toast({
+              title: "Account Already Exists",
+              description: "This email already has an account. Please log in to continue.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            
+            // Redirect to login with return URL
+            setTimeout(() => {
+              navigate(`/login?redirect=/order?tier=${orderParams.tier}&billing=${orderParams.billing}&price=${orderParams.price}&leads=${orderParams.leads}`);
+            }, 2000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking email:', error);
+        }
+      }
+
       // Parse additional cities
       const additionalCitiesArray = formData.additional_cities
         ? formData.additional_cities.split(",").map(city => city.trim()).filter(Boolean)
