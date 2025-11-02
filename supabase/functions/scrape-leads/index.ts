@@ -124,12 +124,13 @@ serve(async (req) => {
       // Reset leads for this radius attempt
       allLeads = [];
 
-      // Run all active scrapers
+      // Run all active scrapers with incremental saves
       const scrapingResults = await runAllScrapers(
         order.primary_city,
         finalRadius,
         minimumQuota,
-        metrics
+        metrics,
+        orderId
       );
 
       allLeads = scrapingResults.leads;
@@ -161,165 +162,29 @@ serve(async (req) => {
       apiCalls: metrics.apiCalls 
     });
 
-    // Filter out agent-listed properties - FSBO/owner-listing ONLY
-    const ownerListingsOnly = allLeads.filter(lead => {
-      const sellerNameLower = lead.seller_name?.toLowerCase() || '';
-      
-      const agentKeywords = [
-        'agent', 'broker', 'realty', 'realtor', 'real estate group', 'mls', 
-        'listing agent', 'sellers agent', 'brokerage', 're/max', 'remax', 
-        'coldwell', 'keller williams', 'century 21', 'century21', 'sotheby', 
-        'compass', 'exp realty', 'berkshire hathaway', 'weichert', 'baird & warner',
-        'engel & völkers', 'better homes', 'homesmart', 'real living'
-      ];
-      
-      const hasAgentIndicators = agentKeywords.some(keyword => 
-        sellerNameLower.includes(keyword)
-      );
-      
-      return !hasAgentIndicators;
-    });
-
-    logStep("Filtered agent listings", { count: ownerListingsOnly.length });
-
-    // Remove duplicates
-    const uniqueLeads = removeDuplicates(ownerListingsOnly);
-    logStep("Removed duplicates", { count: uniqueLeads.length });
-
-    // Check against existing database leads
-    const { data: existingLeads } = await supabase
-      .from("leads")
-      .select("address");
-
-    const existingAddresses = new Set(existingLeads?.map(l => normalizeAddress(l.address)) || []);
-    const newLeads = uniqueLeads.filter(
-      lead => !existingAddresses.has(normalizeAddress(lead.address))
-    );
-
-    logStep("Filtered existing leads", { newCount: newLeads.length });
-
-    // Limit to maximum quota
-    const finalLeads = newLeads.slice(0, maximumQuota);
-    logStep("Applied tier quota", { finalCount: finalLeads.length });
-
-    // Enrich contacts (fast) then store leads immediately
-    const enrichedLeads = await enrichContacts(finalLeads);
-    logStep("Contact enrichment completed");
-
-    // Store leads in database with source_type - CRITICAL: must complete before any timeout
-    const leadsToInsert = enrichedLeads.map(lead => ({
-      order_id: orderId,
-      seller_name: lead.seller_name || "Unknown",
-      contact: lead.contact || null,
-      address: lead.address,
-      city: lead.city || order.primary_city,
-      state: lead.state || "MI",
-      zip: lead.zip || null,
-      price: lead.price || null,
-      url: lead.url || null,
-      source: lead.source,
-      source_type: lead.source_type,
-      date_listed: lead.date_listed || new Date().toISOString(),
-    }));
-
-    const { error: insertError } = await supabase
-      .from("leads")
-      .insert(leadsToInsert);
-
-    if (insertError) {
-      throw new Error(`Failed to insert leads: ${insertError.message}`);
-    }
-
-    logStep("Leads stored in database", { count: leadsToInsert.length });
-
-    // PARTIAL DELIVERY & CREDIT LOGIC
-    let orderStatus = "completed";
-    let needsAdditionalScraping = false;
-    let nextScrapeDate: string | null = null;
-    let creditAmount = 0;
-
-    if (enrichedLeads.length < minimumQuota) {
-      const deliveredPercent = enrichedLeads.length / minimumQuota;
-      const unmetPercent = 1 - deliveredPercent;
-      creditAmount = Math.round(order.price_paid * unmetPercent);
-
-      // Update customer's account credit
-      if (order.user_id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("account_credit")
-          .eq("id", order.user_id)
-          .single();
-
-        const currentCredit = profile?.account_credit || 0;
-        await supabase
-          .from("profiles")
-          .update({ account_credit: currentCredit + creditAmount })
-          .eq("id", order.user_id);
-      }
-
-      orderStatus = "partial_delivery";
-      needsAdditionalScraping = true;
-      nextScrapeDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-      logStep("Partial delivery - credit applied", {
-        delivered: enrichedLeads.length,
-        promised: minimumQuota,
-        creditAmount,
-        nextScrape: nextScrapeDate,
-      });
-    }
-
-    // Create Google Sheet (with graceful fallback) - this is the slow part
-    let sheetUrl: string | null = null;
+    // Trigger finalize-order in background to create Google Sheet and send email
     try {
-      sheetUrl = await createGoogleSheet(order, enrichedLeads, finalRadius);
-      logStep("Google Sheet created", { url: sheetUrl });
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      await fetch(`${supabaseUrl}/functions/v1/finalize-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ orderId })
+      });
+      logStep("Finalize-order trigger sent");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      logStep("ERROR", { message: `Failed to create Google Sheet: ${msg}` });
-      // Continue without sheet - we still have leads in DB
-    }
-
-    // Finalize order with all details
-    await supabase
-      .from("orders")
-      .update({
-        sheet_url: sheetUrl,
-        status: orderStatus,
-        delivered_at: new Date().toISOString(),
-        leads_count: enrichedLeads.length,
-        total_leads_delivered: enrichedLeads.length,
-        cities_searched: [order.primary_city],
-        radius_used: finalRadius,
-        scraping_cost: metrics.estimatedCost,
-        source_breakdown: sourceBreakdown,
-        needs_additional_scraping: needsAdditionalScraping,
-        next_scrape_date: nextScrapeDate,
-      })
-      .eq("id", orderId);
-
-    logStep("Order finalized", { status: orderStatus });
-
-    // Send email notification - fire-and-forget to avoid blocking response
-    if (enrichedLeads.length > 0 && sheetUrl) {
-      // Non-blocking email send
-      sendLeadsReadyEmail(order, enrichedLeads, sheetUrl, finalRadius, creditAmount)
-        .catch(emailErr => logStep("Email send failed", { error: emailErr instanceof Error ? emailErr.message : String(emailErr) }));
-    } else if (enrichedLeads.length > 0 && !sheetUrl) {
-      // Partial delivery notification - leads saved but sheet failed
-      logStep("Partial completion - leads in DB but no sheet URL");
+      logStep("Finalize-order trigger failed", { error: e instanceof Error ? e.message : String(e) });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        leadsDelivered: enrichedLeads.length,
+        message: 'Scraping finished. Leads are being saved incrementally and finalization is queued.',
         radiusUsed: finalRadius,
-        creditApplied: creditAmount,
         sourceBreakdown,
-        sheetUrl,
-        status: orderStatus,
+        estimatedCost: metrics.estimatedCost,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -340,10 +205,17 @@ async function runAllScrapers(
   city: string,
   radius: number,
   targetLeads: number,
-  metrics: ScrapingMetrics
+  metrics: ScrapingMetrics,
+  orderId: string
 ): Promise<{ leads: Lead[], breakdown: Record<string, number> }> {
   const allLeads: Lead[] = [];
   const breakdown: Record<string, number> = {};
+
+  // Create local Supabase client for incremental saves
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
 
   // Zillow Scraper
   try {
@@ -379,6 +251,51 @@ async function runAllScrapers(
     allLeads.push(...zLeads);
     breakdown["Zillow FSBO"] = zLeads.length;
     logStep(`Zillow completed`, { count: zLeads.length });
+
+    // Incremental save for Zillow leads
+    if (zLeads.length > 0) {
+      const leadsToInsert = zLeads.map(lead => ({
+        order_id: orderId,
+        seller_name: lead.seller_name || "Unknown",
+        contact: lead.contact || null,
+        address: lead.address,
+        city: lead.city || city,
+        state: lead.state || "MI",
+        zip: lead.zip || null,
+        price: lead.price || null,
+        url: lead.url || null,
+        source: lead.source,
+        source_type: lead.source_type,
+        date_listed: lead.date_listed || new Date().toISOString(),
+      }));
+
+      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      if (insertErr) {
+        logStep("ERROR", { message: `Failed to insert Zillow leads: ${insertErr.message}` });
+      } else {
+        // Update order progress and mark as completed per instruction
+        const { data: ord } = await supabase
+          .from("orders")
+          .select("total_leads_delivered, leads_count, source_breakdown")
+          .eq("id", orderId)
+          .single();
+
+        const currentBreakdown = (ord?.source_breakdown as Record<string, number>) || {};
+        const newBreakdown = { ...currentBreakdown, ["Zillow FSBO"]: (currentBreakdown["Zillow FSBO"] || 0) + zLeads.length };
+        const newTotal = (ord?.total_leads_delivered || 0) + zLeads.length;
+
+        await supabase
+          .from("orders")
+          .update({
+            total_leads_delivered: newTotal,
+            leads_count: newTotal,
+            source_breakdown: newBreakdown,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+      }
+    }
   } catch (e) {
     logStep(`Zillow error`, { error: e instanceof Error ? e.message : String(e) });
   }
@@ -404,6 +321,50 @@ async function runAllScrapers(
     allLeads.push(...rLeads);
     breakdown["Realtor.com FSBO"] = rLeads.length;
     logStep(`Realtor completed`, { count: rLeads.length });
+
+    // Incremental save for Realtor leads
+    if (rLeads.length > 0) {
+      const leadsToInsert = rLeads.map(lead => ({
+        order_id: orderId,
+        seller_name: lead.seller_name || "Unknown",
+        contact: lead.contact || null,
+        address: lead.address,
+        city: lead.city || city,
+        state: lead.state || "MI",
+        zip: lead.zip || null,
+        price: lead.price || null,
+        url: lead.url || null,
+        source: lead.source,
+        source_type: lead.source_type,
+        date_listed: lead.date_listed || new Date().toISOString(),
+      }));
+
+      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      if (insertErr) {
+        logStep("ERROR", { message: `Failed to insert Realtor leads: ${insertErr.message}` });
+      } else {
+        const { data: ord } = await supabase
+          .from("orders")
+          .select("total_leads_delivered, leads_count, source_breakdown")
+          .eq("id", orderId)
+          .single();
+
+        const currentBreakdown = (ord?.source_breakdown as Record<string, number>) || {};
+        const newBreakdown = { ...currentBreakdown, ["Realtor.com FSBO"]: (currentBreakdown["Realtor.com FSBO"] || 0) + rLeads.length };
+        const newTotal = (ord?.total_leads_delivered || 0) + rLeads.length;
+
+        await supabase
+          .from("orders")
+          .update({
+            total_leads_delivered: newTotal,
+            leads_count: newTotal,
+            source_breakdown: newBreakdown,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+      }
+    }
   } catch (e) {
     logStep(`Realtor error`, { error: e instanceof Error ? e.message : String(e) });
   }
@@ -427,6 +388,50 @@ async function runAllScrapers(
     allLeads.push(...fLeads);
     breakdown["FSBO.com"] = fLeads.length;
     logStep(`FSBO completed`, { count: fLeads.length });
+
+    // Incremental save for FSBO.com leads
+    if (fLeads.length > 0) {
+      const leadsToInsert = fLeads.map(lead => ({
+        order_id: orderId,
+        seller_name: lead.seller_name || "Unknown",
+        contact: lead.contact || null,
+        address: lead.address,
+        city: lead.city || city,
+        state: lead.state || "MI",
+        zip: lead.zip || null,
+        price: lead.price || null,
+        url: lead.url || null,
+        source: lead.source,
+        source_type: lead.source_type,
+        date_listed: lead.date_listed || new Date().toISOString(),
+      }));
+
+      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      if (insertErr) {
+        logStep("ERROR", { message: `Failed to insert FSBO.com leads: ${insertErr.message}` });
+      } else {
+        const { data: ord } = await supabase
+          .from("orders")
+          .select("total_leads_delivered, leads_count, source_breakdown")
+          .eq("id", orderId)
+          .single();
+
+        const currentBreakdown = (ord?.source_breakdown as Record<string, number>) || {};
+        const newBreakdown = { ...currentBreakdown, ["FSBO.com"]: (currentBreakdown["FSBO.com"] || 0) + fLeads.length };
+        const newTotal = (ord?.total_leads_delivered || 0) + fLeads.length;
+
+        await supabase
+          .from("orders")
+          .update({
+            total_leads_delivered: newTotal,
+            leads_count: newTotal,
+            source_breakdown: newBreakdown,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+      }
+    }
   } catch (e) {
     logStep(`FSBO error`, { error: e instanceof Error ? e.message : String(e) });
   }
