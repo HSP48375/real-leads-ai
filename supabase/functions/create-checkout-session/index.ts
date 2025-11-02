@@ -7,12 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Stripe price IDs for each tier
+// Stripe price IDs for each tier (TEST MODE)
 const PRICE_IDS = {
-  starter: "price_1SJPqPE8tn1MdmKJYg83HFs7",
-  growth: "price_1SIf0JE8tn1MdmKJNNosMyuZ",
-  pro: "price_1SIf0UE8tn1MdmKJiOMeJEZ4",
-  enterprise: "price_1SIf0gE8tn1MdmKJJV5TQz9e",
+  starter: "price_1SP52tE8tn1MdmKJNSZKbZpZ",
+  growth: "price_1SP52uE8tn1MdmKJuWKryyxi",
+  pro: "price_1SP52uE8tn1MdmKJSft8cGYl",
+  enterprise: "price_1SP52vE8tn1MdmKJUQ3B7qGk",
 };
 
 serve(async (req) => {
