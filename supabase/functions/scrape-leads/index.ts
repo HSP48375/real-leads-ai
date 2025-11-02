@@ -266,10 +266,10 @@ async function runAllScrapers(
         url: lead.url || null,
         source: lead.source,
         source_type: lead.source_type,
-        date_listed: lead.date_listed || new Date().toISOString(),
+        date_listed: (() => { const d = lead.date_listed ? new Date(lead.date_listed) : new Date(); return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); })(),
       }));
 
-      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      const { error: insertErr, data: inserted } = await supabase.from("leads").insert(leadsToInsert).select("id");
       if (insertErr) {
         logStep("ERROR", { message: `Failed to insert Zillow leads: ${insertErr.message}` });
       } else {
@@ -339,7 +339,7 @@ async function runAllScrapers(
         date_listed: lead.date_listed || new Date().toISOString(),
       }));
 
-      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      const { error: insertErr, data: inserted } = await supabase.from("leads").insert(leadsToInsert).select("id");
       if (insertErr) {
         logStep("ERROR", { message: `Failed to insert Realtor leads: ${insertErr.message}` });
       } else {
@@ -406,7 +406,7 @@ async function runAllScrapers(
         date_listed: lead.date_listed || new Date().toISOString(),
       }));
 
-      const { error: insertErr } = await supabase.from("leads").insert(leadsToInsert);
+      const { error: insertErr, data: inserted } = await supabase.from("leads").insert(leadsToInsert).select("id");
       if (insertErr) {
         logStep("ERROR", { message: `Failed to insert FSBO.com leads: ${insertErr.message}` });
       } else {
