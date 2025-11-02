@@ -494,16 +494,21 @@ async function runApifyScraper(actorId: string, input: any): Promise<any[]> {
 // ============= PARSING FUNCTIONS =============
 
 function parseZillowResults(results: any[]): Lead[] {
-  return results
+  logStep(`Parsing Zillow results`, { rawCount: results.length, sample: results[0] ? JSON.stringify(results[0]).substring(0, 200) : 'none' });
+  
+  const parsed = results
     .filter(item => {
-      const isFSBO = item.hdpData?.homeInfo?.listing_sub_type?.is_FSBA === true ||
-                     item.statusText?.toLowerCase().includes('fsbo') ||
-                     item.brokerName?.toLowerCase().includes('owner');
-      return isFSBO && item.address;
+      // Accept if has basic address info
+      const hasAddress = item.address || item.addressStreet || item.addressCity;
+      if (!hasAddress) {
+        logStep(`Zillow item filtered: no address`, { item: JSON.stringify(item).substring(0, 150) });
+        return false;
+      }
+      return true;
     })
     .map(item => ({
-      seller_name: item.brokerName || undefined,
-      contact: undefined,
+      seller_name: item.brokerName || item.agent || "Owner",
+      contact: item.phone || item.email || undefined,
       address: item.address || item.addressStreet || `${item.addressCity}, ${item.addressState}`,
       city: item.addressCity,
       state: item.addressState || "MI",
@@ -514,61 +519,62 @@ function parseZillowResults(results: any[]): Lead[] {
       source_type: "fsbo" as const,
       date_listed: undefined,
     }));
+  
+  logStep(`Zillow parsing complete`, { parsed: parsed.length });
+  return parsed;
 }
 
 function parseRealtorResults(results: any[]): Lead[] {
-  return results
+  logStep(`Parsing Realtor results`, { rawCount: results.length });
+  
+  const parsed = results
     .filter(item => {
-      const listingType = item.listing_type?.toLowerCase() || '';
-      const brokerName = item.broker?.name?.toLowerCase() || '';
-      const statusText = item.status_text?.toLowerCase() || '';
-      
-      const isExplicitlyFSBO = 
-        listingType.includes('fsbo') ||
-        listingType.includes('for sale by owner') ||
-        statusText.includes('fsbo') ||
-        statusText.includes('for sale by owner');
-      
-      const hasBrokerInfo = 
-        (item.broker && item.broker.name && !brokerName.includes('owner')) ||
-        (item.agent && item.agent.name) ||
-        item.office?.name ||
-        item.listing_agent ||
-        item.showing_agent;
-      
-      return isExplicitlyFSBO && !hasBrokerInfo && item.location?.address?.line;
+      // Accept if has address
+      const hasAddress = item.location?.address?.line || item.address;
+      return hasAddress;
     })
     .map(item => ({
-      seller_name: item.owner?.name || item.seller?.name || undefined,
-      contact: item.owner?.phone || item.seller?.phone || undefined,
-      address: item.location?.address?.line,
-      city: item.location?.address?.city,
+      seller_name: item.owner?.name || item.seller?.name || "Owner",
+      contact: item.owner?.phone || item.seller?.phone || item.phone || undefined,
+      address: item.location?.address?.line || item.address,
+      city: item.location?.address?.city || item.city,
       state: item.location?.address?.state_code || "MI",
-      zip: item.location?.address?.postal_code,
+      zip: item.location?.address?.postal_code || item.zip,
       price: item.list_price?.toString() || item.price?.toString(),
-      url: item.rdc_web_url || item.href,
+      url: item.rdc_web_url || item.href || item.url,
       source: "Realtor.com FSBO",
       source_type: "fsbo" as const,
       date_listed: item.list_date,
     }));
+  
+  logStep(`Realtor parsing complete`, { parsed: parsed.length });
+  return parsed;
 }
 
 function parseFSBOResults(results: any[]): Lead[] {
-  return results
-    .filter(item => item.address || item.propertyAddress)
+  logStep(`Parsing FSBO results`, { rawCount: results.length });
+  
+  const parsed = results
+    .filter(item => {
+      const hasAddress = item.address || item.propertyAddress || item.location;
+      return hasAddress;
+    })
     .map(item => ({
-      seller_name: item.ownerName || item.sellerName || undefined,
-      contact: item.phone || item.email || undefined,
-      address: item.address || item.propertyAddress,
+      seller_name: item.ownerName || item.sellerName || item.seller || "Owner",
+      contact: item.phone || item.email || item.contactPhone || item.contactEmail || undefined,
+      address: item.address || item.propertyAddress || item.location,
       city: item.city,
       state: item.state || "MI",
-      zip: item.zipCode || item.zip,
-      price: item.askingPrice?.toString() || item.price?.toString(),
-      url: item.listingUrl || item.url,
+      zip: item.zipCode || item.zip || item.postalCode,
+      price: item.askingPrice?.toString() || item.price?.toString() || item.listPrice?.toString(),
+      url: item.listingUrl || item.url || item.link,
       source: "FSBO.com",
       source_type: "fsbo" as const,
-      date_listed: item.listingDate || item.datePosted,
+      date_listed: item.listingDate || item.datePosted || item.date,
     }));
+  
+  logStep(`FSBO parsing complete`, { parsed: parsed.length });
+  return parsed;
 }
 
 // ============= UTILITY FUNCTIONS =============
