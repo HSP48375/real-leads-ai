@@ -171,18 +171,18 @@ const Dashboard = () => {
     const CRLF = '\r\n';
     const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join(CRLF) + CRLF;
 
-    // Add UTF-8 BOM and use Excel MIME; save with .xls extension so macOS opens in Excel by default
+    // Add UTF-8 BOM and use CSV MIME type
     const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'RealtyLeadsAI-Sample-Leads.xls';
+    a.download = 'RealtyLeadsAI-Sample-Leads.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    toast.success('Sample opened as Excel with proper headers and formatting');
+    toast.success('Sample CSV downloaded - opens in Excel, Numbers, or Google Sheets');
   };
 
   if (loading) {
