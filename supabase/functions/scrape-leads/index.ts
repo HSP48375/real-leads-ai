@@ -88,18 +88,18 @@ serve(async (req) => {
 
     logStep("Order retrieved", { tier: order.tier, primary_city: order.primary_city });
 
-    // Determine lead quotas based on tier
+    // Determine lead quotas based on tier with strict caps
     const quotas = {
-      starter: { min: 15, max: 20 },
-      growth: { min: 25, max: 40 },
-      pro: { min: 50, max: 75 },
-      enterprise: { min: 80, max: 120 },
+      starter: { min: 15, max: 21 },    // 20-25 range → max 21 (allow 1 extra)
+      growth: { min: 25, max: 41 },     // 40-50 range → max 41 (allow 1 extra)
+      pro: { min: 50, max: 76 },        // 75-100 range → max 76 (allow 1 extra)
+      enterprise: { min: 80, max: 121 }, // 120+ range → max 121 (allow 1 extra)
     };
     
     const tierQuota = quotas[order.tier as keyof typeof quotas] || quotas.starter;
     const minimumQuota = tierQuota.min;
     const maximumQuota = tierQuota.max;
-    logStep("Lead quota", { minimum: minimumQuota, maximum: maximumQuota });
+    logStep("Lead quota", { minimum: minimumQuota, maximum: maximumQuota, strictCap: true });
 
     // Initialize scraping metrics for cost tracking
     const metrics: ScrapingMetrics = {
@@ -129,12 +129,23 @@ serve(async (req) => {
         order.primary_city,
         finalRadius,
         minimumQuota,
+        maximumQuota,
         metrics,
         orderId
       );
 
       allLeads = scrapingResults.leads;
       Object.assign(sourceBreakdown, scrapingResults.breakdown);
+
+      // STRICT CAP: Trim leads if we exceeded maximum (allow max 1-2 extra)
+      if (allLeads.length > maximumQuota) {
+        logStep("Trimming excess leads", { 
+          collected: allLeads.length, 
+          maximum: maximumQuota, 
+          trimming: allLeads.length - maximumQuota 
+        });
+        allLeads = allLeads.slice(0, maximumQuota);
+      }
 
       // Check budget limits
       if (metrics.estimatedCost > SCRAPING_BUDGET_LIMIT) {
@@ -205,6 +216,7 @@ async function runAllScrapers(
   city: string,
   radius: number,
   targetLeads: number,
+  maxLeads: number,
   metrics: ScrapingMetrics,
   orderId: string
 ): Promise<{ leads: Lead[], breakdown: Record<string, number> }> {
@@ -219,6 +231,12 @@ async function runAllScrapers(
 
   // Zillow Scraper
   try {
+    // Stop if we've already hit the max cap
+    if (allLeads.length >= maxLeads) {
+      logStep(`Skipping Zillow - max leads reached`, { current: allLeads.length, max: maxLeads });
+      return { leads: allLeads, breakdown };
+    }
+    
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`Zillow scraper for ${city} (${radius}mi radius)`);
@@ -302,6 +320,12 @@ async function runAllScrapers(
 
   // Realtor.com Scraper (epctex/realtor-scraper)
   try {
+    // Stop if we've already hit the max cap
+    if (allLeads.length >= maxLeads) {
+      logStep(`Skipping Realtor - max leads reached`, { current: allLeads.length, max: maxLeads });
+      return { leads: allLeads, breakdown };
+    }
+    
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`Realtor scraper for ${city} (${radius}mi radius)`);
@@ -371,6 +395,12 @@ async function runAllScrapers(
 
   // FSBO.com Scraper
   try {
+    // Stop if we've already hit the max cap
+    if (allLeads.length >= maxLeads) {
+      logStep(`Skipping FSBO - max leads reached`, { current: allLeads.length, max: maxLeads });
+      return { leads: allLeads, breakdown };
+    }
+    
     if (metrics.apiCalls >= MAX_API_CALLS_PER_ORDER) throw new Error("Max API calls reached");
     
     logStep(`FSBO scraper for ${city} (${radius}mi radius)`);
