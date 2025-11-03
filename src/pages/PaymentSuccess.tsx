@@ -177,15 +177,23 @@ const PaymentSuccess = () => {
 
           {/* Simple CSV Info Card */}
           <Card className="border-primary/20 shadow-lg mt-6">
-            <CardContent className="pt-6 space-y-3 text-center">
-              <div className="text-4xl mb-2">📊</div>
-              <h4 className="font-semibold text-lg">Your Leads as Clean CSV</h4>
-              <p className="text-sm text-muted-foreground">
-                Opens instantly in Excel, Google Sheets, or any spreadsheet app
-              </p>
-              <p className="text-xs text-muted-foreground pt-2">
-                💡 Just download and open - it's that simple!
-              </p>
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center space-y-3">
+                <div className="text-4xl mb-2">📊</div>
+                <h4 className="font-semibold text-lg">Your Leads as Clean CSV</h4>
+                <p className="text-sm text-muted-foreground">
+                  Opens instantly in Excel, Google Sheets, or any spreadsheet app
+                </p>
+              </div>
+              
+              <div className="bg-muted/50 rounded-lg p-4 text-left space-y-2">
+                <p className="text-sm font-medium mb-3">Quick Start:</p>
+                <ol className="text-sm text-muted-foreground space-y-1.5">
+                  <li><strong>1.</strong> Double-click → Open with Google Sheets or Excel</li>
+                  <li><strong>2.</strong> Press Ctrl-A (⌘-A on Mac) to select all</li>
+                  <li><strong>3.</strong> Click Format as Table → Pick any color</li>
+                </ol>
+              </div>
             </CardContent>
           </Card>
         </div>
