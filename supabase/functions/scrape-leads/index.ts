@@ -88,12 +88,12 @@ serve(async (req) => {
 
     logStep("Order retrieved", { tier: order.tier, primary_city: order.primary_city });
 
-    // Determine lead quotas based on tier with strict caps
+    // Determine lead quotas based on tier with strict caps (max = top of range + 1-2 extra)
     const quotas = {
-      starter: { min: 15, max: 21 },    // 20-25 range → max 21 (allow 1 extra)
-      growth: { min: 25, max: 41 },     // 40-50 range → max 41 (allow 1 extra)
-      pro: { min: 50, max: 76 },        // 75-100 range → max 76 (allow 1 extra)
-      enterprise: { min: 80, max: 121 }, // 120+ range → max 121 (allow 1 extra)
+      starter: { min: 20, max: 26 },     // 20-25 range → max 26 (allow 1 extra)
+      growth: { min: 40, max: 51 },      // 40-50 range → max 51 (allow 1 extra)
+      pro: { min: 75, max: 101 },        // 75-100 range → max 101 (allow 1 extra)
+      enterprise: { min: 120, max: 151 }, // 120-150 range → max 151 (allow 1 extra)
     };
     
     const tierQuota = quotas[order.tier as keyof typeof quotas] || quotas.starter;
