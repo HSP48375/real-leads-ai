@@ -156,7 +156,7 @@ const PaymentSuccess = () => {
               )}
 
               {!user && (
-                <div className="pt-4 border-t space-y-3">
+              <div className="pt-4 border-t space-y-3">
                   <Button
                     onClick={handleResendEmail}
                     variant="outline"
@@ -175,67 +175,17 @@ const PaymentSuccess = () => {
             </CardContent>
           </Card>
 
-          {/* Format Upsell Section */}
+          {/* Simple CSV Info Card */}
           <Card className="border-primary/20 shadow-lg mt-6">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                📊 Want Different Formats?
-              </CardTitle>
-              <CardDescription>
-                Your leads will arrive as a beautiful PDF report. Need them in another format too?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">Excel Spreadsheet (.xlsx)</h4>
-                    <p className="text-sm text-muted-foreground">Full editing capabilities in Excel</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">$25</p>
-                    <Button size="sm" variant="outline">Upgrade</Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">Google Sheets Ready</h4>
-                    <p className="text-sm text-muted-foreground">Pre-formatted for Google import</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">$25</p>
-                    <Button size="sm" variant="outline">Upgrade</Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">CRM-Optimized CSV</h4>
-                    <p className="text-sm text-muted-foreground">Clean format for any CRM</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">$25</p>
-                    <Button size="sm" variant="outline">Upgrade</Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border-2 border-primary rounded-lg bg-primary/5">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">All 3 Formats</h4>
-                    <p className="text-sm text-muted-foreground">Get every format instantly</p>
-                    <p className="text-xs text-primary font-semibold mt-1">Save $28!</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">$47</p>
-                    <Button size="sm">Get All Formats</Button>
-                  </div>
-                </div>
-              </div>
-
-              <Button variant="ghost" className="w-full">
-                Continue Without Upgrade →
-              </Button>
+            <CardContent className="pt-6 space-y-3 text-center">
+              <div className="text-4xl mb-2">📊</div>
+              <h4 className="font-semibold text-lg">Your Leads as Clean CSV</h4>
+              <p className="text-sm text-muted-foreground">
+                Opens instantly in Excel, Google Sheets, or any spreadsheet app
+              </p>
+              <p className="text-xs text-muted-foreground pt-2">
+                💡 Just download and open - it's that simple!
+              </p>
             </CardContent>
           </Card>
         </div>
