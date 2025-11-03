@@ -181,29 +181,47 @@ function generatePDFFile(leads: any[], order: any): Uint8Array {
       doc.rect(10, y - 5, 190, rowHeight, 'F');
     }
     
-    // Format name - use seller_name or "Homeowner"
-    const name = lead.seller_name || 'Homeowner';
-    
-    // Format address - handle both string and object formats
+    // Format address - handle stringified JSON or object, fallback to plain string
     let address = '';
-    if (typeof lead.address === 'string') {
-      address = lead.address;
-    } else if (typeof lead.address === 'object' && lead.address) {
-      // Extract street from object
-      address = lead.address.street || '';
+    try {
+      if (typeof lead.address === 'string') {
+        const trimmed = lead.address.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          const obj = JSON.parse(trimmed);
+          const street = obj.street || obj.address || '';
+          const city = lead.city || obj.locality || obj.city || '';
+          const state = lead.state || obj.region || obj.state || '';
+          const zip = lead.zip || obj.postalCode || obj.zip || '';
+          address = `${street}${city ? ', ' + city : ''}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}`;
+        } else {
+          address = trimmed;
+        }
+      } else if (typeof lead.address === 'object' && lead.address) {
+        const obj = lead.address;
+        const street = obj.street || obj.address || '';
+        const city = lead.city || obj.locality || obj.city || '';
+        const state = lead.state || obj.region || obj.state || '';
+        const zip = lead.zip || obj.postalCode || obj.zip || '';
+        address = `${street}${city ? ', ' + city : ''}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}`;
+      }
+    } catch (_) {
+      address = String(lead.address || '');
     }
-    // Add city to address
-    address = `${address}, ${lead.city || ''}`.substring(0, 30);
+    address = address.substring(0, 60);
     
-    // Format phone - extract from contact field
-    const contact = lead.contact || '';
+    // Format phone/email from contact
+    const contact = (lead.contact || '').toString();
     let phone = '';
     if (contact.includes('@')) {
-      // It's an email, show first part
-      phone = contact.substring(0, 25);
+      phone = contact.substring(0, 40);
     } else if (contact) {
-      // Format phone number as (XXX) XXX-XXXX
-      phone = contact.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+      const digits = contact.replace(/\D+/g, '');
+      if (digits.length >= 10) {
+        const d = digits.slice(-10);
+        phone = `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
+      } else {
+        phone = contact.substring(0, 40);
+      }
     }
     
     // Format price
@@ -301,12 +319,31 @@ function generateCSVFile(leads: any[], order: any): string {
       phone = contact;
     }
     
-    // Clean address - handle both string and JSON object
+    // Clean address - handle string, stringified JSON, or object
     let address = '';
-    if (typeof lead.address === 'string') {
-      address = lead.address;
-    } else if (typeof lead.address === 'object' && lead.address) {
-      address = lead.address.street || '';
+    try {
+      if (typeof lead.address === 'string') {
+        const trimmed = lead.address.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          const obj = JSON.parse(trimmed);
+          const street = obj.street || obj.address || '';
+          const city = lead.city || obj.locality || obj.city || '';
+          const state = lead.state || obj.region || obj.state || '';
+          const zip = lead.zip || obj.postalCode || obj.zip || '';
+          address = `${street}${city ? ', ' + city : ''}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}`;
+        } else {
+          address = trimmed;
+        }
+      } else if (typeof lead.address === 'object' && lead.address) {
+        const obj = lead.address;
+        const street = obj.street || obj.address || '';
+        const city = lead.city || obj.locality || obj.city || '';
+        const state = lead.state || obj.region || obj.state || '';
+        const zip = lead.zip || obj.postalCode || obj.zip || '';
+        address = `${street}${city ? ', ' + city : ''}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}`;
+      }
+    } catch (_) {
+      address = String(lead.address || '');
     }
     
     // Format price - just numbers
@@ -388,12 +425,31 @@ serve(async (req) => {
       });
     }
 
-    const { data: leads, error: leadsErr } = await supabase.from('leads').select('*').eq('order_id', orderId);
+    const { data: rawLeads, error: leadsErr } = await supabase.from('leads').select('*').eq('order_id', orderId);
     if (leadsErr) throw new Error(`Failed to load leads: ${leadsErr.message}`);
 
-    if (!leads || leads.length === 0) {
+    if (!rawLeads || rawLeads.length === 0) {
       // Nothing to finalize yet
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ENFORCE STRICT LEAD CAPS
+    const maxLeadLimits = {
+      starter: 26,
+      growth: 51,
+      pro: 101,
+      enterprise: 151,
+    };
+    
+    const maxAllowed = maxLeadLimits[order.tier as keyof typeof maxLeadLimits] || 26;
+    const leads = rawLeads.slice(0, maxAllowed);
+    
+    console.log(`[FINALIZE] Enforcing lead cap: ${rawLeads.length} → ${leads.length} (max: ${maxAllowed})`);
+    if (rawLeads.length > leads.length) {
+      // Remove excess leads from database
+      const excessIds = rawLeads.slice(maxAllowed).map(l => l.id);
+      await supabase.from('leads').delete().in('id', excessIds);
+      console.log(`[FINALIZE] Deleted ${excessIds.length} excess leads`);
     }
 
     // Generate PDF file
