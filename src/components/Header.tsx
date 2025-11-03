@@ -60,8 +60,22 @@ const Header = () => {
     }
   };
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = () => {
+    if (userName) {
+      const parts = userName.trim().split(' ');
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      }
+      return userName.substring(0, 2).toUpperCase();
+    }
+    if (user?.email) {
+      const emailParts = user.email.split('@')[0].split('.');
+      if (emailParts.length >= 2) {
+        return `${emailParts[0][0]}${emailParts[1][0]}`.toUpperCase();
+      }
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return 'U';
   };
 
   const navLinks = [
@@ -108,7 +122,7 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-2 focus:outline-none hover:opacity-80 transition-opacity">
                   <div className="w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center text-primary font-semibold">
-                    {getInitials(user.email || 'U')}
+                    {getInitials()}
                   </div>
                   <ChevronDown className="w-4 h-4 text-foreground hidden md:block" />
                 </button>
