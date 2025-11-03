@@ -181,22 +181,28 @@ function generatePDFFile(leads: any[], order: any): Uint8Array {
       doc.rect(10, y - 5, 190, rowHeight, 'F');
     }
     
-    // Format data
+    // Format name - use seller_name or "Homeowner"
     const name = lead.seller_name || 'Homeowner';
+    
+    // Format address - handle both string and object formats
     let address = '';
     if (typeof lead.address === 'string') {
       address = lead.address;
     } else if (typeof lead.address === 'object' && lead.address) {
+      // Extract street from object
       address = lead.address.street || '';
     }
+    // Add city to address
     address = `${address}, ${lead.city || ''}`.substring(0, 30);
     
-    // Format phone
+    // Format phone - extract from contact field
     const contact = lead.contact || '';
     let phone = '';
     if (contact.includes('@')) {
+      // It's an email, show first part
       phone = contact.substring(0, 25);
     } else if (contact) {
+      // Format phone number as (XXX) XXX-XXXX
       phone = contact.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
     }
     
