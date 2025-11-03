@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,6 +95,148 @@ async function appendSheetValues(jwt: string, spreadsheetId: string, leads: any[
     headers: { "Authorization": `Bearer ${jwt}`, "Content-Type": "application/json" },
     body: JSON.stringify({ values }),
   });
+}
+
+function generatePDFFile(leads: any[], order: any): Uint8Array {
+  const doc = new jsPDF();
+  
+  // PAGE 1: COVER PAGE
+  doc.setFillColor(37, 99, 235); // Blue background
+  doc.rect(0, 0, 210, 297, 'F');
+  
+  // Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(32);
+  doc.setFont(undefined, 'bold');
+  doc.text('RealtyLeadsAI', 105, 80, { align: 'center' });
+  
+  doc.setFontSize(24);
+  doc.text('Your FSBO Leads Report', 105, 100, { align: 'center' });
+  
+  // Lead count and location
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'normal');
+  doc.text(`${leads.length} Premium Leads • ${order.primary_city}, Michigan`, 105, 120, { align: 'center' });
+  
+  // Date
+  const orderDate = new Date(order.created_at).toLocaleDateString('en-US', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  doc.setFontSize(12);
+  doc.text(`Generated: ${orderDate}`, 105, 135, { align: 'center' });
+  
+  // Motivational quote
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'italic');
+  doc.text('"The fortune is in the follow-up"', 105, 200, { align: 'center' });
+  
+  // Footer on cover
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text('RealtyLeadsAI.com • Fresh Leads Daily', 105, 280, { align: 'center' });
+  
+  // PAGE 2+: LEAD TABLE
+  const rowsPerPage = 12;
+  const startY = 30;
+  const rowHeight = 18;
+  
+  leads.forEach((lead, index) => {
+    const pageIndex = Math.floor(index / rowsPerPage);
+    const rowIndex = index % rowsPerPage;
+    
+    // Add new page if needed
+    if (rowIndex === 0 && index > 0) {
+      doc.addPage();
+    }
+    
+    // Reset colors for table pages
+    if (rowIndex === 0) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 297, 'F');
+      
+      // Page header
+      doc.setTextColor(37, 99, 235);
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      doc.text('FSBO Leads', 105, 20, { align: 'center' });
+      
+      // Table headers
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(10, startY - 5, 190, 8, 'F');
+      doc.text('Name', 12, startY);
+      doc.text('Address', 50, startY);
+      doc.text('Phone', 110, startY);
+      doc.text('Price', 150, startY);
+    }
+    
+    // Alternating row backgrounds
+    const y = startY + 5 + (rowIndex * rowHeight);
+    if (rowIndex % 2 === 0) {
+      doc.setFillColor(250, 250, 250);
+      doc.rect(10, y - 5, 190, rowHeight, 'F');
+    }
+    
+    // Format data
+    const name = lead.seller_name || 'Homeowner';
+    let address = '';
+    if (typeof lead.address === 'string') {
+      address = lead.address;
+    } else if (typeof lead.address === 'object' && lead.address) {
+      address = lead.address.street || '';
+    }
+    address = `${address}, ${lead.city || ''}`.substring(0, 30);
+    
+    // Format phone
+    const contact = lead.contact || '';
+    let phone = '';
+    if (contact.includes('@')) {
+      phone = contact.substring(0, 25);
+    } else if (contact) {
+      phone = contact.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+    }
+    
+    // Format price
+    let price = '';
+    if (lead.price) {
+      const priceNum = String(lead.price).replace(/[^0-9]/g, '');
+      if (priceNum) price = '$' + parseInt(priceNum).toLocaleString();
+    }
+    
+    // Draw row data
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    doc.text(name.substring(0, 18), 12, y + 2);
+    doc.text(address, 50, y + 2);
+    doc.text(phone, 110, y + 2);
+    doc.text(price, 150, y + 2);
+    
+    // URL on second line if available
+    if (lead.url) {
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text(lead.url.substring(0, 60), 50, y + 8);
+    }
+  });
+  
+  // Add footer to all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Page ${i} of ${totalPages}`, 105, 290, { align: 'center' });
+    if (i > 1) {
+      doc.text('RealtyLeadsAI.com • Fresh Leads Daily', 105, 285, { align: 'center' });
+    }
+  }
+  
+  return doc.output('arraybuffer');
 }
 
 function generateCSVFile(leads: any[], order: any): string {
@@ -247,8 +390,37 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Generate CSV file
-    console.log('[FINALIZE] Generating CSV file for', leads.length, 'leads');
+    // Generate PDF file
+    console.log('[FINALIZE] Generating PDF file for', leads.length, 'leads');
+    const pdfContent = generatePDFFile(leads, order);
+    
+    // Upload PDF to storage
+    let pdfUrl = '';
+    try {
+      const fileName = `leads-${orderId}.pdf`;
+      const filePath = `${orderId}/${fileName}`;
+      
+      const { data, error } = await supabase.storage
+        .from('lead-csvs')
+        .upload(filePath, pdfContent, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+      
+      if (error) throw error;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('lead-csvs')
+        .getPublicUrl(filePath);
+      
+      pdfUrl = publicUrl;
+      console.log('[FINALIZE] PDF uploaded successfully:', pdfUrl);
+    } catch (e) {
+      console.error('[FINALIZE] PDF upload failed:', e);
+    }
+    
+    // Generate CSV file as backup for CRM import
+    console.log('[FINALIZE] Generating CSV backup file');
     const csvContent = generateCSVFile(leads, order);
     
     // Upload CSV to storage
@@ -273,7 +445,7 @@ serve(async (req) => {
     const { error: updErr } = await supabase
       .from('orders')
       .update({
-        sheet_url: csvUrl || sheetUrl || order.sheet_url,
+        sheet_url: pdfUrl || csvUrl || sheetUrl || order.sheet_url,
         delivered_at: new Date().toISOString(),
         leads_count: leads.length,
         total_leads_delivered: leads.length,
@@ -281,7 +453,7 @@ serve(async (req) => {
       .eq('id', orderId);
     if (updErr) throw new Error(`Failed to update order: ${updErr.message}`);
 
-    // Send email with CSV and preview
+    // Send email with PDF and CSV
     if (order.customer_email) {
       console.log('[FINALIZE] Sending leads-ready email to:', order.customer_email);
       const functionsUrl = Deno.env.get('SUPABASE_URL');
@@ -293,6 +465,7 @@ serve(async (req) => {
           name: order.customer_name || 'there',
           leadCount: String(leads.length),
           city: order.primary_city,
+          pdfUrl: pdfUrl,
           csvUrl: csvUrl,
           sheetUrl: sheetUrl,
           leads: leads.slice(0, 5), // First 5 leads for preview
@@ -301,7 +474,7 @@ serve(async (req) => {
       }).catch(err => console.error('[FINALIZE] send-leads-ready failed', err));
     }
 
-    return new Response(JSON.stringify({ success: true, csvUrl, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, pdfUrl, csvUrl, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('finalize-order error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

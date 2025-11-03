@@ -13,6 +13,7 @@ interface LeadsReadyRequest {
   name: string;
   leadCount: string;
   city: string;
+  pdfUrl?: string;
   csvUrl?: string;
   sheetUrl?: string;
   leads?: any[];
@@ -25,7 +26,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, name, leadCount, city, csvUrl, sheetUrl, leads, orderId }: LeadsReadyRequest = await req.json();
+    const { email, name, leadCount, city, pdfUrl, csvUrl, sheetUrl, leads, orderId }: LeadsReadyRequest = await req.json();
 
     console.log("[LEADS-READY] Sending email to:", email);
 
@@ -157,12 +158,13 @@ const handler = async (req: Request): Promise<Response> => {
 
             <p><strong>📥 Download Your Leads Now:</strong></p>
             <p style="color: #6b7280; font-size: 14px; margin: 5px 0 15px 0;">
-              Opens in Excel, Numbers, or Google Sheets
+              PDF report for viewing • CSV file for importing to CRM
             </p>
             
             <div style="margin: 20px 0;">
-              ${csvUrl ? `<a href="${csvUrl}" class="cta-button">📊 Download Spreadsheet (CSV)</a>` : ''}
-              ${sheetUrl ? `<a href="${sheetUrl}" class="secondary-button">📊 Open Google Sheet</a>` : ''}
+              ${pdfUrl ? `<a href="${pdfUrl}" class="cta-button">📄 Download PDF Report</a>` : ''}
+              ${csvUrl ? `<a href="${csvUrl}" class="secondary-button">📊 Download CSV (for CRM)</a>` : ''}
+              ${sheetUrl && !pdfUrl && !csvUrl ? `<a href="${sheetUrl}" class="cta-button">📊 Open Google Sheet</a>` : ''}
               <a href="${appBaseUrl}/dashboard" class="secondary-button">🔐 View Dashboard</a>
             </div>
 
