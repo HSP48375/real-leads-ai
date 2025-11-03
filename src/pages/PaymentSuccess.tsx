@@ -13,6 +13,7 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState<string>("");
   const [isResending, setIsResending] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -27,6 +28,15 @@ const PaymentSuccess = () => {
       setEmail(urlEmail);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    // Wait for auth to initialize
+    const timer = setTimeout(() => {
+      setIsAuthLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [user]);
 
   const handleResendEmail = async () => {
     if (!email) {
@@ -70,7 +80,11 @@ const PaymentSuccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {user ? (
+              {isAuthLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : user ? (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1" />
@@ -80,6 +94,14 @@ const PaymentSuccess = () => {
                         Your leads are being prepared now. You'll receive an email when they're ready (under 60 minutes).
                       </p>
                     </div>
+                  </div>
+                  <div className="pt-4">
+                    <Button 
+                      onClick={() => window.location.href = '/dashboard'}
+                      className="w-full"
+                    >
+                      View Dashboard
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -106,29 +128,31 @@ const PaymentSuccess = () => {
                 </div>
               )}
 
-              <div className="space-y-3">
-                <h4 className="font-semibold">What happens next?</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>Your leads are being prepared now</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>You'll receive an email when ready (under 60 min)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>
-                      {user ? (
-                        "Check your dashboard to download leads"
-                      ) : (
-                        "Set your password to access your dashboard and download leads"
-                      )}
-                    </span>
-                  </li>
-                </ul>
-              </div>
+              {!isAuthLoading && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold">What happens next?</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>Your leads are being prepared now</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>You'll receive an email when ready (under 60 min)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>
+                        {user ? (
+                          "Check your dashboard to download leads"
+                        ) : (
+                          "Set your password to access your dashboard and download leads"
+                        )}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              )}
 
               {!user && (
                 <div className="pt-4 border-t space-y-3">
