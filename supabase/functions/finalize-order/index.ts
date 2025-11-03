@@ -97,24 +97,27 @@ async function appendSheetValues(jwt: string, spreadsheetId: string, leads: any[
 }
 
 function generateCSVFile(leads: any[], order: any): string {
-  // Helper to escape CSV values
-  const escapeCSV = (val: any): string => {
+  // Helper to clean and format values - NO extra escaping!
+  const cleanValue = (val: any): string => {
     if (val === null || val === undefined) return '';
-    const str = String(val);
-    // Quote fields containing comma, quote, newline, or starting with special chars
-    if (/[",\n\r]/.test(str) || str.startsWith(' ') || str.startsWith('=')) {
-      return '"' + str.replace(/"/g, '""') + '"';
+    let str = String(val).trim();
+    
+    // Remove any JSON artifacts or extra quotes
+    str = str.replace(/^["']+|["']+$/g, '');
+    
+    // Only escape if absolutely necessary (contains comma)
+    if (str.includes(',')) {
+      return `"${str}"`;
     }
     return str;
   };
 
-  const CRLF = '\r\n';
   const rows: string[] = [];
 
-  // Row 1: Branding
+  // Row 1: Branding header
   rows.push('RealtyLeadsAI - Fresh FSBO Leads');
   
-  // Row 2: Order info
+  // Row 2: Order metadata
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', { 
     month: 'long', 
     day: 'numeric', 
@@ -122,26 +125,11 @@ function generateCSVFile(leads: any[], order: any): string {
   });
   rows.push(`Generated: ${orderDate} | Location: ${order.primary_city}, MI | Total Leads: ${leads.length}`);
   
-  // Row 3: Empty
+  // Row 3: Empty separator
   rows.push('');
   
-  // Row 4: Headers
-  const headers = [
-    'Name',
-    'Phone',
-    'Email',
-    'Address',
-    'City',
-    'State',
-    'Zip',
-    'Price',
-    'Days on Market',
-    'Property Type',
-    'Source',
-    'Listing URL',
-    'Notes'
-  ];
-  rows.push(headers.map(escapeCSV).join(','));
+  // Row 4: Column headers
+  rows.push('Name,Phone,Email,Address,City,State,Zip,Price,Days on Market,Property Type,Source,Listing URL,Notes');
   
   // Rows 5+: Lead data
   leads.forEach(lead => {
@@ -150,9 +138,8 @@ function generateCSVFile(leads: any[], order: any): string {
     if (lead.date_listed) {
       const listedDate = new Date(lead.date_listed);
       const today = new Date();
-      const diffTime = Math.abs(today.getTime() - listedDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      daysOnMarket = String(diffDays);
+      const diffDays = Math.ceil((today.getTime() - listedDate.getTime()) / (1000 * 60 * 60 * 24));
+      daysOnMarket = String(Math.max(0, diffDays));
     }
     
     // Parse contact for phone/email
@@ -161,38 +148,47 @@ function generateCSVFile(leads: any[], order: any): string {
     let email = '';
     if (contact.includes('@')) {
       email = contact;
-    } else {
+    } else if (contact) {
       phone = contact;
     }
     
-    // Format price
-    let priceValue = lead.price || '';
-    if (typeof priceValue === 'string') {
-      priceValue = priceValue.replace(/[^0-9]/g, '');
+    // Clean address - handle both string and JSON object
+    let address = '';
+    if (typeof lead.address === 'string') {
+      address = lead.address;
+    } else if (typeof lead.address === 'object' && lead.address) {
+      address = lead.address.street || '';
     }
     
-    const row = [
-      lead.seller_name || 'Homeowner',
-      phone,
-      email,
-      lead.address || '',
-      lead.city || '',
-      lead.state || 'MI',
-      lead.zip || '',
-      priceValue,
-      daysOnMarket,
-      lead.source_type || 'FSBO',
-      lead.source || '',
-      lead.url || '',
-      '' // Empty notes column
+    // Format price - just numbers
+    let price = '';
+    if (lead.price) {
+      price = String(lead.price).replace(/[^0-9]/g, '');
+      if (price) price = '$' + price;
+    }
+    
+    // Build clean row - minimal escaping
+    const rowData = [
+      cleanValue(lead.seller_name || 'Homeowner'),
+      cleanValue(phone),
+      cleanValue(email),
+      cleanValue(address),
+      cleanValue(lead.city || ''),
+      cleanValue(lead.state || 'MI'),
+      cleanValue(lead.zip || ''),
+      cleanValue(price),
+      cleanValue(daysOnMarket),
+      cleanValue(lead.source_type || 'FSBO'),
+      cleanValue(lead.source || ''),
+      cleanValue(lead.url || ''),
+      '' // Notes column (empty)
     ];
     
-    rows.push(row.map(escapeCSV).join(','));
+    rows.push(rowData.join(','));
   });
   
-  // Add UTF-8 BOM for proper Excel compatibility
-  const BOM = '\uFEFF';
-  return BOM + rows.join(CRLF) + CRLF;
+  // UTF-8 BOM for Excel compatibility
+  return '\uFEFF' + rows.join('\r\n') + '\r\n';
 }
 
 async function uploadCSVToStorage(supabase: any, orderId: string, csvContent: string): Promise<string> {
