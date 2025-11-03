@@ -147,28 +147,42 @@ const Dashboard = () => {
   };
 
   const handleDownloadSample = () => {
-    // Create professional CSV with proper structure matching real lead files
-    const csvContent = `RealtyLeadsAI - Sample FSBO Lead Report
-"This is a sample showing the format of your lead data"
-"Your actual leads will be delivered as a professional Excel file (.xlsx) with formatting"
+    // Build a clean, Excel-friendly CSV (no preface lines)
+    const headers = [
+      'Name','Phone','Email','Address','City','State','Zip','Price','Days on Market','Property Type','Source','Notes'
+    ];
 
-Name,Phone,Email,Address,City,State,Zip,Price,Days on Market,Property Type,Source,Notes
-"John Smith","(313) 555-0100","john.smith@email.com","123 Main St","Detroit","MI","48201","350000","3","Single Family","FSBO.com",""
-"Jane Doe","(734) 555-0200","jane.doe@email.com","456 Oak Ave","Ann Arbor","MI","48103","425000","5","Condo","Zillow",""
-"Mike Johnson","(248) 555-0300","mike.j@email.com","789 Elm St","Royal Oak","MI","48067","275000","2","Townhouse","Facebook",""`;
-    
-    // Add UTF-8 BOM for proper Excel compatibility
+    const rows = [
+      ['John Smith','(313) 555-0100','john.smith@email.com','123 Main St','Detroit','MI','48201',350000,3,'Single Family','FSBO.com',''],
+      ['Jane Doe','(734) 555-0200','jane.doe@email.com','456 Oak Ave','Ann Arbor','MI','48103',425000,5,'Condo','Zillow',''],
+      ['Mike Johnson','(248) 555-0300','mike.j@email.com','789 Elm St','Royal Oak','MI','48067',275000,2,'Townhouse','Facebook',''],
+    ];
+
+    const escape = (val: unknown) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      // Quote fields containing comma, quote, or newline
+      if (/[",\n\r]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const CRLF = '\r\n';
+    const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join(CRLF) + CRLF;
+
+    // Add UTF-8 BOM and use Excel MIME; save with .xls extension so macOS opens in Excel by default
     const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([BOM + csv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'RealtyLeadsAI-Sample-Format.csv';
+    a.download = 'RealtyLeadsAI-Sample-Leads.xls';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    toast.success('Sample format downloaded - Your real leads come as formatted Excel files!');
+    toast.success('Sample opened as Excel with proper headers and formatting');
   };
 
   if (loading) {
