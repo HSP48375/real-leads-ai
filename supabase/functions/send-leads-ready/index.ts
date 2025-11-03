@@ -13,7 +13,7 @@ interface LeadsReadyRequest {
   name: string;
   leadCount: string;
   city: string;
-  csvUrl?: string;
+  excelUrl?: string;
   sheetUrl?: string;
   leads?: any[];
   orderId?: string;
@@ -25,7 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, name, leadCount, city, csvUrl, sheetUrl, leads, orderId }: LeadsReadyRequest = await req.json();
+    const { email, name, leadCount, city, excelUrl, sheetUrl, leads, orderId }: LeadsReadyRequest = await req.json();
 
     console.log("[LEADS-READY] Sending email to:", email);
 
@@ -75,8 +75,8 @@ const handler = async (req: Request): Promise<Response> => {
             </tbody>
           </table>
           <p style="color: #6b7280; font-size: 14px;">
-            ${leads.length > 3 ? `+ ${leads.length - 3} more leads in the CSV download. ` : ''}
-            Full contact details, prices, and listing info available in the CSV file.
+            ${leads.length > 3 ? `+ ${leads.length - 3} more leads in the Excel file. ` : ''}
+            Full contact details, prices, and listing info available in the Excel download.
           </p>
         </div>
       `;
@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
             <p><strong>📥 Download Your Leads Now:</strong></p>
             
             <div style="margin: 20px 0;">
-              ${csvUrl ? `<a href="${csvUrl}" class="cta-button">💾 Download CSV File</a>` : ''}
+              ${excelUrl ? `<a href="${excelUrl}" class="cta-button">📊 Download Excel File</a>` : ''}
               ${sheetUrl ? `<a href="${sheetUrl}" class="secondary-button">📊 Open Google Sheet</a>` : ''}
               <a href="${appBaseUrl}/dashboard" class="secondary-button">🔐 View Dashboard</a>
             </div>

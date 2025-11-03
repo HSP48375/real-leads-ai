@@ -116,50 +116,14 @@ const Orders = () => {
     }
 
     try {
-      // Fetch leads for this order
-      const { data: leads, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('order_id', order.id);
-
-      if (error) throw error;
-
-      if (!leads || leads.length === 0) {
-        toast.error('No leads found for this order');
-        return;
+      // Download the Excel file from the stored URL
+      if (order.sheet_url) {
+        // Open the file URL directly
+        window.open(order.sheet_url, '_blank');
+        toast.success('Downloading leads file');
+      } else {
+        toast.error('No file available for this order yet');
       }
-
-      // Convert to CSV
-      const headers = ['Name', 'Address', 'City', 'State', 'ZIP', 'Phone', 'Price', 'Date Listed', 'URL'];
-      const csvContent = [
-        headers.join(','),
-        ...leads.map(lead =>
-          [
-            lead.seller_name || '',
-            lead.address || '',
-            lead.city || '',
-            lead.state || '',
-            lead.zip || '',
-            lead.contact || '',
-            lead.price || '',
-            lead.date_listed ? new Date(lead.date_listed).toLocaleDateString() : '',
-            lead.url || '',
-          ].join(',')
-        ),
-      ].join('\n');
-
-      // Download
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${order.primary_city}-leads-${new Date(order.created_at).toLocaleDateString()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast.success('Leads downloaded successfully');
     } catch (error: any) {
       toast.error('Failed to download leads');
     }

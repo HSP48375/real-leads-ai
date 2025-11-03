@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,44 +97,183 @@ async function appendSheetValues(jwt: string, spreadsheetId: string, leads: any[
   });
 }
 
-function generateCSV(leads: any[]): string {
-  const headers = ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Type", "Listing URL", "Date Listed"];
-  const rows = leads.map(lead => [
-    lead.seller_name || "",
-    lead.contact || "",
-    lead.address || "",
-    lead.city || "",
-    lead.state || "",
-    lead.zip || "",
-    lead.price || "",
-    lead.source || "",
-    lead.source_type || "fsbo",
-    lead.url || "",
-    lead.date_listed || "",
+function generateExcelFile(leads: any[], order: any): Uint8Array {
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  
+  // Create worksheet data
+  const wsData: any[][] = [];
+  
+  // Row 1: Branding
+  wsData.push(['RealtyLeadsAI - Fresh FSBO Leads']);
+  
+  // Row 2: Order info
+  const orderDate = new Date(order.created_at).toLocaleDateString('en-US', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  wsData.push([
+    `Generated: ${orderDate} | Location: ${order.primary_city}, MI | Total Leads: ${leads.length}`
   ]);
   
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
+  // Row 3: Empty
+  wsData.push([]);
   
-  return csvContent;
+  // Row 4: Headers
+  wsData.push([
+    'Name',
+    'Phone',
+    'Email', 
+    'Address',
+    'City',
+    'State',
+    'Zip',
+    'Price',
+    'Days on Market',
+    'Property Type',
+    'Source',
+    'Listing URL',
+    'Notes'
+  ]);
+  
+  // Rows 5+: Lead data
+  leads.forEach(lead => {
+    // Calculate days on market
+    let daysOnMarket = '';
+    if (lead.date_listed) {
+      const listedDate = new Date(lead.date_listed);
+      const today = new Date();
+      const diffTime = Math.abs(today.getTime() - listedDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      daysOnMarket = String(diffDays);
+    }
+    
+    // Parse contact for phone/email
+    const contact = lead.contact || '';
+    let phone = '';
+    let email = '';
+    if (contact.includes('@')) {
+      email = contact;
+    } else {
+      phone = contact;
+    }
+    
+    // Parse price to number if possible
+    let priceValue = lead.price || '';
+    if (typeof priceValue === 'string') {
+      priceValue = priceValue.replace(/[^0-9]/g, '');
+      if (priceValue) {
+        priceValue = parseInt(priceValue);
+      }
+    }
+    
+    wsData.push([
+      lead.seller_name || 'Homeowner',
+      phone,
+      email,
+      lead.address || '',
+      lead.city || '',
+      lead.state || 'MI',
+      lead.zip || '',
+      priceValue,
+      daysOnMarket,
+      lead.source_type || 'FSBO',
+      lead.source || '',
+      lead.url || '',
+      '' // Empty notes column
+    ]);
+  });
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 20 }, // Name
+    { wch: 15 }, // Phone
+    { wch: 25 }, // Email
+    { wch: 30 }, // Address
+    { wch: 15 }, // City
+    { wch: 8 },  // State
+    { wch: 10 }, // Zip
+    { wch: 12 }, // Price
+    { wch: 15 }, // Days on Market
+    { wch: 15 }, // Property Type
+    { wch: 20 }, // Source
+    { wch: 40 }, // URL
+    { wch: 30 }, // Notes
+  ];
+  
+  // Freeze header row (row 4)
+  ws['!freeze'] = { xSplit: 0, ySplit: 4 };
+  
+  // Apply styles to branding row (row 1)
+  if (ws['A1']) {
+    ws['A1'].s = {
+      font: { bold: true, sz: 16, color: { rgb: "1a3a2e" } },
+      alignment: { horizontal: 'center' }
+    };
+  }
+  
+  // Apply styles to info row (row 2)
+  if (ws['A2']) {
+    ws['A2'].s = {
+      font: { sz: 11, color: { rgb: "6b7280" } },
+      alignment: { horizontal: 'center' }
+    };
+  }
+  
+  // Apply styles to header row (row 4)
+  const headerRow = 4;
+  const headers = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
+  headers.forEach(col => {
+    const cellRef = `${col}${headerRow}`;
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "4B5563" } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+  });
+  
+  // Apply alternating row colors to data rows
+  for (let i = 5; i <= wsData.length; i++) {
+    const isEven = (i - 5) % 2 === 0;
+    const bgColor = isEven ? "FFFFFF" : "F3F4F6";
+    headers.forEach(col => {
+      const cellRef = `${col}${i}`;
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          fill: { fgColor: { rgb: bgColor } }
+        };
+      }
+    });
+  }
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'FSBO Leads');
+  
+  // Generate Excel file as Uint8Array
+  const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  return new Uint8Array(excelBuffer);
 }
 
-async function uploadCSVToStorage(supabase: any, orderId: string, csvContent: string): Promise<string> {
-  const fileName = `leads-${orderId}.csv`;
+async function uploadExcelToStorage(supabase: any, orderId: string, excelBuffer: Uint8Array): Promise<string> {
+  const fileName = `leads-${orderId}.xlsx`;
   const filePath = `${orderId}/${fileName}`;
   
   const { data, error } = await supabase.storage
     .from('lead-csvs')
-    .upload(filePath, csvContent, {
-      contentType: 'text/csv',
+    .upload(filePath, excelBuffer, {
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       upsert: true,
     });
   
   if (error) {
-    console.error('Failed to upload CSV:', error);
-    throw new Error(`CSV upload failed: ${error.message}`);
+    console.error('Failed to upload Excel:', error);
+    throw new Error(`Excel upload failed: ${error.message}`);
   }
   
   const { data: { publicUrl } } = supabase.storage
@@ -176,17 +316,17 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Generate CSV
-    console.log('[FINALIZE] Generating CSV for', leads.length, 'leads');
-    const csvContent = generateCSV(leads);
+    // Generate Excel file
+    console.log('[FINALIZE] Generating Excel file for', leads.length, 'leads');
+    const excelBuffer = generateExcelFile(leads, order);
     
-    // Upload CSV to storage
-    let csvUrl = '';
+    // Upload Excel to storage
+    let excelUrl = '';
     try {
-      csvUrl = await uploadCSVToStorage(supabase, orderId, csvContent);
-      console.log('[FINALIZE] CSV uploaded successfully:', csvUrl);
+      excelUrl = await uploadExcelToStorage(supabase, orderId, excelBuffer);
+      console.log('[FINALIZE] Excel uploaded successfully:', excelUrl);
     } catch (e) {
-      console.error('[FINALIZE] CSV upload failed:', e);
+      console.error('[FINALIZE] Excel upload failed:', e);
     }
 
     // Try creating Google Sheet as backup (optional)
@@ -202,7 +342,7 @@ serve(async (req) => {
     const { error: updErr } = await supabase
       .from('orders')
       .update({
-        sheet_url: csvUrl || sheetUrl || order.sheet_url,
+        sheet_url: excelUrl || sheetUrl || order.sheet_url,
         delivered_at: new Date().toISOString(),
         leads_count: leads.length,
         total_leads_delivered: leads.length,
@@ -222,7 +362,7 @@ serve(async (req) => {
           name: order.customer_name || 'there',
           leadCount: String(leads.length),
           city: order.primary_city,
-          csvUrl: csvUrl,
+          excelUrl: excelUrl,
           sheetUrl: sheetUrl,
           leads: leads.slice(0, 5), // First 5 leads for preview
           orderId: orderId,
@@ -230,7 +370,7 @@ serve(async (req) => {
       }).catch(err => console.error('[FINALIZE] send-leads-ready failed', err));
     }
 
-    return new Response(JSON.stringify({ success: true, csvUrl, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, excelUrl, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('finalize-order error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
