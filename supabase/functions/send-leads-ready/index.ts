@@ -31,10 +31,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://real-leads-ai.lovable.app";
 
+    // Format address properly - handle both string and object formats
+    const formatAddress = (lead: any): string => {
+      // If address is a string, use it directly
+      if (typeof lead.address === 'string') {
+        return lead.address;
+      }
+      // If address is an object (parsed JSON), format it
+      if (typeof lead.address === 'object' && lead.address) {
+        const addr = lead.address;
+        return addr.street || '';
+      }
+      return '';
+    };
+
     // Generate lead preview table
     let leadsPreviewHtml = '';
     if (leads && leads.length > 0) {
-      const previewLeads = leads.slice(0, 5);
+      const previewLeads = leads.slice(0, 3); // Show only 3 leads
       leadsPreviewHtml = `
         <div style="margin: 20px 0;">
           <h3 style="color: #1a3a2e; margin-bottom: 15px;">📋 Preview of Your Leads:</h3>
@@ -43,20 +57,27 @@ const handler = async (req: Request): Promise<Response> => {
               <tr style="background: #f3f4f6;">
                 <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Name</th>
                 <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Address</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Price</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Contact</th>
               </tr>
             </thead>
             <tbody>
-              ${previewLeads.map(lead => `
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #e5e7eb;">${lead.seller_name || 'Owner'}</td>
-                  <td style="padding: 10px; border: 1px solid #e5e7eb;">${lead.address}${lead.city ? ', ' + lead.city : ''}</td>
-                  <td style="padding: 10px; border: 1px solid #e5e7eb;">${lead.price || 'N/A'}</td>
-                </tr>
-              `).join('')}
+              ${previewLeads.map(lead => {
+                const address = formatAddress(lead);
+                const fullAddress = `${address}${lead.city ? ', ' + lead.city : ''}${lead.state ? ', ' + lead.state : ''}${lead.zip ? ' ' + lead.zip : ''}`;
+                return `
+                  <tr>
+                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${lead.seller_name || 'Homeowner'}</td>
+                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${fullAddress}</td>
+                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${lead.contact || 'See CSV'}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
-          ${leads.length > 5 ? `<p style="color: #6b7280; font-size: 14px;">+ ${leads.length - 5} more leads in the full CSV file</p>` : ''}
+          <p style="color: #6b7280; font-size: 14px;">
+            ${leads.length > 3 ? `+ ${leads.length - 3} more leads in the CSV download. ` : ''}
+            Full contact details, prices, and listing info available in the CSV file.
+          </p>
         </div>
       `;
     }

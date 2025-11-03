@@ -156,6 +156,18 @@ serve(async (req) => {
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
     if (orderErr || !order) throw new Error("Order not found");
 
+    // IDEMPOTENCY CHECK: Don't send duplicate emails
+    if (order.delivered_at) {
+      console.log('[FINALIZE] Order already delivered at:', order.delivered_at);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Order already finalized',
+        csvUrl: order.sheet_url 
+      }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { data: leads, error: leadsErr } = await supabase.from('leads').select('*').eq('order_id', orderId);
     if (leadsErr) throw new Error(`Failed to load leads: ${leadsErr.message}`);
 
