@@ -106,24 +106,37 @@ serve(async (req) => {
         tier,
       });
 
-      // Send order confirmation email with password setup link
+      // Send order confirmation email with password setup link (only once)
       try {
         console.log("Triggering order confirmation email for:", email);
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
-          body: {
-            email: email,
-            name: name || "there",
-            tier,
-            price: price_paid,
-            leadCount: leads || "15-20",
-            city: primary_city,
-          },
-        });
-
-        if (emailError) {
-          console.error("Failed to send order confirmation email:", emailError);
+        
+        // Check if we already sent confirmation email for this order
+        const { data: existingEmailLog } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('stripe_payment_intent_id', (session.payment_intent as string) || session.id)
+          .not('id', 'eq', order.id)
+          .limit(1);
+        
+        if (existingEmailLog && existingEmailLog.length > 0) {
+          console.log("Order confirmation already sent for this payment, skipping duplicate email");
         } else {
-          console.log("Order confirmation email sent successfully:", emailData);
+          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
+            body: {
+              email: email,
+              name: name || "there",
+              tier,
+              price: price_paid,
+              leadCount: leads || "15-20",
+              city: primary_city,
+            },
+          });
+
+          if (emailError) {
+            console.error("Failed to send order confirmation email:", emailError);
+          } else {
+            console.log("Order confirmation email sent successfully:", emailData);
+          }
         }
       } catch (emailError) {
         console.error("Error sending order confirmation email:", emailError);

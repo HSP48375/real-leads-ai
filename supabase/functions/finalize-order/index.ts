@@ -96,6 +96,53 @@ async function appendSheetValues(jwt: string, spreadsheetId: string, leads: any[
   });
 }
 
+function generateCSV(leads: any[]): string {
+  const headers = ["Name", "Phone/Email", "Address", "City", "State", "Zip", "Price", "Source", "Type", "Listing URL", "Date Listed"];
+  const rows = leads.map(lead => [
+    lead.seller_name || "",
+    lead.contact || "",
+    lead.address || "",
+    lead.city || "",
+    lead.state || "",
+    lead.zip || "",
+    lead.price || "",
+    lead.source || "",
+    lead.source_type || "fsbo",
+    lead.url || "",
+    lead.date_listed || "",
+  ]);
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+  ].join('\n');
+  
+  return csvContent;
+}
+
+async function uploadCSVToStorage(supabase: any, orderId: string, csvContent: string): Promise<string> {
+  const fileName = `leads-${orderId}.csv`;
+  const filePath = `${orderId}/${fileName}`;
+  
+  const { data, error } = await supabase.storage
+    .from('lead-csvs')
+    .upload(filePath, csvContent, {
+      contentType: 'text/csv',
+      upsert: true,
+    });
+  
+  if (error) {
+    console.error('Failed to upload CSV:', error);
+    throw new Error(`CSV upload failed: ${error.message}`);
+  }
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from('lead-csvs')
+    .getPublicUrl(filePath);
+  
+  return publicUrl;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -117,20 +164,33 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Create Google Sheet
+    // Generate CSV
+    console.log('[FINALIZE] Generating CSV for', leads.length, 'leads');
+    const csvContent = generateCSV(leads);
+    
+    // Upload CSV to storage
+    let csvUrl = '';
+    try {
+      csvUrl = await uploadCSVToStorage(supabase, orderId, csvContent);
+      console.log('[FINALIZE] CSV uploaded successfully:', csvUrl);
+    } catch (e) {
+      console.error('[FINALIZE] CSV upload failed:', e);
+    }
+
+    // Try creating Google Sheet as backup (optional)
     let sheetUrl = '';
     try {
       sheetUrl = await createGoogleSheet(order, leads);
+      console.log('[FINALIZE] Google Sheet created:', sheetUrl);
     } catch (e) {
-      console.error('Sheet creation failed:', e);
-      // Continue without sheet
+      console.error('[FINALIZE] Sheet creation failed (continuing with CSV):', e);
     }
 
     // Update order with final details
     const { error: updErr } = await supabase
       .from('orders')
       .update({
-        sheet_url: sheetUrl || order.sheet_url,
+        sheet_url: csvUrl || sheetUrl || order.sheet_url,
         delivered_at: new Date().toISOString(),
         leads_count: leads.length,
         total_leads_delivered: leads.length,
@@ -138,8 +198,9 @@ serve(async (req) => {
       .eq('id', orderId);
     if (updErr) throw new Error(`Failed to update order: ${updErr.message}`);
 
-    // Notify customer if we have sheet
-    if (sheetUrl && order.customer_email) {
+    // Send email with CSV and preview
+    if (order.customer_email) {
+      console.log('[FINALIZE] Sending leads-ready email to:', order.customer_email);
       const functionsUrl = Deno.env.get('SUPABASE_URL');
       await fetch(`${functionsUrl}/functions/v1/send-leads-ready`, {
         method: 'POST',
@@ -149,12 +210,15 @@ serve(async (req) => {
           name: order.customer_name || 'there',
           leadCount: String(leads.length),
           city: order.primary_city,
-          downloadUrl: sheetUrl,
+          csvUrl: csvUrl,
+          sheetUrl: sheetUrl,
+          leads: leads.slice(0, 5), // First 5 leads for preview
+          orderId: orderId,
         })
-      }).catch(err => console.error('send-leads-ready failed', err));
+      }).catch(err => console.error('[FINALIZE] send-leads-ready failed', err));
     }
 
-    return new Response(JSON.stringify({ success: true, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, csvUrl, sheetUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('finalize-order error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
