@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Package, TrendingUp, DollarSign, Play, MessageCircle, Download, ArrowRight, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface DashboardStats {
   totalOrders: number;
@@ -147,21 +148,91 @@ const Dashboard = () => {
   };
 
   const handleDownloadSample = () => {
-    const sampleCSV = `Name,Address,City,State,ZIP,Phone,Price,Date Listed,URL
-John Smith,123 Main St,Detroit,MI,48201,(313) 555-0100,$350000,2024-01-15,https://example.com
-Jane Doe,456 Oak Ave,Ann Arbor,MI,48103,(734) 555-0200,$425000,2024-01-14,https://example.com
-Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,https://example.com`;
+    // Create professional Excel workbook with sample data
+    const workbook = XLSX.utils.book_new();
     
-    const blob = new Blob([sampleCSV], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sample-fsbo-leads.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    toast.success('Sample CSV downloaded');
+    // Sample lead data
+    const sampleData = [
+      {
+        'Name': 'John Smith',
+        'Phone': '(313) 555-0100',
+        'Email': 'john.smith@email.com',
+        'Address': '123 Main St',
+        'City': 'Detroit',
+        'State': 'MI',
+        'Zip': '48201',
+        'Price': 350000,
+        'Days on Market': 3,
+        'Property Type': 'Single Family',
+        'Source': 'FSBO.com',
+        'Notes': ''
+      },
+      {
+        'Name': 'Jane Doe',
+        'Phone': '(734) 555-0200',
+        'Email': 'jane.doe@email.com',
+        'Address': '456 Oak Ave',
+        'City': 'Ann Arbor',
+        'State': 'MI',
+        'Zip': '48103',
+        'Price': 425000,
+        'Days on Market': 5,
+        'Property Type': 'Condo',
+        'Source': 'Zillow',
+        'Notes': ''
+      },
+      {
+        'Name': 'Mike Johnson',
+        'Phone': '(248) 555-0300',
+        'Email': 'mike.j@email.com',
+        'Address': '789 Elm St',
+        'City': 'Royal Oak',
+        'State': 'MI',
+        'Zip': '48067',
+        'Price': 275000,
+        'Days on Market': 2,
+        'Property Type': 'Townhouse',
+        'Source': 'Facebook',
+        'Notes': ''
+      }
+    ];
+
+    // Create worksheet with header info
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      ['RealtyLeadsAI - Sample FSBO Lead Report'],
+      [],
+      ['This is a sample of what your lead data will look like'],
+      ['Real leads will include current contact info, property details, and source links'],
+      [],
+    ]);
+
+    // Add data starting at row 6
+    XLSX.utils.sheet_add_json(worksheet, sampleData, { origin: 'A6' });
+
+    // Column widths
+    worksheet['!cols'] = [
+      { wch: 20 }, // Name
+      { wch: 15 }, // Phone
+      { wch: 25 }, // Email
+      { wch: 25 }, // Address
+      { wch: 15 }, // City
+      { wch: 8 },  // State
+      { wch: 10 }, // Zip
+      { wch: 12 }, // Price
+      { wch: 15 }, // Days on Market
+      { wch: 15 }, // Property Type
+      { wch: 15 }, // Source
+      { wch: 30 }  // Notes
+    ];
+
+    // Freeze header row
+    worksheet['!freeze'] = { xSplit: 0, ySplit: 6 };
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sample Leads');
+    
+    // Generate and download
+    XLSX.writeFile(workbook, 'RealtyLeadsAI-Sample-Leads.xlsx');
+    toast.success('Sample Excel file downloaded');
   };
 
   if (loading) {
@@ -200,8 +271,8 @@ Mike Johnson,789 Elm St,Royal Oak,MI,48067,(248) 555-0300,$275000,2024-01-13,htt
 
   const quickActions = [
     {
-      title: 'Download Sample CSV',
-      description: 'See what our lead data looks like',
+      title: 'Download Sample Excel',
+      description: 'See what our professional lead reports look like',
       icon: Download,
       onClick: handleDownloadSample,
     },
