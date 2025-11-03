@@ -61,11 +61,6 @@ serve(async (req) => {
         },
       ],
       mode,
-      payment_method_options: {
-        link: {
-          enabled: false, // Disable Stripe Link to remove phone verification friction
-        },
-      },
       success_url: `${req.headers.get("origin")}/payment-success?email=${encodeURIComponent(email)}`,
       cancel_url: `${req.headers.get("origin")}/order?tier=${tier}&billing=${billing}&price=${price}&leads=${leads}&payment=cancelled`,
       metadata: {
