@@ -13,9 +13,7 @@ interface LeadsReadyRequest {
   name: string;
   leadCount: string;
   city: string;
-  pdfUrl?: string;
   csvUrl?: string;
-  sheetUrl?: string;
   leads?: any[];
   orderId?: string;
 }
@@ -26,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, name, leadCount, city, pdfUrl, csvUrl, sheetUrl, leads, orderId }: LeadsReadyRequest = await req.json();
+    const { email, name, leadCount, city, csvUrl, leads, orderId }: LeadsReadyRequest = await req.json();
 
     console.log("[LEADS-READY] Sending email to:", email);
 
@@ -156,20 +154,18 @@ const handler = async (req: Request): Promise<Response> => {
 
             ${leadsPreviewHtml}
 
-            <p><strong>📥 Download Your Leads Now:</strong></p>
+            <p><strong>📥 Download Your Leads:</strong></p>
             <p style="color: #6b7280; font-size: 14px; margin: 5px 0 15px 0;">
-              PDF report for viewing • CSV file for importing to CRM
+              Open with Google Sheets or Excel → Auto-formatted instantly
             </p>
             
             <div style="margin: 20px 0;">
-              ${pdfUrl ? `<a href="${pdfUrl}" class="cta-button">📄 Download PDF Report</a>` : ''}
-              ${csvUrl ? `<a href="${csvUrl}" class="secondary-button">📊 Download CSV (for CRM)</a>` : ''}
-              ${sheetUrl && !pdfUrl && !csvUrl ? `<a href="${sheetUrl}" class="cta-button">📊 Open Google Sheet</a>` : ''}
+              ${csvUrl ? `<a href="${csvUrl}" class="cta-button">📊 Download Your Leads CSV</a>` : ''}
               <a href="${appBaseUrl}/dashboard" class="secondary-button">🔐 View Dashboard</a>
             </div>
 
             <p style="color: #6b7280; font-size: 14px;">
-              💡 <strong>Pro Tip:</strong> Start calling the leads with the highest property values first - they're more likely to accept competitive offers!
+              💡 <strong>Import tip:</strong> Open with Google Sheets or Excel for instant formatting. Perfect for CRM import!
             </p>
 
             <p><strong>What's Next?</strong></p>
