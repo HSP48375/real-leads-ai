@@ -79,12 +79,15 @@ export type Database = {
           billing_type: string | null
           cities_searched: string[] | null
           created_at: string
+          current_radius: number | null
           customer_email: string | null
           customer_name: string | null
           delivered_at: string | null
           id: string
           lead_count_range: string | null
           leads_count: number | null
+          max_leads: number | null
+          min_leads: number | null
           needs_additional_scraping: boolean | null
           next_delivery_date: string | null
           next_scrape_date: string | null
@@ -93,6 +96,7 @@ export type Database = {
           radius_used: number | null
           refund_amount: number | null
           refund_reason: string | null
+          scrape_attempts: number | null
           scraping_cost: number | null
           search_radius: number
           sheet_url: string | null
@@ -110,12 +114,15 @@ export type Database = {
           billing_type?: string | null
           cities_searched?: string[] | null
           created_at?: string
+          current_radius?: number | null
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
           id?: string
           lead_count_range?: string | null
           leads_count?: number | null
+          max_leads?: number | null
+          min_leads?: number | null
           needs_additional_scraping?: boolean | null
           next_delivery_date?: string | null
           next_scrape_date?: string | null
@@ -124,6 +131,7 @@ export type Database = {
           radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null
+          scrape_attempts?: number | null
           scraping_cost?: number | null
           search_radius?: number
           sheet_url?: string | null
@@ -141,12 +149,15 @@ export type Database = {
           billing_type?: string | null
           cities_searched?: string[] | null
           created_at?: string
+          current_radius?: number | null
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
           id?: string
           lead_count_range?: string | null
           leads_count?: number | null
+          max_leads?: number | null
+          min_leads?: number | null
           needs_additional_scraping?: boolean | null
           next_delivery_date?: string | null
           next_scrape_date?: string | null
@@ -155,6 +166,7 @@ export type Database = {
           radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null
+          scrape_attempts?: number | null
           scraping_cost?: number | null
           search_radius?: number
           sheet_url?: string | null

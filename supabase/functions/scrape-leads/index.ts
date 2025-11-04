@@ -11,6 +11,17 @@ const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 // FSBO.com scraper - ONLY scraper used
 const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 
+// Tier quota definitions
+const TIER_QUOTAS = {
+  starter: { min: 20, max: 25 },
+  growth: { min: 40, max: 50 },
+  scale: { min: 75, max: 100 },
+};
+
+const MAX_RADIUS = 100; // Maximum search radius in miles
+const MAX_SCRAPE_ATTEMPTS = 3; // Maximum number of scrape attempts
+const RADIUS_INCREMENT = 25; // Increase radius by this amount each attempt
+
 const logStep = (step: string, details?: any) => {
   console.log(`[SCRAPE-LEADS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
@@ -68,15 +79,38 @@ serve(async (req) => {
       customerEmail: order.customer_email 
     });
 
-    // Run FSBO.com scraper ONLY
+    // Get tier quotas
+    const tierQuota = TIER_QUOTAS[order.tier as keyof typeof TIER_QUOTAS];
+    if (!tierQuota) {
+      throw new Error(`Invalid tier: ${order.tier}`);
+    }
+
+    // Update order with min/max leads if not set
+    if (!order.min_leads || !order.max_leads) {
+      await supabase
+        .from("orders")
+        .update({
+          min_leads: tierQuota.min,
+          max_leads: tierQuota.max,
+        })
+        .eq("id", orderId);
+    }
+
+    // Initialize or get current scraping state
+    const currentRadius = order.current_radius || order.search_radius || 25;
+    const scrapeAttempts = (order.scrape_attempts || 0) + 1;
+
     logStep("Starting FSBO.com scraper", { 
       city: order.primary_city,
-      actor: FSBO_ACTOR_ID 
+      actor: FSBO_ACTOR_ID,
+      radius: currentRadius,
+      attempt: scrapeAttempts,
+      targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
     const actorInput = {
       searchQueries: [order.primary_city],
-      distanceMiles: order.search_radius || 25, // Use customer's selected radius
+      distanceMiles: currentRadius,
     };
 
     logStep("Calling Apify actor (two-step)", { input: actorInput });
@@ -220,7 +254,24 @@ serve(async (req) => {
       rejected: rawResults.length - validLeads.length 
     });
 
-    // Save leads to database
+    // Calculate total leads including existing ones
+    const { data: existingLeads } = await supabase
+      .from("leads")
+      .select("id", { count: "exact" })
+      .eq("order_id", orderId);
+    
+    const existingCount = existingLeads?.length || 0;
+    const totalLeadsAfterSave = existingCount + validLeads.length;
+
+    logStep("Lead count analysis", {
+      existing: existingCount,
+      newValid: validLeads.length,
+      totalAfterSave: totalLeadsAfterSave,
+      minRequired: tierQuota.min,
+      maxAllowed: tierQuota.max
+    });
+
+    // Save NEW leads to database (don't duplicate)
     if (validLeads.length > 0) {
       const leadsToInsert = validLeads.map(lead => ({
         order_id: lead.orderId,
@@ -248,24 +299,35 @@ serve(async (req) => {
       logStep("Leads saved to database", { count: validLeads.length });
     }
 
-    // Update order with lead count and status
-    await supabase
-      .from("orders")
-      .update({
-        leads_count: validLeads.length,
-        total_leads_delivered: validLeads.length,
-        source_breakdown: { "FSBO.com": validLeads.length },
-        status: "completed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
+    // Check if we've met the minimum quota
+    const quotaMet = totalLeadsAfterSave >= tierQuota.min;
+    const canExpandRadius = currentRadius < MAX_RADIUS && scrapeAttempts < MAX_SCRAPE_ATTEMPTS;
 
-    logStep("Order updated", { leadsDelivered: validLeads.length, status: "completed" });
+    if (!quotaMet && canExpandRadius) {
+      // Need more leads - expand radius and try again
+      const newRadius = Math.min(currentRadius + RADIUS_INCREMENT, MAX_RADIUS);
+      
+      logStep("Quota not met - expanding radius", {
+        current: totalLeadsAfterSave,
+        required: tierQuota.min,
+        currentRadius,
+        newRadius,
+        attempt: scrapeAttempts
+      });
 
-    // Trigger finalize-order to create CSV and send email
-    try {
+      await supabase
+        .from("orders")
+        .update({
+          current_radius: newRadius,
+          scrape_attempts: scrapeAttempts,
+          status: "processing",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      // Trigger another scrape with expanded radius
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      await fetch(`${supabaseUrl}/functions/v1/finalize-order`, {
+      await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -273,20 +335,103 @@ serve(async (req) => {
         },
         body: JSON.stringify({ orderId })
       });
-      logStep("Finalize-order triggered successfully");
-    } catch (e) {
-      logStep("Finalize-order trigger failed", { error: e instanceof Error ? e.message : String(e) });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Expanding search radius for more leads',
+          leadsFound: totalLeadsAfterSave,
+          minRequired: tierQuota.min,
+          nextRadius: newRadius
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'FSBO.com scraping completed successfully',
-        leadsDelivered: validLeads.length,
-        source: "FSBO.com",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Cap at maximum if exceeded
+    const finalLeadCount = Math.min(totalLeadsAfterSave, tierQuota.max);
+
+    // Determine final status
+    let finalStatus: string;
+    let statusReason: string;
+
+    if (totalLeadsAfterSave >= tierQuota.min) {
+      finalStatus = "completed";
+      statusReason = "Quota met";
+    } else {
+      finalStatus = "insufficient_leads";
+      statusReason = `Only found ${totalLeadsAfterSave} leads after ${scrapeAttempts} attempts (required: ${tierQuota.min})`;
+      
+      logStep("INSUFFICIENT LEADS", {
+        found: totalLeadsAfterSave,
+        required: tierQuota.min,
+        maxRadiusReached: currentRadius >= MAX_RADIUS,
+        maxAttemptsReached: scrapeAttempts >= MAX_SCRAPE_ATTEMPTS
+      });
+    }
+
+    // Update order with final status
+    await supabase
+      .from("orders")
+      .update({
+        leads_count: finalLeadCount,
+        total_leads_delivered: finalLeadCount,
+        source_breakdown: { "FSBO.com": finalLeadCount },
+        status: finalStatus,
+        current_radius: currentRadius,
+        scrape_attempts: scrapeAttempts,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    logStep("Order updated", { 
+      leadsDelivered: finalLeadCount, 
+      status: finalStatus,
+      reason: statusReason
+    });
+
+    // Only trigger finalize if order is completed (not insufficient_leads)
+    if (finalStatus === "completed") {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        await fetch(`${supabaseUrl}/functions/v1/finalize-order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ orderId })
+        });
+        logStep("Finalize-order triggered successfully");
+      } catch (e) {
+        logStep("Finalize-order trigger failed", { error: e instanceof Error ? e.message : String(e) });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'FSBO.com scraping completed - quota met',
+          leadsDelivered: finalLeadCount,
+          quota: `${tierQuota.min}-${tierQuota.max}`,
+          source: "FSBO.com",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else {
+      // Insufficient leads - needs manual review
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Insufficient leads found',
+          leadsDelivered: finalLeadCount,
+          minRequired: tierQuota.min,
+          attemptsUsed: scrapeAttempts,
+          maxRadiusReached: currentRadius >= MAX_RADIUS,
+          status: "insufficient_leads"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
