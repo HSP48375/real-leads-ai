@@ -13,8 +13,7 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState<string>("");
   const [isResending, setIsResending] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const { user } = useAuth();
+  const { session, loading } = useAuth();
 
   useEffect(() => {
     // Try to get email from session storage or URL
@@ -29,15 +28,6 @@ const PaymentSuccess = () => {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    // Wait for auth to initialize
-    const timer = setTimeout(() => {
-      setIsAuthLoading(false);
-      console.log('PaymentSuccess - User state:', user ? { id: user.id, email: user.email } : 'No user');
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [user]);
 
   const handleResendEmail = async () => {
     if (!email) {
@@ -81,18 +71,18 @@ const PaymentSuccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {isAuthLoading ? (
+              {loading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
-              ) : user ? (
+              ) : session ? (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1" />
                     <div className="space-y-2">
                       <h3 className="font-semibold text-lg">Welcome Back!</h3>
                       <p className="text-sm text-muted-foreground">
-                        Your leads are being prepared now. You'll receive an email when they're ready (under 60 minutes).
+                        Check your email for your leads (under 60 min).
                       </p>
                     </div>
                   </div>
@@ -101,7 +91,7 @@ const PaymentSuccess = () => {
                       onClick={() => window.location.href = '/dashboard'}
                       className="w-full"
                     >
-                      View Dashboard
+                      Go to Dashboard
                     </Button>
                   </div>
                 </div>
@@ -129,7 +119,7 @@ const PaymentSuccess = () => {
                 </div>
               )}
 
-              {!isAuthLoading && (
+              {!loading && (
                 <div className="space-y-3">
                   <h4 className="font-semibold">What happens next?</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground">
@@ -144,7 +134,7 @@ const PaymentSuccess = () => {
                     <li className="flex items-start gap-2">
                       <span className="text-primary font-bold">•</span>
                       <span>
-                        {user ? (
+                        {session ? (
                           "Check your dashboard to download leads"
                         ) : (
                           "Set your password to access your dashboard and download leads"
@@ -155,7 +145,7 @@ const PaymentSuccess = () => {
                 </div>
               )}
 
-              {!user && (
+              {!session && (
               <div className="pt-4 border-t space-y-3">
                   <Button
                     onClick={handleResendEmail}
