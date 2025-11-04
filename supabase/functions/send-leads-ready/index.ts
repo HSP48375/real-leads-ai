@@ -154,18 +154,45 @@ const handler = async (req: Request): Promise<Response> => {
 
             ${leadsPreviewHtml}
 
-            <p><strong>📥 Download Your Leads:</strong></p>
-            <p style="color: #6b7280; font-size: 14px; margin: 5px 0 15px 0;">
-              Open with Google Sheets or Excel → Auto-formatted instantly
-            </p>
+            <p><strong>📊 STEP 1: Get Free Spreadsheet Software (If You Don't Have It)</strong></p>
+            
+            <div style="background: #f9fafb; border-radius: 6px; padding: 15px; margin: 15px 0;">
+              <p style="margin: 10px 0;"><strong>🌐 ALL USERS - Google Sheets (Easiest - No Download)</strong><br/>
+              <a href="https://sheets.google.com" style="color: #2563eb;">→ https://sheets.google.com</a><br/>
+              <span style="color: #6b7280; font-size: 13px;">Works in your browser. Just upload the CSV. Takes 30 seconds.</span></p>
+
+              <p style="margin: 10px 0;"><strong>🍎 Mac Users - Download Numbers (Free)</strong><br/>
+              <a href="https://apps.apple.com/us/app/numbers/id409203825" style="color: #2563eb;">→ Mac App Store - Numbers</a><br/>
+              <span style="color: #6b7280; font-size: 13px;">Free from Mac App Store. Takes 2 minutes to install.</span></p>
+
+              <p style="margin: 10px 0;"><strong>🪟 Windows Users - Download LibreOffice (Free)</strong><br/>
+              <a href="https://www.libreoffice.org/download/download/" style="color: #2563eb;">→ https://www.libreoffice.org/download/download/</a><br/>
+              <span style="color: #6b7280; font-size: 13px;">Free alternative to Excel. Takes 2 minutes to install.</span></p>
+
+              <p style="margin: 10px 0;"><strong>💼 Have Microsoft Excel? You're all set!</strong><br/>
+              <span style="color: #6b7280; font-size: 13px;">Just right-click the CSV → Open With → Excel</span></p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;"/>
+
+            <p><strong>📥 STEP 2: Download Your Leads</strong></p>
             
             <div style="margin: 20px 0;">
               ${csvUrl ? `<a href="${csvUrl}" class="cta-button">📊 Download Your Leads CSV</a>` : ''}
               <a href="${appBaseUrl}/dashboard" class="secondary-button">🔐 View Dashboard</a>
             </div>
 
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0; font-size: 14px;"><strong>After downloading:</strong></p>
+              <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px; color: #6b7280;">
+                <li><strong>Google Sheets users:</strong> Go to sheets.google.com → File → Import → Upload</li>
+                <li><strong>Numbers/LibreOffice/Excel users:</strong> Right-click file → Open With → [Your Program]</li>
+              </ul>
+              <p style="margin: 10px 0 0 0; font-size: 13px; color: #dc2626;"><strong>⚠️ DON'T</strong> open with TextEdit (Mac) or Notepad (Windows) - you'll only see unformatted text!</p>
+            </div>
+
             <p style="color: #6b7280; font-size: 14px;">
-              💡 <strong>Import tip:</strong> Open with Google Sheets or Excel for instant formatting. Perfect for CRM import!
+              Need help? Just reply to this email and we'll walk you through it!
             </p>
 
             <p><strong>What's Next?</strong></p>
