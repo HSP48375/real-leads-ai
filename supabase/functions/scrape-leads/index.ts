@@ -76,6 +76,7 @@ serve(async (req) => {
 
     const actorInput = {
       searchQueries: [order.primary_city],
+      distanceMiles: order.search_radius || 25, // Use customer's selected radius
     };
 
     logStep("Calling Apify actor (two-step)", { input: actorInput });
