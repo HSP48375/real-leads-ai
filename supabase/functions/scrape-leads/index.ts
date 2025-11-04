@@ -75,16 +75,17 @@ serve(async (req) => {
     });
 
     const actorInput = {
-      searchQueries: [order.primary_city],
-      proxyConfiguration: {
-        apifyProxyGroups: ["RESIDENTIAL"]
-      }
+      addresses: [order.primary_city],
+      maxListingPagesPerQuery: 10,
+      searchRadius: order.search_radius ?? 25,
     };
 
-    logStep("Calling Apify actor", { input: actorInput });
+    logStep("Calling Apify actor (two-step)", { input: actorInput });
 
-    const response = await fetch(
-      `https://api.apify.com/v2/acts/${FSBO_ACTOR_ID}/run-sync-get-dataset-items?token=${APIFY_API_KEY}`,
+    // Start the actor run (use ~ in actor path)
+    const apifyActorPath = FSBO_ACTOR_ID.replace("/", "~");
+    const startRunResp = await fetch(
+      `https://api.apify.com/v2/acts/${apifyActorPath}/runs?token=${APIFY_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,24 +93,83 @@ serve(async (req) => {
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logStep("Apify error", { status: response.status, error: errorText });
-      
+    if (!startRunResp.ok) {
+      const errorText = await startRunResp.text();
+      logStep("Apify start run error", { status: startRunResp.status, error: errorText });
+
       // Mark order as failed
       await supabase
         .from("orders")
-        .update({ 
+        .update({
           status: "failed",
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString(),
         })
         .eq("id", orderId);
-      
-      throw new Error(`Apify actor failed (${response.status}): ${errorText}`);
+
+      throw new Error(`Apify actor start failed (${startRunResp.status}): ${errorText}`);
     }
 
-    const rawResults = await response.json();
-    logStep("Raw results received", { count: rawResults.length });
+    const runStartJson = await startRunResp.json();
+    const runId = runStartJson?.data?.id ?? runStartJson?.id;
+    if (!runId) {
+      logStep("Apify run id missing", { payload: runStartJson });
+      await supabase
+        .from("orders")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      throw new Error("Apify actor returned no runId");
+    }
+    logStep("Apify run started", { runId });
+
+    // Poll run status until completion
+    const maxWaitMs = 8 * 60 * 1000; // 8 minutes to stay within 10-min timeout
+    const pollIntervalMs = 5000;
+    const startTime = Date.now();
+    let runStatus = "RUNNING";
+
+    while (true) {
+      const statusResp = await fetch(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_API_KEY}`
+      );
+      const statusJson = await statusResp.json();
+      runStatus = statusJson?.data?.status ?? statusJson?.status ?? "UNKNOWN";
+      logStep("Apify run status", { runStatus });
+
+      if (runStatus === "SUCCEEDED") break;
+      if (["FAILED", "ABORTED", "TIMED-OUT"].includes(runStatus)) {
+        await supabase
+          .from("orders")
+          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+        throw new Error(`Apify run ended with status: ${runStatus}`);
+      }
+      if (Date.now() - startTime > maxWaitMs) {
+        await supabase
+          .from("orders")
+          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+        throw new Error("Apify run polling timed out");
+      }
+      await new Promise((r) => setTimeout(r, pollIntervalMs));
+    }
+
+    // Fetch dataset items for the completed run
+    const datasetResp = await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${APIFY_API_KEY}`
+    );
+
+    if (!datasetResp.ok) {
+      const errorText = await datasetResp.text();
+      logStep("Apify dataset fetch error", { status: datasetResp.status, error: errorText });
+      await supabase
+        .from("orders")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      throw new Error(`Failed to fetch dataset items (${datasetResp.status}): ${errorText}`);
+    }
+
+    const rawResults = await datasetResp.json();
+    logStep("Raw results received", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
 
     // Parse and validate leads - ONLY save leads with phone numbers
     const validLeads: Lead[] = [];
