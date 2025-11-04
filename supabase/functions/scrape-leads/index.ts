@@ -75,9 +75,7 @@ serve(async (req) => {
     });
 
     const actorInput = {
-      addresses: [order.primary_city],
-      maxListingPagesPerQuery: 10,
-      searchRadius: order.search_radius ?? 25,
+      searchQueries: [order.primary_city],
     };
 
     logStep("Calling Apify actor (two-step)", { input: actorInput });
