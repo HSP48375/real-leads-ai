@@ -170,6 +170,15 @@ serve(async (req) => {
     const rawResults = await datasetResp.json();
     logStep("Raw results received", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
 
+    // Log full raw data structure for analysis
+    if (Array.isArray(rawResults) && rawResults.length > 0) {
+      console.log("=== FULL RAW FSBO.COM DATA ===");
+      console.log("Total items:", rawResults.length);
+      console.log("First item (full structure):", JSON.stringify(rawResults[0], null, 2));
+      console.log("All available fields:", Object.keys(rawResults[0]));
+      console.log("================================");
+    }
+
     // Parse and validate leads - ONLY save leads with phone numbers
     const validLeads: Lead[] = [];
     
