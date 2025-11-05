@@ -375,9 +375,17 @@ const Dashboard = () => {
                         <td className="py-4 px-4 text-sm">{order.leads_count || 0}</td>
                         <td className="py-4 px-4 font-medium">${getPriceForTier(order.tier)}</td>
                         <td className="py-4 px-4">
-                          {order.status === 'delivered' ? (
+                          {order.status === 'completed' ? (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
-                              ✓ Delivered
+                              ✓ Completed
+                            </span>
+                          ) : order.status === 'failed' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
+                              Failed
+                            </span>
+                          ) : order.status === 'insufficient_leads' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500">
+                              Insufficient Leads
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 animate-pulse">

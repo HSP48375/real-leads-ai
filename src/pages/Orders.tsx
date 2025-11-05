@@ -110,7 +110,7 @@ const Orders = () => {
   };
 
   const handleDownload = async (order: any) => {
-    if (order.status !== 'delivered' || !order.sheet_url) {
+    if (order.status !== 'completed' || !order.sheet_url) {
       toast.error('Leads are still being processed');
       return;
     }
@@ -214,12 +214,22 @@ const Orders = () => {
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              order.status === 'delivered'
+                              order.status === 'completed'
                                 ? 'bg-green-500/10 text-green-500'
+                                : order.status === 'failed'
+                                ? 'bg-red-500/10 text-red-500'
+                                : order.status === 'insufficient_leads'
+                                ? 'bg-orange-500/10 text-orange-500'
                                 : 'bg-yellow-500/10 text-yellow-500'
                             }`}
                           >
-                            {order.status === 'delivered' ? 'Delivered' : 'Processing (15-30 min)'}
+                            {order.status === 'completed' 
+                              ? 'Completed' 
+                              : order.status === 'failed'
+                              ? 'Failed'
+                              : order.status === 'insufficient_leads'
+                              ? 'Insufficient Leads'
+                              : 'Processing (15-30 min)'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -227,7 +237,7 @@ const Orders = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => handleDownload(order)}
-                            disabled={order.status !== 'delivered'}
+                            disabled={order.status !== 'completed'}
                           >
                             <Download className="h-4 w-4 mr-2" />
                             Download
