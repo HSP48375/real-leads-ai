@@ -8,8 +8,8 @@ const corsHeaders = {
 
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 
-// FSBO.com scraper - ONLY scraper used
-const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
+// Zillow scraper - for foreclosures, bank owned, and FSBO properties
+const ZILLOW_ACTOR_ID = "maxcopell/zillow-scraper";
 
 // Tier quota definitions
 const TIER_QUOTAS = {
@@ -100,23 +100,29 @@ serve(async (req) => {
     const currentRadius = order.current_radius || order.search_radius || 25;
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    logStep("Starting FSBO.com scraper", { 
+    logStep("Starting Zillow scraper", { 
       city: order.primary_city,
-      actor: FSBO_ACTOR_ID,
-      radius: currentRadius,
+      actor: ZILLOW_ACTOR_ID,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
+    // Build search queries for Zillow (foreclosure, bank owned, FSBO)
+    const cityState = order.primary_city; // e.g. "Detroit MI"
     const actorInput = {
-      searchQueries: [order.primary_city],
-      distanceMiles: currentRadius,
+      searchQueries: [
+        `${cityState} foreclosure`,
+        `${cityState} bank owned`,
+        `${cityState} FSBO`
+      ],
+      extractionMethod: "PAGINATION_WITH_ZOOM_IN",
+      maxItems: 200
     };
 
-    logStep("Calling Apify actor (two-step)", { input: actorInput });
+    logStep("Calling Apify Zillow actor", { input: actorInput });
 
     // Start the actor run (use ~ in actor path)
-    const apifyActorPath = FSBO_ACTOR_ID.replace("/", "~");
+    const apifyActorPath = ZILLOW_ACTOR_ID.replace("/", "~");
     const startRunResp = await fetch(
       `https://api.apify.com/v2/acts/${apifyActorPath}/runs?token=${APIFY_API_KEY}`,
       {
@@ -206,41 +212,43 @@ serve(async (req) => {
 
     // Log full raw data structure for analysis
     if (Array.isArray(rawResults) && rawResults.length > 0) {
-      console.log("=== FULL RAW FSBO.COM DATA ===");
+      console.log("=== FULL RAW ZILLOW DATA ===");
       console.log("Total items:", rawResults.length);
       console.log("First item (full structure):", JSON.stringify(rawResults[0], null, 2));
       console.log("All available fields:", Object.keys(rawResults[0]));
       console.log("================================");
     }
 
-    // Parse and validate leads - ONLY save leads with phone numbers
+    // Parse and validate leads - Zillow returns phone in various formats
     const validLeads: Lead[] = [];
     
     for (const item of rawResults) {
-      // Validate phone field is present and non-empty
-      if (!item.phone || item.phone.trim() === "") {
-        logStep("Skipping lead without phone", { address: item.address1 });
+      // Zillow may have phone in different fields - check common ones
+      const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+      
+      if (!phoneField || phoneField.trim() === "") {
+        logStep("Skipping lead without phone", { address: item.address || item.streetAddress });
         continue;
       }
 
-      // Parse seller name into first/last
-      const sellerParts = (item.seller || "").trim().split(/\s+/);
-      const firstName = sellerParts[0] || "";
-      const lastName = sellerParts.slice(1).join(" ") || "";
-
       // Strip formatting from phone (keep digits only)
-      const cleanPhone = item.phone.replace(/\D/g, "");
+      const cleanPhone = phoneField.replace(/\D/g, "");
+      
+      if (cleanPhone.length < 10) {
+        logStep("Skipping lead with invalid phone", { phone: phoneField });
+        continue;
+      }
 
       const lead: Lead = {
-        firstName,
-        lastName,
+        firstName: item.agentName || "",
+        lastName: "",
         phone: cleanPhone,
-        address: item.address1 || "",
+        address: item.address || item.streetAddress || "",
         city: item.city || "",
         state: item.state || "",
-        zip: item.zipcode || "",
-        price: item.price ? item.price.toString() : "",
-        leadType: "FSBO",
+        zip: item.zipcode || item.zip || "",
+        price: item.price || item.listPrice || "",
+        leadType: item.propertyType || "Zillow",
         orderId: orderId,
         createdAt: new Date().toISOString()
       };
@@ -274,28 +282,33 @@ serve(async (req) => {
     // Save NEW leads to database (don't duplicate)
     if (validLeads.length > 0) {
       const leadsToInsert = rawResults
-        .filter((item: any) => item.phone && item.phone.trim() !== "")
+        .filter((item: any) => {
+          const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+          const cleanPhone = phoneField.replace(/\D/g, "");
+          return cleanPhone.length >= 10;
+        })
         .map((item: any) => {
-          const fullAddress = [item.address1, item.address2].filter(Boolean).join(", ");
-          const cleanPhone = (item.phone || "").replace(/\D/g, "");
+          const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+          const cleanPhone = phoneField.replace(/\D/g, "");
+          const fullAddress = item.address || item.streetAddress || "";
           
           return {
             order_id: orderId,
-            seller_name: item.seller || "Unknown",
+            seller_name: item.agentName || item.brokerName || "Unknown",
             contact: cleanPhone,
             address: fullAddress,
             city: item.city || null,
             state: item.state || null,
-            zip: item.zipcode || null,
-            price: item.price || item.askingPrice || null,
-            url: item.url || null,
-            source: "FSBO.com",
-            source_type: "fsbo",
-            date_listed: new Date().toISOString(),
-            listing_title: item.title || null,
-            address_line_1: item.address1 || null,
-            address_line_2: item.address2 || null,
-            zipcode: item.zipcode || null,
+            zip: item.zipcode || item.zip || null,
+            price: item.price || item.listPrice || null,
+            url: item.url || item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : null,
+            source: "Zillow",
+            source_type: item.propertyType || "zillow",
+            date_listed: item.dateSold || item.listingDate || new Date().toISOString(),
+            listing_title: item.description || null,
+            address_line_1: fullAddress,
+            address_line_2: null,
+            zipcode: item.zipcode || item.zip || null,
           };
         });
 
@@ -319,18 +332,15 @@ serve(async (req) => {
       // Need more leads - expand radius and try again
       const newRadius = Math.min(currentRadius + RADIUS_INCREMENT, MAX_RADIUS);
       
-      logStep("Quota not met - expanding radius", {
+      logStep("Quota not met - will retry", {
         current: totalLeadsAfterSave,
         required: tierQuota.min,
-        currentRadius,
-        newRadius,
         attempt: scrapeAttempts
       });
 
       await supabase
         .from("orders")
         .update({
-          current_radius: newRadius,
           scrape_attempts: scrapeAttempts,
           status: "processing",
           updated_at: new Date().toISOString(),
@@ -351,10 +361,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Expanding search radius for more leads',
+          message: 'Retrying Zillow scrape for more leads',
           leadsFound: totalLeadsAfterSave,
           minRequired: tierQuota.min,
-          nextRadius: newRadius
+          attempt: scrapeAttempts
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -388,9 +398,8 @@ serve(async (req) => {
       .update({
         leads_count: finalLeadCount,
         total_leads_delivered: finalLeadCount,
-        source_breakdown: { "FSBO.com": finalLeadCount },
+        source_breakdown: { "Zillow": finalLeadCount },
         status: finalStatus,
-        current_radius: currentRadius,
         scrape_attempts: scrapeAttempts,
         updated_at: new Date().toISOString(),
       })
@@ -422,10 +431,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'FSBO.com scraping completed - quota met',
+          message: 'Zillow scraping completed - quota met',
           leadsDelivered: finalLeadCount,
           quota: `${tierQuota.min}-${tierQuota.max}`,
-          source: "FSBO.com",
+          source: "Zillow",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
