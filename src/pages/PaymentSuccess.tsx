@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import AnimatedArrow from "@/components/AnimatedArrow";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -104,8 +105,11 @@ const PaymentSuccess = () => {
           </Card>
 
           {/* CSV Format Info Card */}
-          <Card className="border-primary/20 shadow-lg mt-6">
-            <CardContent className="pt-6 space-y-4">
+          <div className="relative mt-6">
+            <AnimatedArrow direction="left" />
+            <AnimatedArrow direction="right" />
+            <Card className="border-primary/20 shadow-lg relative animate-pulse-subtle">
+              <CardContent className="pt-6 space-y-4">
               <div className="text-center space-y-3">
                 <div className="text-4xl mb-2">📊</div>
                 <h4 className="font-semibold text-lg">Your Leads Will Arrive as CSV Format</h4>
@@ -129,6 +133,7 @@ const PaymentSuccess = () => {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
       <Footer />

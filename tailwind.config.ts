@@ -111,6 +111,14 @@ export default {
             opacity: "0.85",
           },
         },
+        "pulse-subtle": {
+          "0%, 100%": {
+            boxShadow: "0 0 20px hsl(51 100% 60% / 0.2)",
+          },
+          "50%": {
+            boxShadow: "0 0 30px hsl(51 100% 60% / 0.4)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -118,6 +126,7 @@ export default {
         "fade-in": "fade-in 0.6s ease-out",
         "shimmer": "shimmer 3s linear infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
       },
     },
   },
