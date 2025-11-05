@@ -245,15 +245,14 @@ serve(async (req) => {
       );
     }
 
-    // Handle payment_intent.succeeded (fallback path)
+    // Handle payment_intent.succeeded (DISABLED - checkout.session.completed handles all order creation)
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as Stripe.PaymentIntent;
-      console.log("payment_intent.succeeded:", {
-        amountCents: pi.amount,
-        currency: pi.currency,
-        status: pi.status,
+      console.log("payment_intent.succeeded received - checking if order exists:", {
+        payment_intent: pi.id,
       });
 
+      // Check if order already exists (created by checkout.session.completed)
       const { data: existing, error: findError } = await supabase
         .from("orders")
         .select("id")
@@ -265,205 +264,36 @@ serve(async (req) => {
       }
 
       if (existing && existing.length > 0) {
-        console.log("Order already exists for payment_intent; skipping insert.", {
+        console.log("✅ Order already exists from checkout.session.completed; skipping duplicate.", {
           orderId: existing[0].id,
           payment_intent: pi.id,
         });
         return new Response(
-          JSON.stringify({ received: true, skipped: true }),
+          JSON.stringify({ received: true, skipped: true, reason: "order_exists" }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
 
-      try {
-        const sessions = await stripe.checkout.sessions.list({ payment_intent: pi.id, limit: 1 });
-        const session = sessions.data[0];
+      // If no order exists, log warning but don't create (checkout.session.completed should have handled it)
+      console.warn("⚠️ payment_intent.succeeded received but no order found - checkout.session.completed may have failed");
+      return new Response(
+        JSON.stringify({ received: true, skipped: true, reason: "no_checkout_session" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
 
-        if (!session) {
-          console.error("No checkout session found for payment_intent:", pi.id);
-          return new Response(
-            JSON.stringify({ received: true, sessionFound: false }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // Reuse same insertion logic as checkout.session.completed
-        const metadata = session.metadata || {};
-        const tier = metadata.tier ?? metadata.plan ?? "starter";
-        const billing = metadata.billing ?? (session.mode === "subscription" ? "monthly" : "onetime");
-        const leads = metadata.leads ?? null;
-        const primary_city = metadata.primary_city ?? metadata.city ?? "";
-        const search_radius = parseInt(metadata.search_radius ?? metadata.radius ?? "50", 10);
-        const additional_cities = (() => {
-          try { return JSON.parse(metadata.additional_cities || "[]"); } catch { return []; }
-        })();
-        const name = metadata.name ?? metadata.customer_name ?? session.customer_details?.name ?? null;
-        const email = session.customer_email ?? session.customer_details?.email ?? metadata.email ?? null;
-        const price_paid = typeof session.amount_total === "number"
-          ? Math.round(session.amount_total / 100)
-          : (metadata.price ? parseInt(metadata.price, 10) : null);
-        const status = session.payment_status === "paid" ? "processing" : "pending";
-        const nextDeliveryDate = billing === "monthly"
-          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          : null;
-
-        const { data: order, error: insertError } = await supabase
-          .from("orders")
-          .insert({
-            customer_name: name,
-            customer_email: email,
-            primary_city,
-            search_radius,
-            additional_cities,
-            tier,
-            billing_type: billing,
-            price_paid,
-            lead_count_range: leads,
-            status,
-            stripe_payment_intent_id: (session.payment_intent as string) || session.id,
-            stripe_subscription_id: (session.subscription as string) || null,
-            next_delivery_date: nextDeliveryDate,
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error("Failed to create order from payment_intent.succeeded:", insertError);
-          throw new Error(`Failed to create order: ${insertError.message}`);
-        }
-
-        console.log("Order created from payment_intent.succeeded:", {
-          orderIdPrefix: order.id.substring(0, 8) + "...",
-          tier: metadata.tier,
-        });
-
-        return new Response(
-          JSON.stringify({ received: true, orderId: order.id }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      } catch (e) {
-        console.error("Error handling payment_intent.succeeded:", e);
-        return new Response(
-          JSON.stringify({ received: true, error: "payment_intent handler error" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
     }
 
-    // Handle charge.succeeded (additional fallback)
+    // Handle charge.succeeded (DISABLED - no order creation)
     if (event.type === "charge.succeeded") {
       const charge = event.data.object as Stripe.Charge;
-      const piId = typeof charge.payment_intent === "string"
-        ? charge.payment_intent
-        : (charge.payment_intent as any)?.id;
-      console.log("charge.succeeded:", {
-        amountCents: charge.amount,
-        currency: charge.currency,
-        paid: charge.paid,
+      console.log("charge.succeeded received - ignoring (handled by checkout.session.completed)", {
+        charge_id: charge.id,
+        payment_intent: charge.payment_intent,
       });
-
-      if (!piId) {
-        console.error("charge.succeeded without payment_intent id");
-        return new Response(
-          JSON.stringify({ received: true, missingPaymentIntent: true }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      const { data: existing, error: findError2 } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("stripe_payment_intent_id", piId)
-        .limit(1);
-
-      if (findError2) {
-        console.error("Error checking existing order for charge:", findError2);
-      }
-
-      if (existing && existing.length > 0) {
-        console.log("Order already exists for charge/payment_intent; skipping insert.", {
-          orderId: existing[0].id,
-          payment_intent: piId,
-        });
-        return new Response(
-          JSON.stringify({ received: true, skipped: true }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      try {
-        const sessions = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
-        const session = sessions.data[0];
-
-        if (!session) {
-          console.error("No checkout session found for charge/payment_intent:", piId);
-          return new Response(
-            JSON.stringify({ received: true, sessionFound: false }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        const metadata = session.metadata || {};
-        const tier = metadata.tier ?? metadata.plan ?? "starter";
-        const billing = metadata.billing ?? (session.mode === "subscription" ? "monthly" : "onetime");
-        const leads = metadata.leads ?? null;
-        const primary_city = metadata.primary_city ?? metadata.city ?? "";
-        const search_radius = parseInt(metadata.search_radius ?? metadata.radius ?? "50", 10);
-        const additional_cities = (() => {
-          try { return JSON.parse(metadata.additional_cities || "[]"); } catch { return []; }
-        })();
-        const name = metadata.name ?? metadata.customer_name ?? session.customer_details?.name ?? null;
-        const email = session.customer_email ?? session.customer_details?.email ?? metadata.email ?? null;
-        const price_paid = typeof session.amount_total === "number"
-          ? Math.round(session.amount_total / 100)
-          : (metadata.price ? parseInt(metadata.price, 10) : null);
-        const status = session.payment_status === "paid" ? "processing" : "pending";
-        const nextDeliveryDate = billing === "monthly"
-          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          : null;
-
-        const { data: order, error: insertError } = await supabase
-          .from("orders")
-          .insert({
-            customer_name: name,
-            customer_email: email,
-            primary_city,
-            search_radius,
-            additional_cities,
-            tier,
-            billing_type: billing,
-            price_paid,
-            lead_count_range: leads,
-            status,
-            stripe_payment_intent_id: (session.payment_intent as string) || session.id,
-            stripe_subscription_id: (session.subscription as string) || null,
-            next_delivery_date: nextDeliveryDate,
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error("Failed to create order from charge.succeeded:", insertError);
-          throw new Error(`Failed to create order: ${insertError.message}`);
-        }
-
-        console.log("Order created from charge.succeeded:", {
-          orderId: order.id,
-          payment_intent: piId,
-          sessionId: session.id,
-        });
-
-        return new Response(
-          JSON.stringify({ received: true, orderId: order.id }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      } catch (e) {
-        console.error("Error handling charge.succeeded:", e);
-        return new Response(
-          JSON.stringify({ received: true, error: "charge handler error" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
+      return new Response(
+        JSON.stringify({ received: true, skipped: true, reason: "handled_by_checkout" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(JSON.stringify({ received: true }), {

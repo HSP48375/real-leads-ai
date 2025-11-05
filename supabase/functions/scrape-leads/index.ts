@@ -124,10 +124,8 @@ serve(async (req) => {
       proxy: { useApifyProxy: true },
       extendOutputFunction: "($) => { return {}; }"
     } : {
-      searchQueries: [
-        `${cityState} foreclosure`,
-        `${cityState} bank owned`,
-        `${cityState} FSBO`
+      searchUrls: [
+        `https://www.zillow.com/homes/${cityState.replace(' ', '-')}_rb/?searchQueryState=%7B%22usersSearchTerm%22%3A%22${encodeURIComponent(cityState)}%22%7D`,
       ],
       extractionMethod: "PAGINATION_WITH_ZOOM_IN",
       maxItems: 200
