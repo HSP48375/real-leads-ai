@@ -8,8 +8,9 @@ const corsHeaders = {
 
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 
-// Zillow scraper - for foreclosures, bank owned, and FSBO properties
+// Scrapers - for foreclosures, bank owned, and FSBO properties
 const ZILLOW_ACTOR_ID = "maxcopell/zillow-scraper";
+const REALTOR_ACTOR_ID = "epctex/realtor-scraper";
 
 // Tier quota definitions
 const TIER_QUOTAS = {
@@ -100,16 +101,29 @@ serve(async (req) => {
     const currentRadius = order.current_radius || order.search_radius || 25;
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    logStep("Starting Zillow scraper", { 
+    // Determine which scraper to use (alternate to maximize coverage)
+    const useRealtorScraper = scrapeAttempts % 2 === 0;
+    const actorId = useRealtorScraper ? REALTOR_ACTOR_ID : ZILLOW_ACTOR_ID;
+    
+    logStep(`Starting ${useRealtorScraper ? 'Realtor' : 'Zillow'} scraper`, { 
       city: order.primary_city,
-      actor: ZILLOW_ACTOR_ID,
+      actor: actorId,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    // Build search queries for Zillow (foreclosure, bank owned, FSBO)
     const cityState = order.primary_city; // e.g. "Detroit MI"
-    const actorInput = {
+    
+    // Build actor input based on scraper type
+    const actorInput = useRealtorScraper ? {
+      search: `${cityState} foreclosure OR bankOwned OR auction OR forSaleByOwner`,
+      startUrls: [],
+      maxItems: 200,
+      endPage: 10,
+      includeFloorplans: false,
+      proxy: { useApifyProxy: true },
+      extendOutputFunction: "($) => { return {}; }"
+    } : {
       searchQueries: [
         `${cityState} foreclosure`,
         `${cityState} bank owned`,
@@ -119,10 +133,10 @@ serve(async (req) => {
       maxItems: 200
     };
 
-    logStep("Calling Apify Zillow actor", { input: actorInput });
+    logStep(`Calling Apify ${useRealtorScraper ? 'Realtor' : 'Zillow'} actor`, { input: actorInput });
 
     // Start the actor run (use ~ in actor path)
-    const apifyActorPath = ZILLOW_ACTOR_ID.replace("/", "~");
+    const apifyActorPath = actorId.replace("/", "~");
     const startRunResp = await fetch(
       `https://api.apify.com/v2/acts/${apifyActorPath}/runs?token=${APIFY_API_KEY}`,
       {
@@ -219,12 +233,17 @@ serve(async (req) => {
       console.log("================================");
     }
 
-    // Parse and validate leads - Zillow returns phone in various formats
+    // Parse and validate leads - different format per scraper
     const validLeads: Lead[] = [];
     
     for (const item of rawResults) {
-      // Zillow may have phone in different fields - check common ones
-      const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+      // Extract phone based on scraper type
+      let phoneField = "";
+      if (useRealtorScraper) {
+        phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
+      } else {
+        phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+      }
       
       if (!phoneField || phoneField.trim() === "") {
         logStep("Skipping lead without phone", { address: item.address || item.streetAddress });
@@ -240,15 +259,15 @@ serve(async (req) => {
       }
 
       const lead: Lead = {
-        firstName: item.agentName || "",
-        lastName: "",
+        firstName: useRealtorScraper ? (item.agent?.name || "").split(" ")[0] : (item.agentName || ""),
+        lastName: useRealtorScraper ? (item.agent?.name || "").split(" ").slice(1).join(" ") : "",
         phone: cleanPhone,
-        address: item.address || item.streetAddress || "",
-        city: item.city || "",
-        state: item.state || "",
-        zip: item.zipcode || item.zip || "",
-        price: item.price || item.listPrice || "",
-        leadType: item.propertyType || "Zillow",
+        address: item.address || item.streetAddress || item.location?.address?.line || "",
+        city: item.city || item.location?.address?.city || "",
+        state: item.state || item.location?.address?.state_code || "",
+        zip: item.zipcode || item.zip || item.location?.address?.postal_code || "",
+        price: item.price || item.listPrice || item.list_price || "",
+        leadType: useRealtorScraper ? (item.status || "Realtor") : (item.propertyType || "Zillow"),
         orderId: orderId,
         createdAt: new Date().toISOString()
       };
@@ -283,32 +302,52 @@ serve(async (req) => {
     if (validLeads.length > 0) {
       const leadsToInsert = rawResults
         .filter((item: any) => {
-          const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+          let phoneField = "";
+          if (useRealtorScraper) {
+            phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
+          } else {
+            phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+          }
           const cleanPhone = phoneField.replace(/\D/g, "");
           return cleanPhone.length >= 10;
         })
         .map((item: any) => {
-          const phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+          let phoneField = "";
+          let sellerName = "Unknown";
+          let fullAddress = "";
+          let sourceUrl = null;
+          
+          if (useRealtorScraper) {
+            phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
+            sellerName = item.agent?.name || "Unknown";
+            fullAddress = item.location?.address?.line || item.address || "";
+            sourceUrl = item.permalink || null;
+          } else {
+            phoneField = item.phone || item.contactPhone || item.agentPhone || "";
+            sellerName = item.agentName || item.brokerName || "Unknown";
+            fullAddress = item.address || item.streetAddress || "";
+            sourceUrl = item.url || (item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : null);
+          }
+          
           const cleanPhone = phoneField.replace(/\D/g, "");
-          const fullAddress = item.address || item.streetAddress || "";
           
           return {
             order_id: orderId,
-            seller_name: item.agentName || item.brokerName || "Unknown",
+            seller_name: sellerName,
             contact: cleanPhone,
             address: fullAddress,
-            city: item.city || null,
-            state: item.state || null,
-            zip: item.zipcode || item.zip || null,
-            price: item.price || item.listPrice || null,
-            url: item.url || item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : null,
-            source: "Zillow",
-            source_type: item.propertyType || "zillow",
-            date_listed: item.dateSold || item.listingDate || new Date().toISOString(),
+            city: useRealtorScraper ? (item.location?.address?.city || null) : (item.city || null),
+            state: useRealtorScraper ? (item.location?.address?.state_code || null) : (item.state || null),
+            zip: useRealtorScraper ? (item.location?.address?.postal_code || null) : (item.zipcode || item.zip || null),
+            price: item.price || item.listPrice || item.list_price || null,
+            url: sourceUrl,
+            source: useRealtorScraper ? "Realtor" : "Zillow",
+            source_type: useRealtorScraper ? (item.status || "realtor") : (item.propertyType || "zillow"),
+            date_listed: item.dateSold || item.listingDate || item.list_date || new Date().toISOString(),
             listing_title: item.description || null,
             address_line_1: fullAddress,
             address_line_2: null,
-            zipcode: item.zipcode || item.zip || null,
+            zipcode: useRealtorScraper ? (item.location?.address?.postal_code || null) : (item.zipcode || item.zip || null),
           };
         });
 
@@ -392,13 +431,26 @@ serve(async (req) => {
       });
     }
 
+    // Calculate source breakdown
+    const { data: sourceStats } = await supabase
+      .from("leads")
+      .select("source")
+      .eq("order_id", orderId);
+    
+    const sourceBreakdown: Record<string, number> = {};
+    if (sourceStats) {
+      for (const lead of sourceStats) {
+        sourceBreakdown[lead.source] = (sourceBreakdown[lead.source] || 0) + 1;
+      }
+    }
+
     // Update order with final status
     await supabase
       .from("orders")
       .update({
         leads_count: finalLeadCount,
         total_leads_delivered: finalLeadCount,
-        source_breakdown: { "Zillow": finalLeadCount },
+        source_breakdown: sourceBreakdown,
         status: finalStatus,
         scrape_attempts: scrapeAttempts,
         updated_at: new Date().toISOString(),
@@ -431,10 +483,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Zillow scraping completed - quota met',
+          message: 'Scraping completed - quota met',
           leadsDelivered: finalLeadCount,
           quota: `${tierQuota.min}-${tierQuota.max}`,
-          source: "Zillow",
+          sources: sourceBreakdown,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
