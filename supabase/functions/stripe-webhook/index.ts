@@ -205,24 +205,16 @@ serve(async (req) => {
 
       // Trigger native lead scraping automation
       try {
-        console.log("Triggering scrape-leads...");
+        console.log("Triggering scrape-leads for order:", order.id);
         
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        
-        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-          },
-          body: JSON.stringify({ orderId: order.id }),
+        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('scrape-leads', {
+          body: { orderId: order.id },
         });
 
-        if (!scrapeResponse.ok) {
-          console.error("Failed to trigger scrape-leads, status:", scrapeResponse.status);
+        if (scrapeError) {
+          console.error("Failed to trigger scrape-leads:", scrapeError);
         } else {
-          console.log("Lead scraping started successfully");
+          console.log("Lead scraping started successfully:", scrapeData);
         }
       } catch (scrapeError) {
         console.error("Error triggering scrape-leads:", scrapeError instanceof Error ? scrapeError.message : String(scrapeError));
@@ -290,22 +282,15 @@ serve(async (req) => {
       // Trigger native lead scraping automation for renewal
       try {
         console.log("Triggering scrape-leads for renewal order:", newOrder.id);
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
         
-        const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-          },
-          body: JSON.stringify({ orderId: newOrder.id }),
+        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('scrape-leads', {
+          body: { orderId: newOrder.id },
         });
 
-        if (!scrapeResponse.ok) {
-          console.error("Failed to trigger scrape-leads for renewal:", await scrapeResponse.text());
+        if (scrapeError) {
+          console.error("Failed to trigger scrape-leads for renewal:", scrapeError);
         } else {
-          console.log("Lead scraping automation started successfully for renewal");
+          console.log("Lead scraping automation started successfully for renewal:", scrapeData);
         }
       } catch (scrapeError) {
         console.error("Error triggering scrape-leads for renewal:", scrapeError);
