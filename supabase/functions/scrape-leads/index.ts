@@ -333,10 +333,38 @@ function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
   const normalized = cityStateInput.replace(/,/g, '').trim();
   const parts = normalized.split(/\s+/);
   
+  // Validate: Must have at least 2 parts (city + state)
+  if (parts.length < 2) {
+    logStep("ERROR: Invalid city format", { 
+      input: cityStateInput, 
+      error: "Missing state abbreviation" 
+    });
+    throw new Error(`Invalid city format: "${cityStateInput}". Must include state (e.g., "Detroit MI")`);
+  }
+  
   // Last part is state, everything else is city
   const state = parts[parts.length - 1].toLowerCase();
   const cityParts = parts.slice(0, -1);
   const cityName = cityParts.join(' ');
+  
+  // Validate state code (should be 2 letters)
+  if (state.length !== 2 || !/^[a-z]{2}$/.test(state)) {
+    logStep("ERROR: Invalid state code", { 
+      input: cityStateInput, 
+      state, 
+      error: "State must be 2-letter abbreviation" 
+    });
+    throw new Error(`Invalid state code: "${state}". Must be 2-letter abbreviation (e.g., MI, CA, NY)`);
+  }
+  
+  // Validate city name is not empty
+  if (!cityName || cityName.trim().length === 0) {
+    logStep("ERROR: Missing city name", { 
+      input: cityStateInput, 
+      error: "City name is empty" 
+    });
+    throw new Error(`Missing city name in: "${cityStateInput}"`);
+  }
   
   // Build Craigslist subdomain (remove spaces, lowercase)
   const craigslistSubdomain = cityName.toLowerCase().replace(/\s+/g, '');
@@ -425,8 +453,38 @@ serve(async (req) => {
 
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    // Parse city and build dynamic URLs
-    const cityUrls = parseCityAndBuildUrls(order.primary_city);
+    // Parse city and build dynamic URLs with error handling
+    let cityUrls: CityUrlMapping;
+    try {
+      cityUrls = parseCityAndBuildUrls(order.primary_city);
+    } catch (parseError) {
+      const errorMsg = parseError instanceof Error ? parseError.message : "Invalid city format";
+      logStep("ERROR: City parsing failed", { 
+        city: order.primary_city, 
+        error: errorMsg 
+      });
+      
+      // Update order with error
+      await supabase
+        .from("orders")
+        .update({
+          status: "failed",
+          error_message: errorMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      return new Response(
+        JSON.stringify({ 
+          error: errorMsg,
+          hint: 'City must be in format: "City State" (e.g., "Detroit MI", "Los Angeles CA")'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
 
     logStep("Starting multi-source scrape", { 
       city: order.primary_city,

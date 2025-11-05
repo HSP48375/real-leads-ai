@@ -34,6 +34,7 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastOrderData, setLastOrderData] = useState<any>(null);
+  const [cityError, setCityError] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -44,6 +45,31 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     billing: orderParams.billing,
     price: orderParams.price
   });
+
+  // Validate city format (must be "City, State" or "City State")
+  const validateCityFormat = (city: string): boolean => {
+    if (!city.trim()) return false;
+    
+    // Remove commas and normalize whitespace
+    const normalized = city.replace(/,/g, '').trim();
+    const parts = normalized.split(/\s+/);
+    
+    // Must have at least 2 parts (city name and state)
+    if (parts.length < 2) {
+      setCityError("Please include state (e.g., 'Detroit MI' or 'Los Angeles, CA')");
+      return false;
+    }
+    
+    // Last part should be a 2-letter state code
+    const stateCode = parts[parts.length - 1];
+    if (stateCode.length !== 2 || !/^[A-Za-z]{2}$/.test(stateCode)) {
+      setCityError("State must be 2-letter abbreviation (e.g., MI, CA, NY)");
+      return false;
+    }
+    
+    setCityError("");
+    return true;
+  };
 
   // Fetch user profile and last order on mount for logged-in users
   useEffect(() => {
@@ -147,6 +173,17 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
 
     try {
       console.log("Submitting order:", formData);
+
+      // Validate city format before proceeding
+      if (!validateCityFormat(formData.primary_city)) {
+        toast({
+          title: "Invalid City Format",
+          description: cityError || "Please enter city in format: City, State (e.g., Detroit MI)",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       // Check if email exists for guest checkout
       if (!user) {
@@ -356,15 +393,28 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="primary_city">Primary City</Label>
+                  <Label htmlFor="primary_city">
+                    Primary City <span className="text-muted-foreground text-sm">(Required format: City, State)</span>
+                  </Label>
                   <Input
                     id="primary_city"
                     type="text"
                     value={formData.primary_city}
-                    onChange={(e) => setFormData({ ...formData, primary_city: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, primary_city: e.target.value });
+                      if (e.target.value) validateCityFormat(e.target.value);
+                    }}
+                    onBlur={(e) => validateCityFormat(e.target.value)}
                     required
-                    placeholder="Detroit, Ann Arbor, Lansing"
+                    placeholder="Detroit MI or Los Angeles, CA"
+                    className={cityError ? "border-destructive" : ""}
                   />
+                  {cityError && (
+                    <p className="text-sm text-destructive">{cityError}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Examples: Detroit MI • Los Angeles, CA • Phoenix AZ
+                  </p>
                 </div>
 
                 <div className="space-y-2">
