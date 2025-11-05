@@ -324,7 +324,6 @@ function deduplicateLeads(leads: Lead[]): Lead[] {
 
 interface CityUrlMapping {
   craigslistSubdomain: string;
-  facebookCity: string;
   buyownerCity: string;
   state: string;
 }
@@ -342,9 +341,6 @@ function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
   // Build Craigslist subdomain (remove spaces, lowercase)
   const craigslistSubdomain = cityName.toLowerCase().replace(/\s+/g, '');
   
-  // Build Facebook city (URL encoded, lowercase)
-  const facebookCity = encodeURIComponent(cityName.toLowerCase().replace(/\s+/g, '-'));
-  
   // Build BuyOwner city (hyphenated, lowercase)
   const buyownerCity = cityName.toLowerCase().replace(/\s+/g, '-');
   
@@ -352,13 +348,11 @@ function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
     input: cityStateInput,
     parsed: { city: cityName, state },
     craigslist: craigslistSubdomain,
-    facebook: facebookCity,
     buyowner: buyownerCity
   });
   
   return {
     craigslistSubdomain,
-    facebookCity,
     buyownerCity,
     state
   };
@@ -442,8 +436,8 @@ serve(async (req) => {
 
     // Build dynamic URLs for each source
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const facebookUrl = `https://www.facebook.com/marketplace/${cityUrls.facebookCity}/search/?query=house%20for%20sale%20by%20owner`;
-    const buyownerUrl = `https://www.buyowner.com/${cityUrls.state}/${cityUrls.buyownerCity}-real-estate`;
+    const facebookUrl = `https://www.facebook.com/marketplace/search/?query=house%20for%20sale%20by%20owner&exact=false`;
+    const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
 
     logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
 
