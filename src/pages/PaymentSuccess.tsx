@@ -71,97 +71,35 @@ const PaymentSuccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : session ? (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1" />
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">Welcome Back!</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Check your email for your leads (under 60 min).
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-4">
+              <div className="space-y-6 max-w-lg mx-auto">
+                <h4 className="font-semibold text-xl text-center">What happens next?</h4>
+                <ul className="space-y-4 text-base text-muted-foreground">
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl">•</span>
+                    <span>Your leads are being prepared now</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl">•</span>
+                    <span>You'll receive an email when ready (under 60 min)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl">•</span>
+                    <span>Check your dashboard to download leads</span>
+                  </li>
+                </ul>
+                
+                {session && (
+                  <div className="pt-4 text-center">
                     <Button 
                       onClick={() => window.location.href = '/dashboard'}
-                      className="w-full"
+                      size="lg"
+                      className="w-full max-w-xs"
                     >
                       Go to Dashboard
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">Check Your Email</h3>
-                      {email && (
-                        <p className="text-sm text-muted-foreground">
-                          We sent an email to <span className="font-medium text-foreground">{email}</span>
-                        </p>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        Click the <strong>"Set Password"</strong> button in the email to:
-                      </p>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                        <li>Create your account password</li>
-                        <li>Access your dashboard</li>
-                        <li>View your order status</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!loading && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold">What happens next?</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">•</span>
-                      <span>Your leads are being prepared now</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">•</span>
-                      <span>You'll receive an email when ready (under 60 min)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">•</span>
-                      <span>
-                        {session ? (
-                          "Check your dashboard to download leads"
-                        ) : (
-                          "Set your password to access your dashboard and download leads"
-                        )}
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-              )}
-
-              {!session && (
-              <div className="pt-4 border-t space-y-3">
-                  <Button
-                    onClick={handleResendEmail}
-                    variant="outline"
-                    className="w-full"
-                    disabled={isResending || !email}
-                  >
-                    {isResending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Resend Email
-                  </Button>
-                  
-                  <p className="text-xs text-center text-muted-foreground">
-                    Didn't receive the email? Check your spam folder or click Resend.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
 
