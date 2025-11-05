@@ -124,8 +124,8 @@ serve(async (req) => {
       proxy: { useApifyProxy: true },
       extendOutputFunction: "($) => { return {}; }"
     } : {
-      searchUrls: [
-        `https://www.zillow.com/homes/${cityState.replace(' ', '-')}_rb/?searchQueryState=%7B%22usersSearchTerm%22%3A%22${encodeURIComponent(cityState)}%22%7D`,
+      startUrls: [
+        { url: `https://www.zillow.com/${cityState.toLowerCase().replace(/,/g, '').replace(/\s+/g, '-')}/` }
       ],
       extractionMethod: "PAGINATION_WITH_ZOOM_IN",
       maxItems: 200

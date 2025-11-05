@@ -73,6 +73,26 @@ serve(async (req) => {
         }
       }
 
+      // Idempotency guard: ensure we only create one order per Payment Intent / session
+      const piId = (session.payment_intent as string) || session.id;
+      const { data: existingByPi, error: existingCheckError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('stripe_payment_intent_id', piId)
+        .maybeSingle();
+
+      if (existingCheckError) {
+        console.warn('Existing order check error:', existingCheckError.message);
+      }
+
+      if (existingByPi) {
+        console.log('Idempotency: order already exists, skipping creation', { orderId: existingByPi.id, piId });
+        return new Response(
+          JSON.stringify({ received: true, skipped: true, reason: 'order_exists', orderId: existingByPi.id }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -88,7 +108,7 @@ serve(async (req) => {
           lead_count_range: leads,
           status,
           // Persist PI when available; fallback to session id for traceability
-          stripe_payment_intent_id: (session.payment_intent as string) || session.id,
+          stripe_payment_intent_id: piId,
           stripe_subscription_id: (session.subscription as string) || null,
           next_delivery_date: nextDeliveryDate,
         })
@@ -96,6 +116,22 @@ serve(async (req) => {
         .single();
 
       if (orderError) {
+        // Treat unique violations as idempotent success
+        const msg = orderError.message || '';
+        if (msg.includes('duplicate') || msg.includes('already exists') || (orderError as any).code === '23505') {
+          const { data: existing } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('stripe_payment_intent_id', piId)
+            .maybeSingle();
+          if (existing?.id) {
+            console.log('Duplicate insert avoided via DB constraint - returning existing order');
+            return new Response(
+              JSON.stringify({ received: true, skipped: true, reason: 'order_exists', orderId: existing.id }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        }
         console.error("Failed to create order from checkout.session.completed:", orderError);
         throw new Error(`Failed to create order: ${orderError.message}`);
       }
