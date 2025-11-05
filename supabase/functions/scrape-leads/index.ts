@@ -9,8 +9,8 @@ const corsHeaders = {
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 const OLOSTEP_API_KEY = Deno.env.get("OLOSTEP_API_KEY");
 
-// FSBO scraper only for Apify
-const FSBO_ACTOR_ID = "apify/fsbo-scraper";
+// FSBO scraper only for Apify - correct actor ID with 108 successful runs
+const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 
 // Tier quota definitions
 const TIER_QUOTAS = {
@@ -68,75 +68,113 @@ const LEAD_EXTRACTION_SCHEMA = {
   }
 };
 
-async function scrapeWithOlostep(url: string, source: string): Promise<Lead[]> {
-  logStep(`Scraping ${source}`, { url });
+async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): Promise<Lead[]> {
+  const RETRY_DELAY_MS = 30000; // 30 seconds between retries
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    logStep(`Scraping ${source}`, { url, attempt, maxRetries });
 
-  if (!OLOSTEP_API_KEY) {
-    logStep(`Olostep API key missing for ${source}`);
-    return [];
-  }
-
-  try {
-    const response = await fetch("https://api.olostep.com/v1/scrapes", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        jsonSchema: LEAD_EXTRACTION_SCHEMA
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logStep(`Olostep error for ${source}`, { status: response.status, error: errorText });
+    if (!OLOSTEP_API_KEY) {
+      logStep(`Olostep API key missing for ${source}`);
       return [];
     }
 
-    const data = await response.json();
-    logStep(`Olostep response for ${source}`, { data });
+    try {
+      const response = await fetch("https://api.olostep.com/v1/scrapes", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          jsonSchema: LEAD_EXTRACTION_SCHEMA
+        }),
+      });
 
-    const leads: Lead[] = [];
-    const extractedLeads = data?.leads || data?.data?.leads || [];
-
-    for (const item of extractedLeads) {
-      // Require either phone or email
-      const phone = item.phone?.replace(/\D/g, "") || "";
-      const email = item.email || "";
-
-      if (!phone && !email) {
-        logStep(`Skipping ${source} lead without contact`, { address: item.address });
-        continue;
+      if (!response.ok) {
+        const errorText = await response.text();
+        const isTimeout = response.status === 504;
+        
+        logStep(`Olostep error for ${source}`, { 
+          status: response.status, 
+          error: errorText,
+          isTimeout,
+          attempt,
+          willRetry: isTimeout && attempt < maxRetries
+        });
+        
+        // If timeout and we have retries left, wait and try again
+        if (isTimeout && attempt < maxRetries) {
+          logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          continue; // Try next attempt
+        }
+        
+        return []; // Give up after retries exhausted or non-timeout error
       }
 
-      leads.push({
-        order_id: "", // Will be set later
-        seller_name: item.owner_name || "Unknown",
-        contact: phone || email,
-        address: item.address || "",
-        city: item.city || undefined,
-        state: item.state || undefined,
-        zip: item.zip || undefined,
-        price: item.price || undefined,
-        url: url,
-        source: source,
-        source_type: "fsbo",
-        date_listed: new Date().toISOString(),
-        listing_title: undefined,
-        address_line_1: item.address || undefined,
-        address_line_2: undefined,
-        zipcode: item.zip || undefined,
-      });
-    }
+      const data = await response.json();
+      logStep(`Olostep response for ${source}`, { data, attempt });
 
-    logStep(`${source} leads extracted`, { count: leads.length });
-    return leads;
-  } catch (error) {
-    logStep(`${source} scraping failed`, { error: error instanceof Error ? error.message : String(error) });
-    return [];
+      const leads: Lead[] = [];
+      const extractedLeads = data?.leads || data?.data?.leads || [];
+
+      for (const item of extractedLeads) {
+        // Require either phone or email
+        const phone = item.phone?.replace(/\D/g, "") || "";
+        const email = item.email || "";
+
+        if (!phone && !email) {
+          logStep(`Skipping ${source} lead without contact`, { address: item.address });
+          continue;
+        }
+
+        leads.push({
+          order_id: "", // Will be set later
+          seller_name: item.owner_name || "Unknown",
+          contact: phone || email,
+          address: item.address || "",
+          city: item.city || undefined,
+          state: item.state || undefined,
+          zip: item.zip || undefined,
+          price: item.price || undefined,
+          url: url,
+          source: source,
+          source_type: "fsbo",
+          date_listed: new Date().toISOString(),
+          listing_title: undefined,
+          address_line_1: item.address || undefined,
+          address_line_2: undefined,
+          zipcode: item.zip || undefined,
+        });
+      }
+
+      logStep(`${source} leads extracted successfully`, { count: leads.length, attempt });
+      return leads; // Success - return the leads
+      
+    } catch (error) {
+      const willRetry = attempt < maxRetries;
+      logStep(`${source} scraping exception`, { 
+        error: error instanceof Error ? error.message : String(error),
+        attempt,
+        willRetry
+      });
+      
+      // Wait before retrying if we have attempts left
+      if (willRetry) {
+        logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        continue;
+      }
+      
+      return []; // All retries exhausted
+    }
   }
+  
+  // Should never reach here, but just in case
+  logStep(`${source} - all retries exhausted`);
+  return [];
 }
 
 async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
