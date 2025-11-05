@@ -285,7 +285,7 @@ serve(async (req) => {
             contact: cleanPhone,
             address: fullAddress,
             city: item.city || null,
-            state: null,
+            state: item.state || null,
             zip: item.zipcode || null,
             price: item.price || item.askingPrice || null,
             url: item.url || null,
