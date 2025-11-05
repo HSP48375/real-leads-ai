@@ -95,6 +95,7 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           delivered_at: string | null
+          error_message: string | null
           id: string
           lead_count_range: string | null
           leads_count: number | null
@@ -104,6 +105,7 @@ export type Database = {
           next_delivery_date: string | null
           next_scrape_date: string | null
           price_paid: number | null
+          price_tier: string | null
           primary_city: string
           radius_used: number | null
           refund_amount: number | null
@@ -115,11 +117,13 @@ export type Database = {
           source_breakdown: Json | null
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           stripe_subscription_id: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered: number | null
           updated_at: string
           user_id: string | null
+          webhook_processed_at: string | null
         }
         Insert: {
           additional_cities?: string[] | null
@@ -130,6 +134,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
+          error_message?: string | null
           id?: string
           lead_count_range?: string | null
           leads_count?: number | null
@@ -139,6 +144,7 @@ export type Database = {
           next_delivery_date?: string | null
           next_scrape_date?: string | null
           price_paid?: number | null
+          price_tier?: string | null
           primary_city?: string
           radius_used?: number | null
           refund_amount?: number | null
@@ -150,11 +156,13 @@ export type Database = {
           source_breakdown?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           stripe_subscription_id?: string | null
           tier: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string
           user_id?: string | null
+          webhook_processed_at?: string | null
         }
         Update: {
           additional_cities?: string[] | null
@@ -165,6 +173,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           delivered_at?: string | null
+          error_message?: string | null
           id?: string
           lead_count_range?: string | null
           leads_count?: number | null
@@ -174,6 +183,7 @@ export type Database = {
           next_delivery_date?: string | null
           next_scrape_date?: string | null
           price_paid?: number | null
+          price_tier?: string | null
           primary_city?: string
           radius_used?: number | null
           refund_amount?: number | null
@@ -185,11 +195,34 @@ export type Database = {
           source_breakdown?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           stripe_subscription_id?: string | null
           tier?: Database["public"]["Enums"]["pricing_tier"]
           total_leads_delivered?: number | null
           updated_at?: string
           user_id?: string | null
+          webhook_processed_at?: string | null
+        }
+        Relationships: []
+      }
+      processed_webhook_events: {
+        Row: {
+          created: string | null
+          id: string
+          stripe_event_id: string
+          type: string
+        }
+        Insert: {
+          created?: string | null
+          id?: string
+          stripe_event_id: string
+          type: string
+        }
+        Update: {
+          created?: string | null
+          id?: string
+          stripe_event_id?: string
+          type?: string
         }
         Relationships: []
       }
