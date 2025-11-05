@@ -134,9 +134,31 @@ serve(async (req) => {
       extendOutputFunction: "($) => { return {}; }"
     } : {
       searchUrls: [
-        { url: `https://www.zillow.com/${cityState.toLowerCase().replace(/,/g, '').replace(/\s+/g, '-')}/` }
+        { 
+          url: `https://www.zillow.com/homes/for_sale/?searchQueryState=${encodeURIComponent(JSON.stringify({
+            isMapVisible: true,
+            mapBounds: {
+              north: 42.5,
+              south: 42.0,
+              east: -83.0,
+              west: -83.5
+            },
+            filterState: {
+              isForSaleByOwner: { value: true },
+              isForeclosure: { value: true },
+              isPreForeclosure: { value: true },
+              isAuction: { value: true }
+            },
+            isListVisible: true,
+            regionSelection: [{
+              regionId: cityState,
+              regionType: 6
+            }]
+          }))}` 
+        }
       ],
-      maxItems: 200
+      maxItems: 200,
+      extractionMethod: "PAGINATION_WITH_ZOOM_IN"
     };
 
     logStep(`Calling Apify ${useRealtorScraper ? 'Realtor' : 'Zillow'} actor`, { input: actorInput });
