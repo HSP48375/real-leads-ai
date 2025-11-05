@@ -1,25 +1,73 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import OrderForm from "@/components/OrderForm";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PricingTierSelector, { allTiers } from "@/components/PricingTierSelector";
 
 const Order = () => {
   const [searchParams] = useSearchParams();
   
-  // Extract all order params from URL
+  // Initialize state from URL params or defaults
+  const initialTier = searchParams.get("tier") || "growth";
+  const initialBilling = (searchParams.get("billing") as 'onetime' | 'monthly') || "onetime";
+  const initialPrice = parseInt(searchParams.get("price") || "197");
+  const initialLeads = searchParams.get("leads") || "40-50";
+
+  const [selectedTier, setSelectedTier] = useState(initialTier);
+  const [billingType, setBillingType] = useState<'onetime' | 'monthly'>(initialBilling);
+  const [price, setPrice] = useState(initialPrice);
+  const [leads, setLeads] = useState(initialLeads);
+
+  const handleTierSelect = (tierValue: string, tierPrice: number, tierLeads: string) => {
+    setSelectedTier(tierValue);
+    setPrice(tierPrice);
+    setLeads(tierLeads);
+  };
+
+  const handleBillingChange = (billing: 'onetime' | 'monthly') => {
+    setBillingType(billing);
+    
+    // Update price based on new billing type
+    const tier = allTiers.find(t => t.tierValue === selectedTier);
+    if (tier) {
+      const newPrice = billing === 'onetime' ? tier.price : tier.monthly;
+      setPrice(newPrice);
+    }
+  };
+
   const orderParams = {
-    tier: searchParams.get("tier") || "growth",
-    billing: searchParams.get("billing") as 'onetime' | 'monthly' || "onetime",
-    price: parseInt(searchParams.get("price") || "197"),
-    leads: searchParams.get("leads") || "40-50"
+    tier: selectedTier,
+    billing: billingType,
+    price: price,
+    leads: leads
   };
 
   return (
     <div className="min-h-screen relative bg-background">
       <Header />
-      <div className="pt-20">
-        <OrderForm orderParams={orderParams} />
+      <div className="pt-20 pb-12">
+        <div className="container px-4">
+          <div className="grid lg:grid-cols-[380px_1fr] gap-8 max-w-7xl mx-auto">
+            {/* Left Sidebar - Pricing Tiers */}
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <PricingTierSelector
+                selectedTier={selectedTier}
+                billingType={billingType}
+                onTierSelect={handleTierSelect}
+                onBillingChange={handleBillingChange}
+              />
+            </div>
+
+            {/* Right Side - Order Form */}
+            <div>
+              <OrderForm 
+                orderParams={orderParams}
+                onTierChange={handleTierSelect}
+              />
+            </div>
+          </div>
+        </div>
       </div>
       <Footer />
     </div>

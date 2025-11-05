@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Check, ArrowLeft, RotateCcw } from "lucide-react";
+import { Loader2, Check, RotateCcw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +22,11 @@ interface OrderParams {
   billing: 'onetime' | 'monthly';
   price: number;
   leads: string;
+}
+
+interface OrderFormProps {
+  orderParams: OrderParams;
+  onTierChange?: (tierValue: string, price: number, leads: string) => void;
 }
 
 const US_STATES = [
@@ -77,11 +82,7 @@ const US_STATES = [
   { code: "WY", name: "Wyoming" }
 ];
 
-interface OrderFormProps {
-  orderParams: OrderParams;
-}
-
-const OrderForm = ({ orderParams }: OrderFormProps) => {
+const OrderForm = ({ orderParams, onTierChange }: OrderFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -293,26 +294,9 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
 
   const features = tierFeatures[orderParams.tier] || [];
   
-  const scrollToPricing = () => {
-    const element = document.getElementById('pricing');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      navigate('/', { state: { scrollTo: 'pricing' } });
-    }
-  };
-  
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <Button
-        variant="ghost"
-        onClick={scrollToPricing}
-        className="mb-6 text-primary hover:text-primary/90"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Change Plan
-      </Button>
-      <div className="grid md:grid-cols-2 gap-8">
+    <div className="space-y-6">
+      <div className="grid md:grid-cols-2 gap-6">
         {/* Order Summary */}
         <GlowingCard>
           <Card className="border-0 h-full">
