@@ -322,6 +322,48 @@ function deduplicateLeads(leads: Lead[]): Lead[] {
   return deduplicated;
 }
 
+interface CityUrlMapping {
+  craigslistSubdomain: string;
+  facebookCity: string;
+  buyownerCity: string;
+  state: string;
+}
+
+function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
+  // Handle formats: "Los Angeles, CA", "Los Angeles CA", "Detroit MI"
+  const normalized = cityStateInput.replace(/,/g, '').trim();
+  const parts = normalized.split(/\s+/);
+  
+  // Last part is state, everything else is city
+  const state = parts[parts.length - 1].toLowerCase();
+  const cityParts = parts.slice(0, -1);
+  const cityName = cityParts.join(' ');
+  
+  // Build Craigslist subdomain (remove spaces, lowercase)
+  const craigslistSubdomain = cityName.toLowerCase().replace(/\s+/g, '');
+  
+  // Build Facebook city (URL encoded, lowercase)
+  const facebookCity = encodeURIComponent(cityName.toLowerCase().replace(/\s+/g, '-'));
+  
+  // Build BuyOwner city (hyphenated, lowercase)
+  const buyownerCity = cityName.toLowerCase().replace(/\s+/g, '-');
+  
+  logStep("City URL mapping", {
+    input: cityStateInput,
+    parsed: { city: cityName, state },
+    craigslist: craigslistSubdomain,
+    facebook: facebookCity,
+    buyowner: buyownerCity
+  });
+  
+  return {
+    craigslistSubdomain,
+    facebookCity,
+    buyownerCity,
+    state
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -389,29 +431,25 @@ serve(async (req) => {
 
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    // Parse city for URL building
-    const cityState = order.primary_city; // e.g. "Detroit MI"
-    const cityParts = cityState.split(" ");
-    const city = cityParts[0].toLowerCase(); // "detroit"
-    const state = cityParts[1]?.toLowerCase() || ""; // "mi"
+    // Parse city and build dynamic URLs
+    const cityUrls = parseCityAndBuildUrls(order.primary_city);
 
     logStep("Starting multi-source scrape", { 
-      city,
-      state,
+      city: order.primary_city,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    // Build optimized URLs for each source
-    const craigslistUrl = `https://${city}.craigslist.org/search/rea?query=owner`;
-    const facebookUrl = `https://www.facebook.com/marketplace/${city}/search/?query=house%20for%20sale%20by%20owner`;
-    const buyownerUrl = `https://www.buyowner.com/${state}/${city}-real-estate`;
+    // Build dynamic URLs for each source
+    const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
+    const facebookUrl = `https://www.facebook.com/marketplace/${cityUrls.facebookCity}/search/?query=house%20for%20sale%20by%20owner`;
+    const buyownerUrl = `https://www.buyowner.com/${cityUrls.state}/${cityUrls.buyownerCity}-real-estate`;
 
     logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
 
     // Run all 4 scrapers in parallel - don't fail entire order if one fails
     const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
-      scrapeWithApifyFSBO(cityState).catch(err => {
+      scrapeWithApifyFSBO(order.primary_city).catch(err => {
         logStep("FSBO scraper failed", { error: err.message });
         return [];
       }),
