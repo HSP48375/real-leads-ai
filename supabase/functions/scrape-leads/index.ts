@@ -134,7 +134,7 @@ serve(async (req) => {
       extendOutputFunction: "($) => { return {}; }"
     } : {
       searchUrls: [
-        `https://www.zillow.com/${cityState.toLowerCase().replace(/,/g, '').replace(/\s+/g, '-')}/`
+        { url: `https://www.zillow.com/${cityState.toLowerCase().replace(/,/g, '').replace(/\s+/g, '-')}/` }
       ],
       maxItems: 200
     };
