@@ -30,6 +30,35 @@ serve(async (req) => {
 
     console.log("Webhook event received:", event.type);
 
+    // ✅ CRITICAL: IDEMPOTENCY CHECK - PREVENT DUPLICATE EVENT PROCESSING
+    const { data: existingEvent } = await supabase
+      .from('processed_webhook_events')
+      .select('id')
+      .eq('stripe_event_id', event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`✅ Webhook event ${event.id} already processed, skipping`);
+      return new Response(JSON.stringify({ received: true, skipped: true, reason: 'already_processed' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ✅ STORE EVENT IMMEDIATELY TO PREVENT RACE CONDITIONS
+    const { error: insertError } = await supabase
+      .from('processed_webhook_events')
+      .insert({
+        stripe_event_id: event.id,
+        type: event.type,
+        created: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('Failed to store webhook event:', insertError);
+      // Continue processing even if we can't store the event, but log it
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata || {};
@@ -111,6 +140,10 @@ serve(async (req) => {
           stripe_payment_intent_id: piId,
           stripe_subscription_id: (session.subscription as string) || null,
           next_delivery_date: nextDeliveryDate,
+          // ✅ NEW: Store session ID and webhook timestamp for idempotency
+          stripe_session_id: session.id,
+          webhook_processed_at: new Date().toISOString(),
+          price_tier: tier,
         })
         .select()
         .single();

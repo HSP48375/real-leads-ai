@@ -80,6 +80,15 @@ serve(async (req) => {
       customerEmail: order.customer_email 
     });
 
+    // ✅ UPDATE ORDER STATUS TO SCRAPING_STARTED
+    await supabase
+      .from("orders")
+      .update({ 
+        status: "processing", 
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", orderId);
+
     // Get tier quotas
     const tierQuota = TIER_QUOTAS[order.tier as keyof typeof TIER_QUOTAS];
     if (!tierQuota) {
@@ -149,26 +158,33 @@ serve(async (req) => {
       logStep("Apify start run error", { status: startRunResp.status, error: errorText });
 
       // Mark order as failed
+      const errorMsg = `Apify actor start failed (${startRunResp.status}): ${errorText}`;
       await supabase
         .from("orders")
         .update({
           status: "failed",
+          error_message: errorMsg,
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId);
 
-      throw new Error(`Apify actor start failed (${startRunResp.status}): ${errorText}`);
+      throw new Error(errorMsg);
     }
 
     const runStartJson = await startRunResp.json();
     const runId = runStartJson?.data?.id ?? runStartJson?.id;
     if (!runId) {
       logStep("Apify run id missing", { payload: runStartJson });
+      const errorMsg = "Apify actor returned no runId";
       await supabase
         .from("orders")
-        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .update({ 
+          status: "failed", 
+          error_message: errorMsg,
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", orderId);
-      throw new Error("Apify actor returned no runId");
+      throw new Error(errorMsg);
     }
     logStep("Apify run started", { runId });
 
@@ -188,18 +204,28 @@ serve(async (req) => {
 
       if (runStatus === "SUCCEEDED") break;
       if (["FAILED", "ABORTED", "TIMED-OUT"].includes(runStatus)) {
+        const errorMsg = `Apify run ended with status: ${runStatus}`;
         await supabase
           .from("orders")
-          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .update({ 
+            status: "failed", 
+            error_message: errorMsg,
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", orderId);
-        throw new Error(`Apify run ended with status: ${runStatus}`);
+        throw new Error(errorMsg);
       }
       if (Date.now() - startTime > maxWaitMs) {
+        const errorMsg = "Apify run polling timed out";
         await supabase
           .from("orders")
-          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .update({ 
+            status: "failed", 
+            error_message: errorMsg,
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", orderId);
-        throw new Error("Apify run polling timed out");
+        throw new Error(errorMsg);
       }
       await new Promise((r) => setTimeout(r, pollIntervalMs));
     }
@@ -212,11 +238,16 @@ serve(async (req) => {
     if (!datasetResp.ok) {
       const errorText = await datasetResp.text();
       logStep("Apify dataset fetch error", { status: datasetResp.status, error: errorText });
+      const errorMsg = `Failed to fetch dataset items (${datasetResp.status}): ${errorText}`;
       await supabase
         .from("orders")
-        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .update({ 
+          status: "failed", 
+          error_message: errorMsg,
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", orderId);
-      throw new Error(`Failed to fetch dataset items (${datasetResp.status}): ${errorText}`);
+      throw new Error(errorMsg);
     }
 
     const rawResults = await datasetResp.json();
@@ -515,6 +546,7 @@ serve(async (req) => {
           .from("orders")
           .update({ 
             status: "failed",
+            error_message: errorMessage,
             updated_at: new Date().toISOString() 
           })
           .eq("id", orderId);
