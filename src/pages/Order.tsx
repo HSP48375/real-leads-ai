@@ -48,24 +48,20 @@ const Order = () => {
       <Header />
       <div className="pt-20 pb-12">
         <div className="container px-4">
-          <div className="grid lg:grid-cols-[380px_1fr] gap-8 max-w-7xl mx-auto">
-            {/* Left Sidebar - Pricing Tiers */}
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              <PricingTierSelector
-                selectedTier={selectedTier}
-                billingType={billingType}
-                onTierSelect={handleTierSelect}
-                onBillingChange={handleBillingChange}
-              />
-            </div>
+          <div className="max-w-3xl mx-auto space-y-8">
+            {/* Section 1: Toggle */}
+            <PricingTierSelector
+              selectedTier={selectedTier}
+              billingType={billingType}
+              onTierSelect={handleTierSelect}
+              onBillingChange={handleBillingChange}
+            />
 
-            {/* Right Side - Order Form */}
-            <div>
-              <OrderForm 
-                orderParams={orderParams}
-                onTierChange={handleTierSelect}
-              />
-            </div>
+            {/* Section 2 & 3: Order Form with Benefits */}
+            <OrderForm 
+              orderParams={orderParams}
+              onTierChange={handleTierSelect}
+            />
           </div>
         </div>
       </div>

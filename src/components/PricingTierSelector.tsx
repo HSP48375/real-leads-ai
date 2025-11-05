@@ -1,6 +1,14 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PricingTier {
   name: string;
@@ -96,90 +104,81 @@ const PricingTierSelector = ({
   onBillingChange 
 }: PricingTierSelectorProps) => {
   
+  const handleTierChange = (value: string) => {
+    const tier = allTiers.find(t => t.tierValue === value);
+    if (tier) {
+      const price = billingType === 'onetime' ? tier.price : tier.monthly;
+      onTierSelect(tier.tierValue, price, tier.leads);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Select Your Plan</h2>
-        <p className="text-sm text-muted-foreground">Choose the tier that fits your needs</p>
+        <h2 className="text-2xl font-bold mb-2">Select Your New Leads</h2>
+        <p className="text-sm text-muted-foreground">Choose your plan and billing preference</p>
       </div>
 
       {/* Billing Toggle */}
-      <div className="inline-flex items-center gap-2 p-1 bg-card/60 backdrop-blur-glass border border-primary/20 rounded-full shadow-lg w-full">
-        <button
-          type="button"
-          onClick={() => onBillingChange('onetime')}
-          className={cn(
-            "flex-1 px-4 py-2 rounded-full font-semibold transition-all text-sm",
-            billingType === 'onetime'
-              ? 'bg-primary text-primary-foreground shadow-gold'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          One-Time
-        </button>
-        <button
-          type="button"
-          onClick={() => onBillingChange('monthly')}
-          className={cn(
-            "flex-1 px-4 py-2 rounded-full font-semibold transition-all text-sm",
-            billingType === 'monthly'
-              ? 'bg-primary text-primary-foreground shadow-gold'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Monthly
-        </button>
+      <div>
+        <Label className="text-sm font-medium mb-3 block">Billing Type</Label>
+        <div className="inline-flex items-center gap-2 p-1 bg-card/60 backdrop-blur-glass border border-primary/20 rounded-lg shadow-lg w-full">
+          <button
+            type="button"
+            onClick={() => onBillingChange('onetime')}
+            className={cn(
+              "flex-1 px-4 py-2.5 rounded-md font-semibold transition-all text-sm",
+              billingType === 'onetime'
+                ? 'bg-primary text-primary-foreground shadow-gold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            One-Time Purchase
+          </button>
+          <button
+            type="button"
+            onClick={() => onBillingChange('monthly')}
+            className={cn(
+              "flex-1 px-4 py-2.5 rounded-md font-semibold transition-all text-sm",
+              billingType === 'monthly'
+                ? 'bg-primary text-primary-foreground shadow-gold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Monthly Subscription
+          </button>
+        </div>
       </div>
 
-      {/* Tier Cards */}
-      <div className="space-y-4">
-        {allTiers.map((tier) => {
-          const isSelected = selectedTier === tier.tierValue;
-          const currentPrice = billingType === 'onetime' ? tier.price : tier.monthly;
-          
-          return (
-            <Card 
-              key={tier.tierValue}
-              className={cn(
-                "relative cursor-pointer transition-all duration-300 hover:shadow-lg",
-                isSelected 
-                  ? "border-primary border-2 shadow-gold-glow bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              )}
-              onClick={() => onTierSelect(tier.tierValue, currentPrice, tier.leads)}
-            >
-              {tier.popular && (
-                <div className="absolute top-0 right-4 -translate-y-1/2 px-2 py-0.5 bg-primary rounded-full shadow-gold">
-                  <span className="text-[9px] font-bold text-primary-foreground">POPULAR</span>
-                </div>
-              )}
-              
-              <CardHeader className="pb-3 pt-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base font-bold">{tier.name}</CardTitle>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-2xl font-bold">${currentPrice}</span>
-                      {billingType === 'monthly' && (
-                        <span className="text-xs text-muted-foreground">/mo</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{tier.leads} leads</p>
+      {/* Tier Dropdown */}
+      <div>
+        <Label htmlFor="tier-select" className="text-sm font-medium mb-3 block">
+          Select Plan
+        </Label>
+        <Select value={selectedTier} onValueChange={handleTierChange}>
+          <SelectTrigger className="w-full h-12 text-base bg-card/60 backdrop-blur-glass border-primary/20">
+            <SelectValue placeholder="Choose your plan" />
+          </SelectTrigger>
+          <SelectContent className="bg-card backdrop-blur-glass">
+            {allTiers.map((tier) => {
+              const price = billingType === 'onetime' ? tier.price : tier.monthly;
+              return (
+                <SelectItem 
+                  key={tier.tierValue} 
+                  value={tier.tierValue}
+                  className="text-base py-3"
+                >
+                  <div className="flex items-center justify-between w-full gap-4">
+                    <span className="font-semibold">{tier.name}</span>
+                    <span className="text-muted-foreground">
+                      ${price}{billingType === 'monthly' ? '/mo' : ''} • {tier.leads} leads
+                    </span>
                   </div>
-                  
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                    isSelected 
-                      ? "border-primary bg-primary" 
-                      : "border-muted-foreground"
-                  )}>
-                    {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          );
-        })}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
