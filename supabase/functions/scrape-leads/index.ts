@@ -274,8 +274,8 @@ serve(async (req) => {
     // Save NEW leads to database (don't duplicate)
     if (validLeads.length > 0) {
       const leadsToInsert = rawResults
-        .filter(item => item.phone && item.phone.trim() !== "")
-        .map(item => {
+        .filter((item: any) => item.phone && item.phone.trim() !== "")
+        .map((item: any) => {
           const fullAddress = [item.address1, item.address2].filter(Boolean).join(", ");
           const cleanPhone = (item.phone || "").replace(/\D/g, "");
           
