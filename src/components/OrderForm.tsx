@@ -24,6 +24,59 @@ interface OrderParams {
   leads: string;
 }
 
+const US_STATES = [
+  { code: "AL", name: "Alabama" },
+  { code: "AK", name: "Alaska" },
+  { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" },
+  { code: "CA", name: "California" },
+  { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" },
+  { code: "DE", name: "Delaware" },
+  { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" },
+  { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" },
+  { code: "IN", name: "Indiana" },
+  { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" },
+  { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" },
+  { code: "ME", name: "Maine" },
+  { code: "MD", name: "Maryland" },
+  { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" },
+  { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" },
+  { code: "MT", name: "Montana" },
+  { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" },
+  { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" },
+  { code: "NM", name: "New Mexico" },
+  { code: "NY", name: "New York" },
+  { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" },
+  { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" },
+  { code: "PA", name: "Pennsylvania" },
+  { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" },
+  { code: "SD", name: "South Dakota" },
+  { code: "TN", name: "Tennessee" },
+  { code: "TX", name: "Texas" },
+  { code: "UT", name: "Utah" },
+  { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" },
+  { code: "WA", name: "Washington" },
+  { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" },
+  { code: "WY", name: "Wyoming" }
+];
+
 interface OrderFormProps {
   orderParams: OrderParams;
 }
@@ -34,11 +87,11 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastOrderData, setLastOrderData] = useState<any>(null);
-  const [cityError, setCityError] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    primary_city: "",
+    city: "",
+    state: "",
     search_radius: "25",
     additional_cities: "",
     tier: orderParams.tier,
@@ -46,30 +99,6 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     price: orderParams.price
   });
 
-  // Validate city format (must be "City, State" or "City State")
-  const validateCityFormat = (city: string): boolean => {
-    if (!city.trim()) return false;
-    
-    // Remove commas and normalize whitespace
-    const normalized = city.replace(/,/g, '').trim();
-    const parts = normalized.split(/\s+/);
-    
-    // Must have at least 2 parts (city name and state)
-    if (parts.length < 2) {
-      setCityError("Please include state (e.g., 'Detroit MI' or 'Los Angeles, CA')");
-      return false;
-    }
-    
-    // Last part should be a 2-letter state code
-    const stateCode = parts[parts.length - 1];
-    if (stateCode.length !== 2 || !/^[A-Za-z]{2}$/.test(stateCode)) {
-      setCityError("State must be 2-letter abbreviation (e.g., MI, CA, NY)");
-      return false;
-    }
-    
-    setCityError("");
-    return true;
-  };
 
   // Fetch user profile and last order on mount for logged-in users
   useEffect(() => {
@@ -104,7 +133,8 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
           ...prev,
           name: lastOrder.customer_name || profile?.full_name || "",
           email: user!.email || lastOrder.customer_email || "",
-          primary_city: lastOrder.primary_city || "",
+          city: lastOrder.primary_city || "",
+          state: lastOrder.primary_state || "",
           search_radius: lastOrder.search_radius?.toString() || "25",
           additional_cities: lastOrder.additional_cities?.join(", ") || "",
         }));
@@ -125,7 +155,8 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     if (lastOrderData) {
       setFormData(prev => ({
         ...prev,
-        primary_city: lastOrderData.primary_city || "",
+        city: lastOrderData.primary_city || "",
+        state: lastOrderData.primary_state || "",
         search_radius: lastOrderData.search_radius?.toString() || "25",
         additional_cities: lastOrderData.additional_cities?.join(", ") || "",
       }));
@@ -174,11 +205,11 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
     try {
       console.log("Submitting order:", formData);
 
-      // Validate city format before proceeding
-      if (!validateCityFormat(formData.primary_city)) {
+      // Validate required fields
+      if (!formData.city || !formData.state) {
         toast({
-          title: "Invalid City Format",
-          description: cityError || "Please enter city in format: City, State (e.g., Detroit MI)",
+          title: "Missing Required Fields",
+          description: "Please fill in both city and state.",
           variant: "destructive",
         });
         setIsSubmitting(false);
@@ -220,7 +251,8 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
           billing: formData.billing,
           price: formData.price,
           leads: orderParams.leads,
-          primary_city: formData.primary_city,
+          city: formData.city,
+          state: formData.state,
           search_radius: parseInt(formData.search_radius),
           additional_cities: additionalCitiesArray,
           name: formData.name,
@@ -393,35 +425,43 @@ const OrderForm = ({ orderParams }: OrderFormProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="primary_city">
-                    Primary City <span className="text-muted-foreground text-sm">(Required format: City, State)</span>
-                  </Label>
+                  <Label htmlFor="city">City *</Label>
                   <Input
-                    id="primary_city"
+                    id="city"
                     type="text"
-                    value={formData.primary_city}
-                    onChange={(e) => {
-                      setFormData({ ...formData, primary_city: e.target.value });
-                      if (e.target.value) validateCityFormat(e.target.value);
-                    }}
-                    onBlur={(e) => validateCityFormat(e.target.value)}
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     required
-                    placeholder="Detroit MI or Los Angeles, CA"
-                    className={cityError ? "border-destructive" : ""}
+                    placeholder="Detroit"
                   />
-                  {cityError && (
-                    <p className="text-sm text-destructive">{cityError}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Examples: Detroit MI • Los Angeles, CA • Phoenix AZ
-                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="search_radius">Search Radius</Label>
+                  <Label htmlFor="state">State *</Label>
+                  <Select
+                    value={formData.state}
+                    onValueChange={(value) => setFormData({ ...formData, state: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_STATES.map((state) => (
+                        <SelectItem key={state.code} value={state.code}>
+                          {state.name} ({state.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="search_radius">Search Radius *</Label>
                   <Select
                     value={formData.search_radius}
                     onValueChange={(value) => setFormData({ ...formData, search_radius: value })}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue />

@@ -73,7 +73,10 @@ serve(async (req) => {
       const tier = metadata.tier ?? metadata.plan ?? "starter";
       const billing = metadata.billing ?? (session.mode === "subscription" ? "monthly" : "onetime");
       const leads = metadata.leads ?? null;
-      const primary_city = metadata.primary_city ?? metadata.city ?? "";
+      const city = metadata.city ?? "";
+      const state = metadata.state ?? "";
+      const primary_city = city && state ? `${city}` : (metadata.primary_city ?? "");
+      const primary_state = state || null;
       const search_radius = parseInt(metadata.search_radius ?? metadata.radius ?? "50", 10);
       const additional_cities = (() => {
         try { return JSON.parse(metadata.additional_cities || "[]"); } catch { return []; }
@@ -129,6 +132,7 @@ serve(async (req) => {
           customer_email: email,
           user_id: finalUserId,
           primary_city,
+          primary_state,
           search_radius,
           additional_cities,
           tier,
@@ -262,6 +266,7 @@ serve(async (req) => {
           customer_name: originalOrder.customer_name,
           customer_email: originalOrder.customer_email,
           primary_city: originalOrder.primary_city,
+          primary_state: originalOrder.primary_state,
           search_radius: originalOrder.search_radius,
           additional_cities: originalOrder.additional_cities,
           tier: originalOrder.tier,

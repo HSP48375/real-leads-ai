@@ -21,12 +21,12 @@ serve(async (req) => {
   }
 
   try {
-    const { tier, billing, price, leads, primary_city, search_radius, additional_cities, name, email } = await req.json();
+    const { tier, billing, price, leads, city, state, search_radius, additional_cities, name, email } = await req.json();
 
     console.log("Creating checkout session:", { tier, billing, hasEmail: !!email });
 
     // Validate inputs
-    if (!tier || !billing || !price || !leads || !primary_city || !search_radius || !name || !email) {
+    if (!tier || !billing || !price || !leads || !city || !state || !search_radius || !name || !email) {
       throw new Error("Missing required fields");
     }
 
@@ -68,7 +68,8 @@ serve(async (req) => {
         billing,
         price: price.toString(),
         leads,
-        primary_city,
+        city,
+        state,
         search_radius: search_radius.toString(),
         additional_cities: JSON.stringify(additional_cities || []),
         name,

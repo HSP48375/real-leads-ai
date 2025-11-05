@@ -107,6 +107,7 @@ export type Database = {
           price_paid: number | null
           price_tier: string | null
           primary_city: string
+          primary_state: string | null
           radius_used: number | null
           refund_amount: number | null
           refund_reason: string | null
@@ -146,6 +147,7 @@ export type Database = {
           price_paid?: number | null
           price_tier?: string | null
           primary_city?: string
+          primary_state?: string | null
           radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           price_paid?: number | null
           price_tier?: string | null
           primary_city?: string
+          primary_state?: string | null
           radius_used?: number | null
           refund_amount?: number | null
           refund_reason?: string | null

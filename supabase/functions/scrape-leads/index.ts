@@ -328,53 +328,43 @@ interface CityUrlMapping {
   state: string;
 }
 
-function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
-  // Handle formats: "Los Angeles, CA", "Los Angeles CA", "Detroit MI"
-  const normalized = cityStateInput.replace(/,/g, '').trim();
-  const parts = normalized.split(/\s+/);
-  
-  // Validate: Must have at least 2 parts (city + state)
-  if (parts.length < 2) {
-    logStep("ERROR: Invalid city format", { 
-      input: cityStateInput, 
-      error: "Missing state abbreviation" 
-    });
-    throw new Error(`Invalid city format: "${cityStateInput}". Must include state (e.g., "Detroit MI")`);
+function buildUrlsFromCityState(city: string, state: string): CityUrlMapping {
+  if (!city || !state) {
+    throw new Error(`Invalid input: city="${city}", state="${state}"`);
   }
   
-  // Last part is state, everything else is city
-  const state = parts[parts.length - 1].toLowerCase();
-  const cityParts = parts.slice(0, -1);
-  const cityName = cityParts.join(' ');
-  
   // Validate state code (should be 2 letters)
-  if (state.length !== 2 || !/^[a-z]{2}$/.test(state)) {
+  if (state.length !== 2 || !/^[A-Za-z]{2}$/.test(state)) {
     logStep("ERROR: Invalid state code", { 
-      input: cityStateInput, 
+      city, 
       state, 
       error: "State must be 2-letter abbreviation" 
     });
     throw new Error(`Invalid state code: "${state}". Must be 2-letter abbreviation (e.g., MI, CA, NY)`);
   }
   
+  const stateLower = state.toLowerCase();
+  const cityLower = city.toLowerCase();
+  
   // Validate city name is not empty
-  if (!cityName || cityName.trim().length === 0) {
+  if (!city || city.trim().length === 0) {
     logStep("ERROR: Missing city name", { 
-      input: cityStateInput, 
+      city, 
+      state, 
       error: "City name is empty" 
     });
-    throw new Error(`Missing city name in: "${cityStateInput}"`);
+    throw new Error(`Missing city name`);
   }
   
   // Build Craigslist subdomain (remove spaces, lowercase)
-  const craigslistSubdomain = cityName.toLowerCase().replace(/\s+/g, '');
+  const craigslistSubdomain = cityLower.replace(/\s+/g, '');
   
   // Build BuyOwner city (hyphenated, lowercase)
-  const buyownerCity = cityName.toLowerCase().replace(/\s+/g, '-');
+  const buyownerCity = cityLower.replace(/\s+/g, '-');
   
   logStep("City URL mapping", {
-    input: cityStateInput,
-    parsed: { city: cityName, state },
+    input: `${city}, ${state}`,
+    parsed: { city, state },
     craigslist: craigslistSubdomain,
     buyowner: buyownerCity
   });
@@ -382,7 +372,7 @@ function parseCityAndBuildUrls(cityStateInput: string): CityUrlMapping {
   return {
     craigslistSubdomain,
     buyownerCity,
-    state
+    state: stateLower
   };
 }
 
@@ -456,11 +446,12 @@ serve(async (req) => {
     // Parse city and build dynamic URLs with error handling
     let cityUrls: CityUrlMapping;
     try {
-      cityUrls = parseCityAndBuildUrls(order.primary_city);
+      cityUrls = buildUrlsFromCityState(order.primary_city, order.primary_state);
     } catch (parseError) {
-      const errorMsg = parseError instanceof Error ? parseError.message : "Invalid city format";
-      logStep("ERROR: City parsing failed", { 
-        city: order.primary_city, 
+      const errorMsg = parseError instanceof Error ? parseError.message : "Invalid city/state format";
+      logStep("ERROR: City/state parsing failed", { 
+        city: order.primary_city,
+        state: order.primary_state, 
         error: errorMsg 
       });
       
@@ -477,7 +468,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: errorMsg,
-          hint: 'City must be in format: "City State" (e.g., "Detroit MI", "Los Angeles CA")'
+          hint: 'Both city and state are required'
         }),
         { 
           status: 400, 
@@ -501,7 +492,7 @@ serve(async (req) => {
 
     // Run all 4 scrapers in parallel - don't fail entire order if one fails
     const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
-      scrapeWithApifyFSBO(order.primary_city).catch(err => {
+      scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`).catch(err => {
         logStep("FSBO scraper failed", { error: err.message });
         return [];
       }),
