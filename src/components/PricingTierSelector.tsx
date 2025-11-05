@@ -149,17 +149,24 @@ const PricingTierSelector = ({
               onClick={() => onTierSelect(tier.tierValue, currentPrice, tier.leads)}
             >
               {tier.popular && (
-                <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-primary rounded-full shadow-gold">
-                  <span className="text-[10px] font-bold text-primary-foreground">MOST POPULAR</span>
+                <div className="absolute top-0 right-4 -translate-y-1/2 px-2 py-0.5 bg-primary rounded-full shadow-gold">
+                  <span className="text-[9px] font-bold text-primary-foreground">POPULAR</span>
                 </div>
               )}
               
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{tier.name}</CardTitle>
-                    <CardDescription className="text-xs mt-1">{tier.description}</CardDescription>
+              <CardHeader className="pb-3 pt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base font-bold">{tier.name}</CardTitle>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-bold">${currentPrice}</span>
+                      {billingType === 'monthly' && (
+                        <span className="text-xs text-muted-foreground">/mo</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{tier.leads} leads</p>
                   </div>
+                  
                   <div className={cn(
                     "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
                     isSelected 
@@ -169,33 +176,7 @@ const PricingTierSelector = ({
                     {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                   </div>
                 </div>
-                
-                <div className="mt-3">
-                  {billingType === 'onetime' ? (
-                    <>
-                      <span className="text-2xl font-bold">${tier.price}</span>
-                      <p className="text-xs text-muted-foreground">one-time</p>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-2xl font-bold">${tier.monthly}</span>
-                      <span className="text-sm text-muted-foreground">/month</span>
-                      <p className="text-xs text-primary mt-1">Save ${tier.monthlySavings}/month</p>
-                    </>
-                  )}
-                </div>
               </CardHeader>
-
-              <CardContent className="pb-4">
-                <ul className="space-y-2">
-                  {tier.features.slice(0, 3).map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-xs">
-                      <Check className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
             </Card>
           );
         })}

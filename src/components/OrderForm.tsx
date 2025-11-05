@@ -296,69 +296,45 @@ const OrderForm = ({ orderParams, onTierChange }: OrderFormProps) => {
   
   return (
     <div className="space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Order Summary */}
-        <GlowingCard>
-          <Card className="border-0 h-full">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">
-                Your Order Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Plan</p>
-                  <p className="text-xl font-bold capitalize">{orderParams.tier}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">Type</p>
-                  <p className="text-lg font-semibold">
-                    {orderParams.billing === 'monthly' ? 'Monthly Subscription' : 'One-Time Purchase'}
-                  </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">Price</p>
-                  <p className="text-3xl font-bold text-primary">
-                    ${orderParams.price}
-                    {orderParams.billing === 'monthly' && <span className="text-lg">/month</span>}
-                  </p>
-                </div>
-              </div>
+      {/* What You Get Section - Shows selected tier benefits */}
+      <GlowingCard>
+        <Card className="border-0">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold">
+              What You Get - <span className="capitalize text-primary">{orderParams.tier}</span>
+            </CardTitle>
+            <CardDescription>
+              {orderParams.billing === 'monthly' ? 'Monthly Subscription' : 'One-Time Purchase'} - ${orderParams.price}{orderParams.billing === 'monthly' && '/month'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+              {features.map((feature, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <span className="text-sm">{feature}</span>
+                </li>
+              ))}
+              {orderParams.billing === 'monthly' && (
+                <>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="text-sm">New leads every month</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="text-sm">Cancel anytime</span>
+                  </li>
+                </>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      </GlowingCard>
 
-              <div className="border-t pt-4">
-                <p className="font-semibold mb-3">What You Get:</p>
-                <ul className="space-y-2">
-                  {features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                  {orderParams.billing === 'monthly' && (
-                    <>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-sm">New leads every month</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-sm">Cancel anytime</span>
-                      </li>
-                    </>
-                  )}
-                </ul>
-              </div>
-
-            </CardContent>
-          </Card>
-        </GlowingCard>
-
-        {/* Order Form */}
-        <GlowingCard>
-          <Card className="border-0 h-full">
+      {/* Order Form */}
+      <GlowingCard>
+        <Card className="border-0">
             <CardHeader>
               <CardTitle className="text-2xl font-bold">
                 Your Details
@@ -499,9 +475,8 @@ const OrderForm = ({ orderParams, onTierChange }: OrderFormProps) => {
                 )}
               </form>
             </CardContent>
-          </Card>
-        </GlowingCard>
-      </div>
+        </Card>
+      </GlowingCard>
     </div>
   );
 };
