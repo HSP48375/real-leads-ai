@@ -7,10 +7,10 @@ const corsHeaders = {
 };
 
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
+const OLOSTEP_API_KEY = Deno.env.get("OLOSTEP_API_KEY");
 
-// Scrapers - for foreclosures, bank owned, and FSBO properties
-const ZILLOW_ACTOR_ID = "maxcopell/zillow-scraper";
-const REALTOR_ACTOR_ID = "epctex/realtor-scraper";
+// FSBO scraper only for Apify
+const FSBO_ACTOR_ID = "apify/fsbo-scraper";
 
 // Tier quota definitions
 const TIER_QUOTAS = {
@@ -19,26 +19,254 @@ const TIER_QUOTAS = {
   scale: { min: 75, max: 100 },
 };
 
-const MAX_RADIUS = 100; // Maximum search radius in miles
-const MAX_SCRAPE_ATTEMPTS = 3; // Maximum number of scrape attempts
-const RADIUS_INCREMENT = 25; // Increase radius by this amount each attempt
+const MAX_SCRAPE_ATTEMPTS = 3;
 
 const logStep = (step: string, details?: any) => {
   console.log(`[SCRAPE-LEADS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
 interface Lead {
-  firstName?: string;
-  lastName?: string;
-  phone: string;
+  order_id: string;
+  seller_name: string;
+  contact: string;
   address: string;
   city?: string;
   state?: string;
   zip?: string;
   price?: string;
-  leadType: string;
-  orderId: string;
-  createdAt: string;
+  url?: string;
+  source: string;
+  source_type: string;
+  date_listed?: string;
+  listing_title?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  zipcode?: string;
+}
+
+// JSON schema for Olostep LLM extraction
+const LEAD_EXTRACTION_SCHEMA = {
+  type: "object",
+  properties: {
+    leads: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          owner_name: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string" },
+          address: { type: "string" },
+          city: { type: "string" },
+          state: { type: "string" },
+          zip: { type: "string" },
+          price: { type: "string" }
+        },
+        required: ["address"]
+      }
+    }
+  }
+};
+
+async function scrapeWithOlostep(url: string, source: string): Promise<Lead[]> {
+  logStep(`Scraping ${source}`, { url });
+
+  try {
+    const response = await fetch("https://api.olostep.com/v1/scrapes", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        jsonSchema: LEAD_EXTRACTION_SCHEMA
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logStep(`Olostep error for ${source}`, { status: response.status, error: errorText });
+      return [];
+    }
+
+    const data = await response.json();
+    logStep(`Olostep response for ${source}`, { data });
+
+    const leads: Lead[] = [];
+    const extractedLeads = data?.leads || data?.data?.leads || [];
+
+    for (const item of extractedLeads) {
+      // Require either phone or email
+      const phone = item.phone?.replace(/\D/g, "") || "";
+      const email = item.email || "";
+
+      if (!phone && !email) {
+        logStep(`Skipping ${source} lead without contact`, { address: item.address });
+        continue;
+      }
+
+      leads.push({
+        order_id: "", // Will be set later
+        seller_name: item.owner_name || "Unknown",
+        contact: phone || email,
+        address: item.address || "",
+        city: item.city || null,
+        state: item.state || null,
+        zip: item.zip || null,
+        price: item.price || null,
+        url: url,
+        source: source,
+        source_type: "fsbo",
+        date_listed: new Date().toISOString(),
+        listing_title: null,
+        address_line_1: item.address || null,
+        address_line_2: null,
+        zipcode: item.zip || null,
+      });
+    }
+
+    logStep(`${source} leads extracted`, { count: leads.length });
+    return leads;
+  } catch (error) {
+    logStep(`${source} scraping failed`, { error: error instanceof Error ? error.message : String(error) });
+    return [];
+  }
+}
+
+async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
+  logStep("Scraping FSBO.com", { city });
+
+  try {
+    const actorInput = {
+      search: city,
+      maxItems: 100
+    };
+
+    const apifyActorPath = FSBO_ACTOR_ID.replace("/", "~");
+    const startRunResp = await fetch(
+      `https://api.apify.com/v2/acts/${apifyActorPath}/runs?token=${APIFY_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(actorInput),
+      }
+    );
+
+    if (!startRunResp.ok) {
+      const errorText = await startRunResp.text();
+      logStep("FSBO Apify start error", { status: startRunResp.status, error: errorText });
+      return [];
+    }
+
+    const runStartJson = await startRunResp.json();
+    const runId = runStartJson?.data?.id ?? runStartJson?.id;
+    
+    if (!runId) {
+      logStep("FSBO run ID missing", { payload: runStartJson });
+      return [];
+    }
+
+    logStep("FSBO run started", { runId });
+
+    // Poll for completion
+    const maxWaitMs = 5 * 60 * 1000; // 5 minutes
+    const pollIntervalMs = 5000;
+    const startTime = Date.now();
+    let runStatus = "RUNNING";
+
+    while (true) {
+      const statusResp = await fetch(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_API_KEY}`
+      );
+      const statusJson = await statusResp.json();
+      runStatus = statusJson?.data?.status ?? statusJson?.status ?? "UNKNOWN";
+
+      if (runStatus === "SUCCEEDED") break;
+      if (["FAILED", "ABORTED", "TIMED-OUT"].includes(runStatus)) {
+        logStep("FSBO run failed", { status: runStatus });
+        return [];
+      }
+      if (Date.now() - startTime > maxWaitMs) {
+        logStep("FSBO polling timeout");
+        return [];
+      }
+      await new Promise((r) => setTimeout(r, pollIntervalMs));
+    }
+
+    // Fetch results
+    const datasetResp = await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${APIFY_API_KEY}`
+    );
+
+    if (!datasetResp.ok) {
+      logStep("FSBO dataset fetch error", { status: datasetResp.status });
+      return [];
+    }
+
+    const rawResults = await datasetResp.json();
+    logStep("FSBO results", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
+
+    const leads: Lead[] = [];
+
+    for (const item of rawResults) {
+      const phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
+      const email = item.email || item.contactEmail || "";
+
+      if (!phone && !email) {
+        logStep("Skipping FSBO lead without contact", { address: item.address });
+        continue;
+      }
+
+      leads.push({
+        order_id: "", // Will be set later
+        seller_name: item.sellerName || item.name || "Unknown",
+        contact: phone || email,
+        address: item.address || item.streetAddress || "",
+        city: item.city || null,
+        state: item.state || null,
+        zip: item.zip || item.zipcode || null,
+        price: item.price || item.listPrice || null,
+        url: item.url || null,
+        source: "FSBO",
+        source_type: "fsbo",
+        date_listed: item.datePosted || new Date().toISOString(),
+        listing_title: item.title || null,
+        address_line_1: item.address || null,
+        address_line_2: null,
+        zipcode: item.zip || item.zipcode || null,
+      });
+    }
+
+    logStep("FSBO leads extracted", { count: leads.length });
+    return leads;
+  } catch (error) {
+    logStep("FSBO scraping failed", { error: error instanceof Error ? error.message : String(error) });
+    return [];
+  }
+}
+
+function deduplicateLeads(leads: Lead[]): Lead[] {
+  const seen = new Set<string>();
+  const deduplicated: Lead[] = [];
+
+  for (const lead of leads) {
+    // Create unique key from contact + address
+    const key = `${lead.contact.toLowerCase()}-${lead.address.toLowerCase()}`;
+    
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(lead);
+    }
+  }
+
+  logStep("Deduplication", { 
+    before: leads.length, 
+    after: deduplicated.length,
+    removed: leads.length - deduplicated.length 
+  });
+
+  return deduplicated;
 }
 
 serve(async (req) => {
@@ -80,7 +308,7 @@ serve(async (req) => {
       customerEmail: order.customer_email 
     });
 
-    // ✅ UPDATE ORDER STATUS TO SCRAPING_STARTED
+    // Update order status to processing
     await supabase
       .from("orders")
       .update({ 
@@ -106,321 +334,83 @@ serve(async (req) => {
         .eq("id", orderId);
     }
 
-    // Initialize or get current scraping state
-    const currentRadius = order.current_radius || order.search_radius || 25;
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    // Determine which scraper to use (alternate to maximize coverage)
-    const useRealtorScraper = scrapeAttempts % 2 === 0;
-    const actorId = useRealtorScraper ? REALTOR_ACTOR_ID : ZILLOW_ACTOR_ID;
-    
-    logStep(`Starting ${useRealtorScraper ? 'Realtor' : 'Zillow'} scraper`, { 
-      city: order.primary_city,
-      actor: actorId,
+    // Parse city for URL building
+    const cityState = order.primary_city; // e.g. "Detroit MI"
+    const cityParts = cityState.split(" ");
+    const city = cityParts[0].toLowerCase(); // "detroit"
+    const state = cityParts[1]?.toLowerCase() || ""; // "mi"
+
+    logStep("Starting multi-source scrape", { 
+      city,
+      state,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    const cityState = order.primary_city; // e.g. "Detroit MI"
+    // Run all 4 scrapers in parallel
+    const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
+      scrapeWithApifyFSBO(cityState),
+      scrapeWithOlostep(`https://${city}.craigslist.org/search/rea#search=owner`, "Craigslist"),
+      scrapeWithOlostep(`https://facebook.com/marketplace/${city}/propertyrentals`, "Facebook"),
+      scrapeWithOlostep(`https://buyowner.com/search/${city}`, "BuyOwner")
+    ]);
+
+    // Combine all leads
+    let allLeads = [...fsboLeads, ...craigslistLeads, ...facebookLeads, ...buyownerLeads];
     
-    // Build actor input based on scraper type
-    const actorInput = useRealtorScraper ? {
-      search: `${cityState} foreclosure OR bankOwned OR auction OR forSaleByOwner`,
-      startUrls: [],
-      maxItems: 200,
-      endPage: 10,
-      includeFloorplans: false,
-      proxy: { useApifyProxy: true },
-      extendOutputFunction: "($) => { return {}; }"
-    } : {
-      searchUrls: [
-        { 
-          url: `https://www.zillow.com/homes/for_sale/?searchQueryState=${encodeURIComponent(JSON.stringify({
-            isMapVisible: true,
-            mapBounds: {
-              north: 42.5,
-              south: 42.0,
-              east: -83.0,
-              west: -83.5
-            },
-            filterState: {
-              isForSaleByOwner: { value: true },
-              isForeclosure: { value: true },
-              isPreForeclosure: { value: true },
-              isAuction: { value: true }
-            },
-            isListVisible: true,
-            regionSelection: [{
-              regionId: cityState,
-              regionType: 6
-            }]
-          }))}` 
-        }
-      ],
-      maxItems: 200,
-      extractionMethod: "PAGINATION_WITH_ZOOM_IN"
-    };
+    // Set order_id for all leads
+    allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
 
-    logStep(`Calling Apify ${useRealtorScraper ? 'Realtor' : 'Zillow'} actor`, { input: actorInput });
-
-    // Start the actor run (use ~ in actor path)
-    const apifyActorPath = actorId.replace("/", "~");
-    const startRunResp = await fetch(
-      `https://api.apify.com/v2/acts/${apifyActorPath}/runs?token=${APIFY_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(actorInput),
-      }
-    );
-
-    if (!startRunResp.ok) {
-      const errorText = await startRunResp.text();
-      logStep("Apify start run error", { status: startRunResp.status, error: errorText });
-
-      // Mark order as failed
-      const errorMsg = `Apify actor start failed (${startRunResp.status}): ${errorText}`;
-      await supabase
-        .from("orders")
-        .update({
-          status: "failed",
-          error_message: errorMsg,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      throw new Error(errorMsg);
-    }
-
-    const runStartJson = await startRunResp.json();
-    const runId = runStartJson?.data?.id ?? runStartJson?.id;
-    if (!runId) {
-      logStep("Apify run id missing", { payload: runStartJson });
-      const errorMsg = "Apify actor returned no runId";
-      await supabase
-        .from("orders")
-        .update({ 
-          status: "failed", 
-          error_message: errorMsg,
-          updated_at: new Date().toISOString() 
-        })
-        .eq("id", orderId);
-      throw new Error(errorMsg);
-    }
-    logStep("Apify run started", { runId });
-
-    // Poll run status until completion
-    const maxWaitMs = 8 * 60 * 1000; // 8 minutes to stay within 10-min timeout
-    const pollIntervalMs = 5000;
-    const startTime = Date.now();
-    let runStatus = "RUNNING";
-
-    while (true) {
-      const statusResp = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_API_KEY}`
-      );
-      const statusJson = await statusResp.json();
-      runStatus = statusJson?.data?.status ?? statusJson?.status ?? "UNKNOWN";
-      logStep("Apify run status", { runStatus });
-
-      if (runStatus === "SUCCEEDED") break;
-      if (["FAILED", "ABORTED", "TIMED-OUT"].includes(runStatus)) {
-        const errorMsg = `Apify run ended with status: ${runStatus}`;
-        await supabase
-          .from("orders")
-          .update({ 
-            status: "failed", 
-            error_message: errorMsg,
-            updated_at: new Date().toISOString() 
-          })
-          .eq("id", orderId);
-        throw new Error(errorMsg);
-      }
-      if (Date.now() - startTime > maxWaitMs) {
-        const errorMsg = "Apify run polling timed out";
-        await supabase
-          .from("orders")
-          .update({ 
-            status: "failed", 
-            error_message: errorMsg,
-            updated_at: new Date().toISOString() 
-          })
-          .eq("id", orderId);
-        throw new Error(errorMsg);
-      }
-      await new Promise((r) => setTimeout(r, pollIntervalMs));
-    }
-
-    // Fetch dataset items for the completed run
-    const datasetResp = await fetch(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${APIFY_API_KEY}`
-    );
-
-    if (!datasetResp.ok) {
-      const errorText = await datasetResp.text();
-      logStep("Apify dataset fetch error", { status: datasetResp.status, error: errorText });
-      const errorMsg = `Failed to fetch dataset items (${datasetResp.status}): ${errorText}`;
-      await supabase
-        .from("orders")
-        .update({ 
-          status: "failed", 
-          error_message: errorMsg,
-          updated_at: new Date().toISOString() 
-        })
-        .eq("id", orderId);
-      throw new Error(errorMsg);
-    }
-
-    const rawResults = await datasetResp.json();
-    logStep("Raw results received", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
-
-    // Log full raw data structure for analysis
-    if (Array.isArray(rawResults) && rawResults.length > 0) {
-      console.log("=== FULL RAW ZILLOW DATA ===");
-      console.log("Total items:", rawResults.length);
-      console.log("First item (full structure):", JSON.stringify(rawResults[0], null, 2));
-      console.log("All available fields:", Object.keys(rawResults[0]));
-      console.log("================================");
-    }
-
-    // Parse and validate leads - different format per scraper
-    const validLeads: Lead[] = [];
-    
-    for (const item of rawResults) {
-      // Extract phone based on scraper type
-      let phoneField = "";
-      if (useRealtorScraper) {
-        phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
-      } else {
-        phoneField = item.phone || item.contactPhone || item.agentPhone || "";
-      }
-      
-      if (!phoneField || phoneField.trim() === "") {
-        logStep("Skipping lead without phone", { address: item.address || item.streetAddress });
-        continue;
-      }
-
-      // Strip formatting from phone (keep digits only)
-      const cleanPhone = phoneField.replace(/\D/g, "");
-      
-      if (cleanPhone.length < 10) {
-        logStep("Skipping lead with invalid phone", { phone: phoneField });
-        continue;
-      }
-
-      const lead: Lead = {
-        firstName: useRealtorScraper ? (item.agent?.name || "").split(" ")[0] : (item.agentName || ""),
-        lastName: useRealtorScraper ? (item.agent?.name || "").split(" ").slice(1).join(" ") : "",
-        phone: cleanPhone,
-        address: item.address || item.streetAddress || item.location?.address?.line || "",
-        city: item.city || item.location?.address?.city || "",
-        state: item.state || item.location?.address?.state_code || "",
-        zip: item.zipcode || item.zip || item.location?.address?.postal_code || "",
-        price: item.price || item.listPrice || item.list_price || "",
-        leadType: useRealtorScraper ? (item.status || "Realtor") : (item.propertyType || "Zillow"),
-        orderId: orderId,
-        createdAt: new Date().toISOString()
-      };
-
-      validLeads.push(lead);
-    }
-
-    logStep("Leads validated", { 
-      total: rawResults.length, 
-      valid: validLeads.length,
-      rejected: rawResults.length - validLeads.length 
+    logStep("All sources scraped", {
+      fsbo: fsboLeads.length,
+      craigslist: craigslistLeads.length,
+      facebook: facebookLeads.length,
+      buyowner: buyownerLeads.length,
+      total: allLeads.length
     });
 
-    // Calculate total leads including existing ones
+    // Deduplicate leads
+    const uniqueLeads = deduplicateLeads(allLeads);
+
+    // Check existing leads
     const { data: existingLeads } = await supabase
       .from("leads")
       .select("id", { count: "exact" })
       .eq("order_id", orderId);
     
     const existingCount = existingLeads?.length || 0;
-    const totalLeadsAfterSave = existingCount + validLeads.length;
+    const totalLeadsAfterSave = existingCount + uniqueLeads.length;
 
     logStep("Lead count analysis", {
       existing: existingCount,
-      newValid: validLeads.length,
+      newUnique: uniqueLeads.length,
       totalAfterSave: totalLeadsAfterSave,
       minRequired: tierQuota.min,
       maxAllowed: tierQuota.max
     });
 
-    // Save NEW leads to database (don't duplicate)
-    if (validLeads.length > 0) {
-      const leadsToInsert = rawResults
-        .filter((item: any) => {
-          let phoneField = "";
-          if (useRealtorScraper) {
-            phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
-          } else {
-            phoneField = item.phone || item.contactPhone || item.agentPhone || "";
-          }
-          const cleanPhone = phoneField.replace(/\D/g, "");
-          return cleanPhone.length >= 10;
-        })
-        .map((item: any) => {
-          let phoneField = "";
-          let sellerName = "Unknown";
-          let fullAddress = "";
-          let sourceUrl = null;
-          
-          if (useRealtorScraper) {
-            phoneField = item.agent?.office?.phone || item.agent?.phones?.[0]?.number || "";
-            sellerName = item.agent?.name || "Unknown";
-            fullAddress = item.location?.address?.line || item.address || "";
-            sourceUrl = item.permalink || null;
-          } else {
-            phoneField = item.phone || item.contactPhone || item.agentPhone || "";
-            sellerName = item.agentName || item.brokerName || "Unknown";
-            fullAddress = item.address || item.streetAddress || "";
-            sourceUrl = item.url || (item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : null);
-          }
-          
-          const cleanPhone = phoneField.replace(/\D/g, "");
-          
-          return {
-            order_id: orderId,
-            seller_name: sellerName,
-            contact: cleanPhone,
-            address: fullAddress,
-            city: useRealtorScraper ? (item.location?.address?.city || null) : (item.city || null),
-            state: useRealtorScraper ? (item.location?.address?.state_code || null) : (item.state || null),
-            zip: useRealtorScraper ? (item.location?.address?.postal_code || null) : (item.zipcode || item.zip || null),
-            price: item.price || item.listPrice || item.list_price || null,
-            url: sourceUrl,
-            source: useRealtorScraper ? "Realtor" : "Zillow",
-            source_type: useRealtorScraper ? (item.status || "realtor") : (item.propertyType || "zillow"),
-            date_listed: item.dateSold || item.listingDate || item.list_date || new Date().toISOString(),
-            listing_title: item.description || null,
-            address_line_1: fullAddress,
-            address_line_2: null,
-            zipcode: useRealtorScraper ? (item.location?.address?.postal_code || null) : (item.zipcode || item.zip || null),
-          };
-        });
-
+    // Save new leads to database
+    if (uniqueLeads.length > 0) {
       const { error: insertErr } = await supabase
         .from("leads")
-        .insert(leadsToInsert);
+        .insert(uniqueLeads);
 
       if (insertErr) {
         logStep("ERROR inserting leads", { error: insertErr.message });
         throw new Error(`Failed to insert leads: ${insertErr.message}`);
       }
 
-      logStep("Leads saved to database", { count: validLeads.length });
+      logStep("Leads saved to database", { count: uniqueLeads.length });
     }
 
     // Check if we've met the minimum quota
     const quotaMet = totalLeadsAfterSave >= tierQuota.min;
-    const canExpandRadius = currentRadius < MAX_RADIUS && scrapeAttempts < MAX_SCRAPE_ATTEMPTS;
+    const canRetry = scrapeAttempts < MAX_SCRAPE_ATTEMPTS;
 
-    if (!quotaMet && canExpandRadius) {
-      // Need more leads - expand radius and try again
-      const newRadius = Math.min(currentRadius + RADIUS_INCREMENT, MAX_RADIUS);
-      
+    if (!quotaMet && canRetry) {
+      // Need more leads - try again
       logStep("Quota not met - will retry", {
         current: totalLeadsAfterSave,
         required: tierQuota.min,
@@ -436,7 +426,7 @@ serve(async (req) => {
         })
         .eq("id", orderId);
 
-      // Trigger another scrape with expanded radius
+      // Trigger another scrape
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
         method: 'POST',
@@ -450,7 +440,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Retrying Zillow scrape for more leads',
+          message: 'Retrying scrape for more leads',
           leadsFound: totalLeadsAfterSave,
           minRequired: tierQuota.min,
           attempt: scrapeAttempts
@@ -476,7 +466,6 @@ serve(async (req) => {
       logStep("INSUFFICIENT LEADS", {
         found: totalLeadsAfterSave,
         required: tierQuota.min,
-        maxRadiusReached: currentRadius >= MAX_RADIUS,
         maxAttemptsReached: scrapeAttempts >= MAX_SCRAPE_ATTEMPTS
       });
     }
@@ -513,7 +502,7 @@ serve(async (req) => {
       reason: statusReason
     });
 
-    // Only trigger finalize if order is completed (not insufficient_leads)
+    // Only trigger finalize if order is completed
     if (finalStatus === "completed") {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -541,7 +530,7 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // Insufficient leads - needs manual review
+      // Insufficient leads
       return new Response(
         JSON.stringify({
           success: false,
@@ -549,7 +538,6 @@ serve(async (req) => {
           leadsDelivered: finalLeadCount,
           minRequired: tierQuota.min,
           attemptsUsed: scrapeAttempts,
-          maxRadiusReached: currentRadius >= MAX_RADIUS,
           status: "insufficient_leads"
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -563,6 +551,11 @@ serve(async (req) => {
     // Try to mark order as failed if we have the orderId
     if (orderId) {
       try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        
         await supabase
           .from("orders")
           .update({ 
