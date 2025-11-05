@@ -12,11 +12,11 @@ const OLOSTEP_API_KEY = Deno.env.get("OLOSTEP_API_KEY");
 // FSBO scraper only for Apify - correct actor ID with 108 successful runs
 const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 
-// Tier quota definitions
+// Tier quota definitions - lowered minimum to 10
 const TIER_QUOTAS = {
-  starter: { min: 20, max: 25 },
-  growth: { min: 40, max: 50 },
-  scale: { min: 75, max: 100 },
+  starter: { min: 10, max: 25 },
+  growth: { min: 10, max: 50 },
+  scale: { min: 10, max: 100 },
 };
 
 const MAX_SCRAPE_ATTEMPTS = 3;
@@ -44,29 +44,8 @@ interface Lead {
   zipcode?: string;
 }
 
-// JSON schema for Olostep LLM extraction
-const LEAD_EXTRACTION_SCHEMA = {
-  type: "object",
-  properties: {
-    leads: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          owner_name: { type: "string" },
-          phone: { type: "string" },
-          email: { type: "string" },
-          address: { type: "string" },
-          city: { type: "string" },
-          state: { type: "string" },
-          zip: { type: "string" },
-          price: { type: "string" }
-        },
-        required: ["address"]
-      }
-    }
-  }
-};
+// Enhanced LLM extraction prompt for Olostep
+const OLOSTEP_EXTRACTION_PROMPT = "Extract ALL property listings from this page. For each property, extract: owner_name, owner_phone, owner_email, property_address, city, state, zip, price, bedrooms, bathrooms, square_feet, lot_size, year_built, property_type (house/condo/land), days_on_market, description. Return as JSON array with key 'leads'.";
 
 async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): Promise<Lead[]> {
   const RETRY_DELAY_MS = 30000; // 30 seconds between retries
@@ -80,16 +59,24 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
     }
 
     try {
+      const payload = {
+        url_to_scrape: url,
+        formats: ["json"],
+        wait_before_scraping: 3000,
+        llm_extract: {
+          prompt: OLOSTEP_EXTRACTION_PROMPT
+        }
+      };
+
+      logStep(`Olostep payload for ${source}`, payload);
+
       const response = await fetch("https://api.olostep.com/v1/scrapes", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          url,
-          jsonSchema: LEAD_EXTRACTION_SCHEMA
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -115,18 +102,41 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
       }
 
       const data = await response.json();
-      logStep(`Olostep response for ${source}`, { data, attempt });
+      logStep(`Olostep raw response for ${source}`, { 
+        status: response.status,
+        dataKeys: Object.keys(data || {}),
+        fullData: JSON.stringify(data).substring(0, 500),
+        attempt 
+      });
 
       const leads: Lead[] = [];
-      const extractedLeads = data?.leads || data?.data?.leads || [];
+      // Try multiple possible response structures
+      const extractedLeads = data?.leads || data?.data?.leads || data?.llm_extract?.leads || [];
+
+      if (!Array.isArray(extractedLeads) || extractedLeads.length === 0) {
+        logStep(`${source} returned no leads array`, { 
+          dataStructure: typeof data,
+          keys: Object.keys(data || {}),
+          attempt 
+        });
+        
+        // If this was a timeout and we have retries left, continue to next attempt
+        if (attempt < maxRetries) {
+          logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          continue;
+        }
+        
+        return [];
+      }
 
       for (const item of extractedLeads) {
         // Require either phone or email
-        const phone = item.phone?.replace(/\D/g, "") || "";
-        const email = item.email || "";
+        const phone = (item.owner_phone || item.phone || "").replace(/\D/g, "");
+        const email = item.owner_email || item.email || "";
 
         if (!phone && !email) {
-          logStep(`Skipping ${source} lead without contact`, { address: item.address });
+          logStep(`Skipping ${source} lead without contact`, { address: item.property_address || item.address });
           continue;
         }
 
@@ -134,7 +144,7 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
           order_id: "", // Will be set later
           seller_name: item.owner_name || "Unknown",
           contact: phone || email,
-          address: item.address || "",
+          address: item.property_address || item.address || "",
           city: item.city || undefined,
           state: item.state || undefined,
           zip: item.zip || undefined,
@@ -143,8 +153,8 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
           source: source,
           source_type: "fsbo",
           date_listed: new Date().toISOString(),
-          listing_title: undefined,
-          address_line_1: item.address || undefined,
+          listing_title: item.description || undefined,
+          address_line_1: item.property_address || item.address || undefined,
           address_line_2: undefined,
           zipcode: item.zip || undefined,
         });
@@ -392,12 +402,31 @@ serve(async (req) => {
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    // Run all 4 scrapers in parallel
+    // Build optimized URLs for each source
+    const craigslistUrl = `https://${city}.craigslist.org/search/rea?query=owner`;
+    const facebookUrl = `https://www.facebook.com/marketplace/${city}/search/?query=house%20for%20sale%20by%20owner`;
+    const buyownerUrl = `https://www.buyowner.com/${state}/${city}-real-estate`;
+
+    logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
+
+    // Run all 4 scrapers in parallel - don't fail entire order if one fails
     const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
-      scrapeWithApifyFSBO(cityState),
-      scrapeWithOlostep(`https://${city}.craigslist.org/search/rea#search=owner`, "Craigslist"),
-      scrapeWithOlostep(`https://facebook.com/marketplace/${city}/propertyrentals`, "Facebook"),
-      scrapeWithOlostep(`https://buyowner.com/search/${city}`, "BuyOwner")
+      scrapeWithApifyFSBO(cityState).catch(err => {
+        logStep("FSBO scraper failed", { error: err.message });
+        return [];
+      }),
+      scrapeWithOlostep(craigslistUrl, "Craigslist", 3).catch(err => {
+        logStep("Craigslist scraper failed", { error: err.message });
+        return [];
+      }),
+      scrapeWithOlostep(facebookUrl, "Facebook", 3).catch(err => {
+        logStep("Facebook scraper failed", { error: err.message });
+        return [];
+      }),
+      scrapeWithOlostep(buyownerUrl, "BuyOwner", 3).catch(err => {
+        logStep("BuyOwner scraper failed", { error: err.message });
+        return [];
+      })
     ]);
 
     // Combine all leads
