@@ -273,19 +273,31 @@ serve(async (req) => {
 
     // Save NEW leads to database (don't duplicate)
     if (validLeads.length > 0) {
-      const leadsToInsert = validLeads.map(lead => ({
-        order_id: lead.orderId,
-        seller_name: `${lead.firstName} ${lead.lastName}`.trim() || "Unknown",
-        contact: lead.phone,
-        address: lead.address,
-        city: lead.city,
-        state: lead.state,
-        zip: lead.zip,
-        price: lead.price,
-        source: "FSBO.com",
-        source_type: "fsbo",
-        date_listed: lead.createdAt,
-      }));
+      const leadsToInsert = rawResults
+        .filter(item => item.phone && item.phone.trim() !== "")
+        .map(item => {
+          const fullAddress = [item.address1, item.address2].filter(Boolean).join(", ");
+          const cleanPhone = (item.phone || "").replace(/\D/g, "");
+          
+          return {
+            order_id: orderId,
+            seller_name: item.seller || "Unknown",
+            contact: cleanPhone,
+            address: fullAddress,
+            city: item.city || null,
+            state: null,
+            zip: item.zipcode || null,
+            price: item.price || item.askingPrice || null,
+            url: item.url || null,
+            source: "FSBO.com",
+            source_type: "fsbo",
+            date_listed: new Date().toISOString(),
+            listing_title: item.title || null,
+            address_line_1: item.address1 || null,
+            address_line_2: item.address2 || null,
+            zipcode: item.zipcode || null,
+          };
+        });
 
       const { error: insertErr } = await supabase
         .from("leads")
