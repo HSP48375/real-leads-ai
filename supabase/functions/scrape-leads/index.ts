@@ -71,6 +71,11 @@ const LEAD_EXTRACTION_SCHEMA = {
 async function scrapeWithOlostep(url: string, source: string): Promise<Lead[]> {
   logStep(`Scraping ${source}`, { url });
 
+  if (!OLOSTEP_API_KEY) {
+    logStep(`Olostep API key missing for ${source}`);
+    return [];
+  }
+
   try {
     const response = await fetch("https://api.olostep.com/v1/scrapes", {
       method: "POST",
@@ -111,18 +116,18 @@ async function scrapeWithOlostep(url: string, source: string): Promise<Lead[]> {
         seller_name: item.owner_name || "Unknown",
         contact: phone || email,
         address: item.address || "",
-        city: item.city || null,
-        state: item.state || null,
-        zip: item.zip || null,
-        price: item.price || null,
+        city: item.city || undefined,
+        state: item.state || undefined,
+        zip: item.zip || undefined,
+        price: item.price || undefined,
         url: url,
         source: source,
         source_type: "fsbo",
         date_listed: new Date().toISOString(),
-        listing_title: null,
-        address_line_1: item.address || null,
-        address_line_2: null,
-        zipcode: item.zip || null,
+        listing_title: undefined,
+        address_line_1: item.address || undefined,
+        address_line_2: undefined,
+        zipcode: item.zip || undefined,
       });
     }
 
@@ -223,18 +228,18 @@ async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
         seller_name: item.sellerName || item.name || "Unknown",
         contact: phone || email,
         address: item.address || item.streetAddress || "",
-        city: item.city || null,
-        state: item.state || null,
-        zip: item.zip || item.zipcode || null,
-        price: item.price || item.listPrice || null,
-        url: item.url || null,
+        city: item.city || undefined,
+        state: item.state || undefined,
+        zip: item.zip || item.zipcode || undefined,
+        price: item.price || item.listPrice || undefined,
+        url: item.url || undefined,
         source: "FSBO",
         source_type: "fsbo",
         date_listed: item.datePosted || new Date().toISOString(),
-        listing_title: item.title || null,
-        address_line_1: item.address || null,
-        address_line_2: null,
-        zipcode: item.zip || item.zipcode || null,
+        listing_title: item.title || undefined,
+        address_line_1: item.address || undefined,
+        address_line_2: undefined,
+        zipcode: item.zip || item.zipcode || undefined,
       });
     }
 
