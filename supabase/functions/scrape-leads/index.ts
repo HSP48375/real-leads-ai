@@ -225,6 +225,81 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
   return [];
 }
 
+// Deep scrape individual listing page to extract contact information
+async function deepScrapeListingPage(url: string, source: string): Promise<{ phone?: string; email?: string; name?: string } | null> {
+  if (!OLOSTEP_API_KEY) {
+    return null;
+  }
+
+  try {
+    logStep(`Deep scraping ${source} listing`, { url });
+
+    const payload = {
+      url_to_scrape: url,
+      formats: ["json"],
+      wait_before_scraping: 3000,
+      llm_extract: {
+        prompt: `Extract contact information from this property listing page. Return ONLY a valid JSON object:
+{
+  "owner_name": "string",
+  "owner_phone": "string",
+  "owner_email": "string"
+}
+Look for: Contact seller button, phone numbers, email addresses, seller name. If not found, return empty strings.`
+      }
+    };
+
+    const response = await fetch("https://api.olostep.com/v1/scrapes", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      logStep(`Deep scrape failed for ${source}`, { status: response.status, url });
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // Parse contact info from response
+    let contactInfo: any = {};
+    
+    if (data?.result?.json_content) {
+      try {
+        contactInfo = typeof data.result.json_content === 'string' 
+          ? JSON.parse(data.result.json_content)
+          : data.result.json_content;
+      } catch (e) {
+        logStep(`Deep scrape JSON parse error for ${source}`, { url });
+        return null;
+      }
+    }
+
+    const phone = (contactInfo.owner_phone || "").replace(/\D/g, "");
+    const email = contactInfo.owner_email || "";
+    const name = contactInfo.owner_name || "";
+
+    if (!phone && !email) {
+      logStep(`Deep scrape found no contact info for ${source}`, { url });
+      return null;
+    }
+
+    logStep(`Deep scrape success for ${source}`, { url, hasPhone: !!phone, hasEmail: !!email });
+    return { phone, email, name };
+
+  } catch (error) {
+    logStep(`Deep scrape exception for ${source}`, { 
+      url,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+}
+
 async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
   logStep("Scraping FSBO.com via Apify", { city });
 
@@ -307,19 +382,39 @@ async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
     logStep("FSBO results", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
 
     const leads: Lead[] = [];
+    const itemsWithUrls = rawResults.filter((item: any) => item.url);
+    
+    logStep("FSBO items with URLs for deep scraping", { count: itemsWithUrls.length });
 
-    for (const item of rawResults) {
-      const phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
-      const email = item.email || item.contactEmail || "";
+    // Deep scrape each listing (limit to prevent timeout)
+    const maxDeepScrapes = Math.min(itemsWithUrls.length, 20);
+    
+    for (let i = 0; i < maxDeepScrapes; i++) {
+      const item = itemsWithUrls[i];
+      
+      // Try direct contact first
+      let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
+      let email = item.email || item.contactEmail || "";
+      let sellerName = item.sellerName || item.name || "";
+
+      // If no contact info, deep scrape the listing page
+      if ((!phone && !email) && item.url) {
+        const contactInfo = await deepScrapeListingPage(item.url, "FSBO");
+        if (contactInfo) {
+          phone = contactInfo.phone || phone;
+          email = contactInfo.email || email;
+          sellerName = contactInfo.name || sellerName;
+        }
+      }
 
       if (!phone && !email) {
-        logStep("Skipping FSBO lead without contact", { address: item.address });
+        logStep("Skipping FSBO lead without contact", {});
         continue;
       }
 
       leads.push({
         order_id: "", // Will be set later
-        seller_name: item.sellerName || item.name || "Unknown",
+        seller_name: sellerName || "Unknown",
         contact: phone || email,
         address: item.address || item.streetAddress || "",
         city: item.city || undefined,
