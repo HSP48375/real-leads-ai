@@ -1435,6 +1435,25 @@ serve(async (req) => {
       logStep("SOURCE 1: FSBO.com - Starting", { citiesCount: allCities.length });
       
       for (const city of allCities) {
+        // Check if quota is met before processing next city
+        totalLeadsCollected = await getCurrentLeadCount();
+        if (isTargetMet(totalLeadsCollected)) {
+          logStep(`🎯 Quota met during FSBO scraping - stopping at ${city}`, {
+            leadsCollected: totalLeadsCollected,
+            targetRange: `${tierQuota.min}-${tierQuota.max}`
+          });
+          break;
+        }
+        
+        // Check timeout before next city
+        if (shouldExitDueToTimeout()) {
+          logStep("⏱️ TIMEOUT APPROACHING during FSBO loop", { 
+            leadsCollected: totalLeadsCollected,
+            elapsedTime: `${Date.now() - executionStartTime}ms`
+          });
+          break;
+        }
+        
         try {
           const fsboLeads = await scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
             { orderId, supabase, maxListings: 20 }
@@ -1514,6 +1533,25 @@ serve(async (req) => {
       const craigslistLimit = Math.min(craigslistUrls.length, 10); // Limit to control costs
       
       for (let i = 0; i < craigslistLimit; i++) {
+        // Check if quota is met before processing next URL
+        totalLeadsCollected = await getCurrentLeadCount();
+        if (isTargetMet(totalLeadsCollected)) {
+          logStep(`🎯 Quota met during Craigslist scraping - stopping at URL ${i+1}`, {
+            leadsCollected: totalLeadsCollected,
+            targetRange: `${tierQuota.min}-${tierQuota.max}`
+          });
+          break;
+        }
+        
+        // Check timeout before next URL
+        if (shouldExitDueToTimeout()) {
+          logStep("⏱️ TIMEOUT APPROACHING during Craigslist loop", { 
+            leadsCollected: totalLeadsCollected,
+            elapsedTime: `${Date.now() - executionStartTime}ms`
+          });
+          break;
+        }
+        
         const url = craigslistUrls[i];
         try {
           const craigslistLeads = await scrapeWithZenRowsHTML(url, "Craigslist");
