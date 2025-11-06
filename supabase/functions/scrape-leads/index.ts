@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 const OLOSTEP_API_KEY = Deno.env.get("OLOSTEP_API_KEY");
+const ZENROWS_API_KEY = Deno.env.get("ZENROWS_API_KEY");
 
 // FSBO scraper only for Apify - correct actor ID with 108 successful runs
 const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
@@ -68,6 +69,196 @@ const OLOSTEP_EXTRACTION_PROMPT = `You are extracting real estate listings. Retu
 }
 Extract ALL visible property listings. If no listings found, return {"leads": []}.`;
 
+// ZenRows extraction prompt - professional anti-bot bypass
+const ZENROWS_EXTRACTION_PROMPT = `Extract ALL real estate "for sale by owner" property listings from this page. Return ONLY valid JSON:
+{
+  "leads": [
+    {
+      "owner_name": "string (seller/owner name)",
+      "owner_phone": "string (phone number - REQUIRED)",
+      "owner_email": "string (email if available)",
+      "property_address": "string (full street address)",
+      "city": "string",
+      "state": "string (2-letter code)",
+      "zip": "string",
+      "price": "string (asking price)",
+      "bedrooms": number,
+      "bathrooms": number,
+      "year_built": number,
+      "home_style": "string (property type/style)"
+    }
+  ]
+}
+
+CRITICAL: 
+- Extract ALL listings on the page
+- Phone number is REQUIRED for each lead
+- If no contact info found, skip that listing
+- Return {"leads": []} if no listings found`;
+
+
+// ZenRows scraper with professional anti-bot bypass (95%+ success rate)
+async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): Promise<Lead[]> {
+  const RETRY_DELAY_MS = 10000; // 10 seconds between retries (faster than Olostep)
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    logStep(`Scraping ${source} with ZenRows`, { url, attempt, maxRetries });
+
+    if (!ZENROWS_API_KEY) {
+      logStep(`ZenRows API key missing for ${source}`);
+      return [];
+    }
+
+    try {
+      const payload = {
+        url: url,
+        js_render: true,
+        antibot: true,
+        premium_proxy: true,
+        wait: 4000,
+        extract: {
+          prompt: ZENROWS_EXTRACTION_PROMPT
+        }
+      };
+
+      logStep(`ZenRows payload for ${source}`, payload);
+
+      const response = await fetch("https://api.zenrows.com/v1/", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${ZENROWS_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const isTimeout = response.status === 504 || response.status === 524;
+        const isRateLimit = response.status === 429;
+        
+        logStep(`ZenRows error for ${source}`, { 
+          status: response.status, 
+          error: errorText,
+          isTimeout,
+          isRateLimit,
+          attempt,
+          willRetry: (isTimeout || isRateLimit) && attempt < maxRetries
+        });
+        
+        // Retry on timeout or rate limit
+        if ((isTimeout || isRateLimit) && attempt < maxRetries) {
+          const delay = isRateLimit ? RETRY_DELAY_MS * 2 : RETRY_DELAY_MS;
+          logStep(`Waiting ${delay/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        return [];
+      }
+
+      const data = await response.json();
+      logStep(`ZenRows raw response for ${source}`, { 
+        status: response.status,
+        dataKeys: Object.keys(data || {}),
+        hasExtract: !!data?.extract,
+        hasLeads: !!data?.extract?.leads,
+        attempt 
+      });
+
+      const leads: Lead[] = [];
+      
+      // Parse extracted leads from ZenRows response
+      let extractedLeads: any[] = [];
+      
+      // ZenRows returns data in extract.leads
+      if (data?.extract?.leads && Array.isArray(data.extract.leads)) {
+        extractedLeads = data.extract.leads;
+      }
+      // Fallback to direct leads array
+      else if (data?.leads && Array.isArray(data.leads)) {
+        extractedLeads = data.leads;
+      }
+
+      if (!Array.isArray(extractedLeads) || extractedLeads.length === 0) {
+        logStep(`${source} returned no leads`, { 
+          dataStructure: typeof data,
+          keys: Object.keys(data || {}),
+          attempt 
+        });
+        
+        // Retry if we have attempts left
+        if (attempt < maxRetries) {
+          logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          continue;
+        }
+        
+        return [];
+      }
+
+      for (const item of extractedLeads) {
+        // Require phone (email is optional)
+        const phone = (item.owner_phone || item.phone || "").replace(/\D/g, "");
+        const email = item.owner_email || item.email || "";
+
+        if (!phone) {
+          logStep(`Skipping ${source} lead without phone`, { 
+            address: item.property_address || item.address,
+            hasEmail: !!email 
+          });
+          continue;
+        }
+
+        leads.push({
+          order_id: "",
+          seller_name: item.owner_name || "Unknown",
+          contact: phone,
+          email: email || undefined,
+          address: item.property_address || item.address || "",
+          city: item.city || undefined,
+          state: item.state || undefined,
+          zip: item.zip || undefined,
+          price: item.price || undefined,
+          url: url,
+          source: source,
+          source_type: "fsbo",
+          date_listed: new Date().toISOString(),
+          listing_title: item.description || undefined,
+          address_line_1: item.property_address || item.address || undefined,
+          address_line_2: undefined,
+          zipcode: item.zip || undefined,
+          bedrooms: item.bedrooms || undefined,
+          bathrooms: item.bathrooms || undefined,
+          home_style: item.home_style || undefined,
+          year_built: item.year_built || undefined,
+        });
+      }
+
+      logStep(`${source} leads extracted with ZenRows`, { count: leads.length, attempt });
+      return leads;
+      
+    } catch (error) {
+      const willRetry = attempt < maxRetries;
+      logStep(`${source} ZenRows exception`, { 
+        error: error instanceof Error ? error.message : String(error),
+        attempt,
+        willRetry
+      });
+      
+      if (willRetry) {
+        logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        continue;
+      }
+      
+      return [];
+    }
+  }
+  
+  logStep(`${source} - all ZenRows retries exhausted`);
+  return [];
+}
 
 async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): Promise<Lead[]> {
   const RETRY_DELAY_MS = 30000; // 30 seconds between retries
@@ -900,7 +1091,7 @@ serve(async (req) => {
     // Run all 4 scrapers in parallel - FSBO + Olostep multi-source
     const didIncremental = true; // FSBO saves incrementally
 
-    // Execute all scrapers in parallel for maximum lead coverage
+    // Execute all scrapers in parallel - FSBO + ZenRows multi-source (95%+ anti-bot bypass)
     const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
       scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
         { orderId, supabase, maxListings: 60 }
@@ -909,18 +1100,18 @@ serve(async (req) => {
         return [] as Lead[];
       }),
       
-      scrapeWithOlostep(craigslistUrl, "Craigslist").catch((err) => {
-        logStep("Craigslist scraper failed", { error: err.message });
+      scrapeWithZenRows(craigslistUrl, "Craigslist").catch((err) => {
+        logStep("Craigslist ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithOlostep(facebookUrl, "Facebook").catch((err) => {
-        logStep("Facebook scraper failed", { error: err.message });
+      scrapeWithZenRows(facebookUrl, "Facebook").catch((err) => {
+        logStep("Facebook ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithOlostep(buyownerUrl, "BuyOwner").catch((err) => {
-        logStep("BuyOwner scraper failed", { error: err.message });
+      scrapeWithZenRows(buyownerUrl, "BuyOwner").catch((err) => {
+        logStep("BuyOwner ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
       })
     ]);
