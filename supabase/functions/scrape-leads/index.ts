@@ -231,7 +231,7 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
 }
 
 // Deep scrape individual listing page to extract contact information with retry logic
-async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string; bedrooms?: number; bathrooms?: number; homeStyle?: string; yearBuilt?: number } | null> {
+async function deepScrapeListingPage(url: string, source: string, fallbackAddress: string = "", maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string; address?: string; bedrooms?: number; bathrooms?: number; homeStyle?: string; yearBuilt?: number } | null> {
   if (!OLOSTEP_API_KEY) {
     return null;
   }
@@ -253,6 +253,7 @@ async function deepScrapeListingPage(url: string, source: string, maxRetries = 3
   "owner_last_name": "string", 
   "owner_phone": "string (REQUIRED)",
   "owner_email": "string (optional - include if found)",
+  "full_address": "string (include if found - street, city, state, zip)",
   "bedrooms": number,
   "bathrooms": number,
   "home_style": "string (e.g., Ranch, Colonial, Contemporary, Cape Cod, Victorian, etc.)",
@@ -334,6 +335,8 @@ PRIORITY: Phone number is REQUIRED. Email is optional but include if found. Retu
       const email = contactInfo.owner_email || "";
       const firstName = contactInfo.owner_first_name || "";
       const lastName = contactInfo.owner_last_name || "";
+      const extractedAddress = contactInfo.full_address || "";
+      const finalAddress = extractedAddress || fallbackAddress;
       const bedrooms = contactInfo.bedrooms || null;
       const bathrooms = contactInfo.bathrooms || null;
       const homeStyle = contactInfo.home_style || "";
@@ -363,13 +366,15 @@ PRIORITY: Phone number is REQUIRED. Email is optional but include if found. Retu
         hasEmail: !!email,
         hasFirstName: !!firstName,
         hasLastName: !!lastName,
+        hasAddress: !!finalAddress,
+        addressSource: extractedAddress ? "deep_scrape" : "fallback",
         hasBedrooms: bedrooms !== null,
         hasBathrooms: bathrooms !== null,
         hasHomeStyle: !!homeStyle,
         hasYearBuilt: yearBuilt !== null,
         attempt 
       });
-      return { phone, email, firstName, lastName, bedrooms, bathrooms, homeStyle, yearBuilt };
+      return { phone, email, firstName, lastName, address: finalAddress, bedrooms, bathrooms, homeStyle, yearBuilt };
 
     } catch (error) {
       const willRetry = attempt < maxRetries;
@@ -502,13 +507,18 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       let yearBuilt: number | null = null;
 
       // Always deep scrape for complete contact info and property details
+      // Pass the original address from search results as fallback
+      const fallbackAddress = item.address || item.streetAddress || "";
+      let addressFromDeepScrape = "";
+      
       if (item.url) {
-        const contactInfo = await deepScrapeListingPage(item.url, "FSBO");
+        const contactInfo = await deepScrapeListingPage(item.url, "FSBO", fallbackAddress);
         if (contactInfo) {
           phone = contactInfo.phone || phone;
           email = contactInfo.email || email;
           firstName = contactInfo.firstName || firstName;
           lastName = contactInfo.lastName || lastName;
+          addressFromDeepScrape = contactInfo.address || "";
           bedrooms = contactInfo.bedrooms !== undefined ? contactInfo.bedrooms : bedrooms;
           bathrooms = contactInfo.bathrooms !== undefined ? contactInfo.bathrooms : bathrooms;
           homeStyle = contactInfo.homeStyle || homeStyle;
@@ -546,8 +556,8 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 4: Must have address
-      const address = item.address || item.streetAddress || "";
+      // VALIDATION 4: Must have address (from deep scrape with fallback or original search result)
+      const address = addressFromDeepScrape || fallbackAddress;
       if (!address.trim()) {
         const reason = "missing_address";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
