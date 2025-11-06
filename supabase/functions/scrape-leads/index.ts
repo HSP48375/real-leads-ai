@@ -227,7 +227,7 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
 }
 
 // Deep scrape individual listing page to extract contact information with retry logic
-async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; name?: string } | null> {
+async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string } | null> {
   if (!OLOSTEP_API_KEY) {
     return null;
   }
@@ -243,13 +243,29 @@ async function deepScrapeListingPage(url: string, source: string, maxRetries = 3
         formats: ["json"],
         wait_before_scraping: 4000,
         llm_extract: {
-          prompt: `Extract ALL contact information from this individual property listing page. Look specifically for: owner_name, owner_phone, owner_email, contact_method, best_time_to_call. Return ONLY a valid JSON object:
+          prompt: `Extract ALL contact information from this property listing page. Search EVERYWHERE for contact details. Return ONLY valid JSON:
 {
-  "owner_name": "string",
+  "owner_first_name": "string",
+  "owner_last_name": "string", 
   "owner_phone": "string",
   "owner_email": "string"
 }
-Search in: Contact seller sections, phone numbers (any format), email addresses, seller/agent name fields. If not found, return empty strings.`
+
+CRITICAL - Search these locations for email:
+- Contact seller buttons/forms
+- Any text patterns: [name]@gmail.com, [name]@[domain].com, [name]@yahoo.com
+- "Email:" labels or "Contact:" sections
+- Hidden in JavaScript or data attributes
+- Author/seller profile sections
+
+CRITICAL - Search these locations for name:
+- "Contact [First Last]" in titles
+- "Posted by [First Last]" in descriptions
+- Seller profile names
+- Email addresses (extract john.doe@gmail.com → John Doe)
+- Phone number labels like "Call John Smith"
+
+Return first name and last name separately. If not found, return empty strings.`
         }
       };
 
@@ -307,12 +323,18 @@ Search in: Contact seller sections, phone numbers (any format), email addresses,
 
       const phone = (contactInfo.owner_phone || "").replace(/\D/g, "");
       const email = contactInfo.owner_email || "";
-      const name = contactInfo.owner_name || "";
+      const firstName = contactInfo.owner_first_name || "";
+      const lastName = contactInfo.owner_last_name || "";
 
-      if (!phone && !email) {
-        logStep(`Deep scrape found no contact info for ${source}`, { url, attempt });
+      if (!phone || !email) {
+        logStep(`Deep scrape incomplete - need phone AND email for ${source}`, { 
+          url, 
+          attempt,
+          hasPhone: !!phone,
+          hasEmail: !!email
+        });
         
-        // Retry if no contact info found and retries available
+        // Retry if incomplete and retries available
         if (attempt < maxRetries) {
           logStep(`Waiting ${DEEP_SCRAPE_DELAY_MS/1000}s before deep scrape retry ${attempt + 1}/${maxRetries}`, { url });
           await new Promise(resolve => setTimeout(resolve, DEEP_SCRAPE_DELAY_MS));
@@ -322,8 +344,15 @@ Search in: Contact seller sections, phone numbers (any format), email addresses,
         return null;
       }
 
-      logStep(`Deep scrape success for ${source}`, { url, hasPhone: !!phone, hasEmail: !!email, attempt });
-      return { phone, email, name };
+      logStep(`Deep scrape success for ${source}`, { 
+        url, 
+        hasPhone: !!phone, 
+        hasEmail: !!email,
+        hasFirstName: !!firstName,
+        hasLastName: !!lastName,
+        attempt 
+      });
+      return { phone, email, firstName, lastName };
 
     } catch (error) {
       const willRetry = attempt < maxRetries;
@@ -438,7 +467,8 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
     const maxDeepScrapes = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
     const batchSize = options?.batchSize ?? 5;
     const pending: Lead[] = [];
-    const seen = new Set<string>();
+    const seenPhones = new Set<string>(); // DEDUPLICATE BY PHONE NUMBER ONLY
+    const rejectionReasons: { [key: string]: number } = {};
     
     for (let i = 0; i < maxDeepScrapes; i++) {
       const item = itemsWithUrls[i];
@@ -447,7 +477,8 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       // Try direct contact first
       let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
       let email = item.email || item.contactEmail || "";
-      let sellerName = item.sellerName || item.name || "";
+      let firstName = "";
+      let lastName = "";
 
       // Always deep scrape for complete contact info
       if (item.url) {
@@ -455,50 +486,83 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         if (contactInfo) {
           phone = contactInfo.phone || phone;
           email = contactInfo.email || email;
-          sellerName = contactInfo.name || sellerName;
+          firstName = contactInfo.firstName || firstName;
+          lastName = contactInfo.lastName || lastName;
         }
       }
 
-      // STRICT VALIDATION: Must have phone AND email AND valid name
-      if (!phone || !email) {
-        logStep("Skipping FSBO lead - missing phone or email", { 
+      // VALIDATION 1: Must have phone number
+      if (!phone) {
+        const reason = "missing_phone";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing phone", { url: item.url });
+        continue;
+      }
+
+      // VALIDATION 2: Check for duplicate phone (USE PHONE AS UNIQUE IDENTIFIER)
+      if (seenPhones.has(phone)) {
+        const reason = "duplicate_phone";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - duplicate phone", { url: item.url, phone });
+        continue;
+      }
+      seenPhones.add(phone);
+
+      // VALIDATION 3: Must have email
+      if (!email) {
+        const reason = "missing_email";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing email", { url: item.url, phone });
+        continue;
+      }
+
+      // VALIDATION 4: Must have first AND last name
+      if (!firstName || !lastName) {
+        const reason = "missing_name";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing first or last name", { 
           url: item.url, 
-          hasPhone: !!phone, 
-          hasEmail: !!email 
+          phone,
+          firstName,
+          lastName
         });
         continue;
       }
 
-      // Validate name has first AND last name
-      const nameParts = (sellerName || "").trim().split(/\s+/);
-      if (nameParts.length < 2 || sellerName === "Unknown" || !sellerName) {
-        logStep("Skipping FSBO lead - invalid name (need first + last)", { 
-          url: item.url, 
-          name: sellerName 
-        });
-        continue;
-      }
-
-      // Validate address exists
+      // VALIDATION 5: Must have address
       const address = item.address || item.streetAddress || "";
       if (!address.trim()) {
-        logStep("Skipping FSBO lead - missing address", { url: item.url });
+        const reason = "missing_address";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing address", { url: item.url, phone });
         continue;
       }
 
-      // Validate listing info exists
-      const title = item.title || "";
+      // VALIDATION 6: Must have price
       const price = item.price || item.listPrice || "";
-      if (!title && !price) {
-        logStep("Skipping FSBO lead - missing listing info", { url: item.url });
+      if (!price) {
+        const reason = "missing_price";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing price", { url: item.url, phone });
         continue;
       }
 
+      // VALIDATION 7: Must have property type or listing title
+      const title = item.title || "";
+      const propertyType = item.propertyType || item.type || "";
+      if (!title && !propertyType) {
+        const reason = "missing_listing_info";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing listing info", { url: item.url, phone });
+        continue;
+      }
+
+      // ALL VALIDATIONS PASSED - CREATE COMPLETE LEAD
       const lead: Lead = {
         order_id: options?.orderId || "",
-        seller_name: sellerName,
-        contact: phone, // Store phone as primary contact
-        email: email, // Store email separately
+        seller_name: `${firstName} ${lastName}`,
+        contact: phone,
+        email: email,
         address: address,
         city: item.city || undefined,
         state: item.state || undefined,
@@ -508,17 +572,19 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         source: "FSBO",
         source_type: "fsbo",
         date_listed: item.datePosted || new Date().toISOString(),
-        listing_title: title || undefined,
+        listing_title: title || propertyType || undefined,
         address_line_1: address || undefined,
         address_line_2: undefined,
         zipcode: item.zip || item.zipcode || undefined,
       };
 
-      const key = `${lead.contact.toLowerCase()}-${lead.address.toLowerCase()}`;
-      if (seen.has(key)) {
-        continue;
-      }
-      seen.add(key);
+      logStep("ACCEPTED - complete lead", { 
+        phone, 
+        email, 
+        name: `${firstName} ${lastName}`,
+        address,
+        price
+      });
 
       leads.push(lead);
       pending.push(lead);
@@ -557,7 +623,13 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       }
     }
 
-    logStep("FSBO leads extracted", { count: leads.length });
+    // Log rejection summary
+    logStep("FSBO scraping complete", { 
+      totalProcessed: maxDeepScrapes,
+      acceptedLeads: leads.length,
+      rejectionReasons
+    });
+    
     return leads;
   } catch (error) {
     logStep("FSBO scraping failed", { error: error instanceof Error ? error.message : String(error) });
