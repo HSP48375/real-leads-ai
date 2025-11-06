@@ -160,6 +160,20 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // DEDUPLICATE LEADS - prevent duplicate entries in CSV
+    const uniqueLeads: any[] = [];
+    const seen = new Set<string>();
+    
+    for (const lead of rawLeads) {
+      const key = `${(lead.contact || '').toLowerCase()}-${(lead.address || '').toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueLeads.push(lead);
+      }
+    }
+    
+    console.log(`[FINALIZE] Deduplication: ${rawLeads.length} → ${uniqueLeads.length} leads (removed ${rawLeads.length - uniqueLeads.length} duplicates)`);
+
     // ENFORCE STRICT LEAD CAPS
     const maxLeadLimits = {
       starter: 26,
@@ -169,7 +183,7 @@ serve(async (req) => {
     };
     
     const maxAllowed = maxLeadLimits[order.tier as keyof typeof maxLeadLimits] || 26;
-    const leads = rawLeads.slice(0, maxAllowed);
+    const leads = uniqueLeads.slice(0, maxAllowed);
     
     console.log(`[FINALIZE] Enforcing lead cap: ${rawLeads.length} → ${leads.length} (max: ${maxAllowed})`);
     if (rawLeads.length > leads.length) {

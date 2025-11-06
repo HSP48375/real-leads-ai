@@ -29,6 +29,7 @@ interface Lead {
   order_id: string;
   seller_name: string;
   contact: string;
+  email?: string; // Store email separately
   address: string;
   city?: string;
   state?: string;
@@ -448,8 +449,8 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       let email = item.email || item.contactEmail || "";
       let sellerName = item.sellerName || item.name || "";
 
-      // If no contact info, deep scrape the listing page
-      if ((!phone && !email) && item.url) {
+      // Always deep scrape for complete contact info
+      if (item.url) {
         const contactInfo = await deepScrapeListingPage(item.url, "FSBO");
         if (contactInfo) {
           phone = contactInfo.phone || phone;
@@ -458,26 +459,57 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         }
       }
 
-      if (!phone && !email) {
-        logStep("Skipping FSBO lead without contact", { url: item.url });
+      // STRICT VALIDATION: Must have phone AND email AND valid name
+      if (!phone || !email) {
+        logStep("Skipping FSBO lead - missing phone or email", { 
+          url: item.url, 
+          hasPhone: !!phone, 
+          hasEmail: !!email 
+        });
+        continue;
+      }
+
+      // Validate name has first AND last name
+      const nameParts = (sellerName || "").trim().split(/\s+/);
+      if (nameParts.length < 2 || sellerName === "Unknown" || !sellerName) {
+        logStep("Skipping FSBO lead - invalid name (need first + last)", { 
+          url: item.url, 
+          name: sellerName 
+        });
+        continue;
+      }
+
+      // Validate address exists
+      const address = item.address || item.streetAddress || "";
+      if (!address.trim()) {
+        logStep("Skipping FSBO lead - missing address", { url: item.url });
+        continue;
+      }
+
+      // Validate listing info exists
+      const title = item.title || "";
+      const price = item.price || item.listPrice || "";
+      if (!title && !price) {
+        logStep("Skipping FSBO lead - missing listing info", { url: item.url });
         continue;
       }
 
       const lead: Lead = {
         order_id: options?.orderId || "",
-        seller_name: sellerName || "Unknown",
-        contact: phone || email,
-        address: item.address || item.streetAddress || "",
+        seller_name: sellerName,
+        contact: phone, // Store phone as primary contact
+        email: email, // Store email separately
+        address: address,
         city: item.city || undefined,
         state: item.state || undefined,
         zip: item.zip || item.zipcode || undefined,
-        price: item.price || item.listPrice || undefined,
+        price: price || undefined,
         url: item.url || undefined,
         source: "FSBO",
         source_type: "fsbo",
         date_listed: item.datePosted || new Date().toISOString(),
-        listing_title: item.title || undefined,
-        address_line_1: item.address || undefined,
+        listing_title: title || undefined,
+        address_line_1: address || undefined,
         address_line_2: undefined,
         zipcode: item.zip || item.zipcode || undefined,
       };
