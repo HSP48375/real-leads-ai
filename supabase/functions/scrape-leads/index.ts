@@ -893,7 +893,7 @@ serve(async (req) => {
     const didIncremental = true; // FSBO saves incrementally
 
     const fsboLeads = await scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`,
-      { orderId, supabase, maxListings: 60, batchSize: 5 }
+      { orderId, supabase, maxListings: 60, batchSize: 1 }
     ).catch((err) => {
       logStep("FSBO scraper failed", { error: err.message });
       return [] as Lead[];
