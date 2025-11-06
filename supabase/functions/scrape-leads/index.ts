@@ -766,7 +766,7 @@ PRIORITY: Phone number is REQUIRED. Email is optional but include if found. Retu
   return null;
 }
 
-async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number }): Promise<Lead[]> {
+async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number; insertLeadIfUnique?: (lead: any) => Promise<boolean> }): Promise<Lead[]> {
   logStep("Scraping FSBO.com via Apify", { city });
 
   if (!APIFY_API_KEY) {
@@ -1040,15 +1040,11 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
 
         leads.push(lead);
         
-        // Save each lead immediately to avoid timeouts
-        if (options?.orderId && options?.supabase) {
+        // Save each lead immediately to avoid timeouts (with duplicate check)
+        if (options?.orderId && options?.supabase && options?.insertLeadIfUnique) {
           try {
-            const { error } = await options.supabase
-              .from("leads")
-              .insert([lead]);
-            if (error) {
-              logStep("Lead insert error", { error: error.message, phone });
-            } else {
+            const inserted = await options.insertLeadIfUnique(lead);
+            if (inserted) {
               logStep("Lead saved", { phone, totalSaved: leads.length });
             }
           } catch (e) {
@@ -1336,6 +1332,118 @@ serve(async (req) => {
 
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
+    // INTELLIGENT SEQUENTIAL SCRAPING - Run sources one by one until target is met
+    // Cost order: FSBO (cheapest via Apify) → Craigslist → ForSaleByOwner.com → Zillow → Trulia
+    
+    const didIncremental = true; // FSBO saves incrementally
+    let totalLeadsCollected = 0;
+    let sourcesRun: string[] = [];
+    
+    // Helper function to check current lead count in database
+    const getCurrentLeadCount = async (): Promise<number> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id", { count: "exact" })
+        .eq("order_id", orderId);
+      
+      if (error) {
+        logStep("Error checking lead count", { error: error.message });
+        return 0;
+      }
+      
+      return data?.length || 0;
+    };
+    
+    // Helper function to check if lead already exists (prevent duplicates during retries)
+    const leadExists = async (phone: string, address: string): Promise<boolean> => {
+      const normalizedPhone = phone.replace(/\D/g, '').slice(-10);
+      const normalizedAddress = address.toLowerCase().trim();
+      
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("order_id", orderId)
+        .ilike("address", `%${normalizedAddress}%`)
+        .limit(1);
+      
+      if (error) {
+        logStep("Error checking for duplicate lead", { error: error.message });
+        return false;
+      }
+      
+      // If we found a lead with similar address, check phone
+      if (data && data.length > 0) {
+        const { data: phoneData } = await supabase
+          .from("leads")
+          .select("contact")
+          .eq("order_id", orderId)
+          .eq("id", data[0].id)
+          .single();
+        
+        if (phoneData) {
+          const existingPhone = (phoneData.contact || '').replace(/\D/g, '').slice(-10);
+          return existingPhone === normalizedPhone;
+        }
+      }
+      
+      return false;
+    };
+    
+    // Helper function to insert lead with duplicate checking
+    const insertLeadIfUnique = async (lead: any): Promise<boolean> => {
+      // Check if lead already exists
+      const exists = await leadExists(lead.contact || '', lead.address || '');
+      
+      if (exists) {
+        logStep("⏭️ Skipping duplicate lead", { 
+          phone: (lead.contact || '').slice(0, 10) + '...', 
+          address: (lead.address || '').slice(0, 30) + '...'
+        });
+        return false;
+      }
+      
+      // Insert the lead
+      const { error } = await supabase.from("leads").insert([lead]);
+      
+      if (error) {
+        logStep("Lead insert error", { error: error.message });
+        return false;
+      }
+      
+      return true;
+    };
+    
+    // Check if max attempts exceeded - if so, finalize with what we have
+    if (scrapeAttempts > MAX_SCRAPE_ATTEMPTS) {
+      const currentLeadCount = await getCurrentLeadCount();
+      logStep("⚠️ MAX ATTEMPTS EXCEEDED - Forcing finalization", { 
+        attempts: scrapeAttempts,
+        maxAttempts: MAX_SCRAPE_ATTEMPTS,
+        leadsCollected: currentLeadCount
+      });
+      
+      // Trigger finalize-order
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      await fetch(`${supabaseUrl}/functions/v1/finalize-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ orderId })
+      });
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Max attempts exceeded - order finalized',
+          leadsFound: currentLeadCount,
+          attempt: scrapeAttempts
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     logStep("Starting RADIUS-BASED multi-source scrape", { 
       city: order.primary_city,
       state: order.primary_state,
@@ -1387,28 +1495,6 @@ serve(async (req) => {
         updated_at: new Date().toISOString() 
       })
       .eq("id", orderId);
-
-    // INTELLIGENT SEQUENTIAL SCRAPING - Run sources one by one until target is met
-    // Cost order: FSBO (cheapest via Apify) → Craigslist → ForSaleByOwner.com → Zillow → Trulia
-    
-    const didIncremental = true; // FSBO saves incrementally
-    let totalLeadsCollected = 0;
-    let sourcesRun: string[] = [];
-    
-    // Helper function to check current lead count in database
-    const getCurrentLeadCount = async (): Promise<number> => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("id", { count: "exact" })
-        .eq("order_id", orderId);
-      
-      if (error) {
-        logStep("Error checking lead count", { error: error.message });
-        return 0;
-      }
-      
-      return data?.length || 0;
-    };
     
     // Helper function to check if target is met
     const isTargetMet = (currentCount: number): boolean => {
@@ -1557,13 +1643,18 @@ serve(async (req) => {
           const craigslistLeads = await scrapeWithZenRowsHTML(url, "Craigslist");
           
           if (craigslistLeads && craigslistLeads.length > 0) {
-            // Save leads to database
+            // Save leads to database (with duplicate check)
+            let newLeadsCount = 0;
             for (const lead of craigslistLeads) {
               lead.order_id = orderId!;
-              await supabase.from("leads").insert(lead);
+              const inserted = await insertLeadIfUnique(lead);
+              if (inserted) newLeadsCount++;
             }
             
-            logStep(`Craigslist - URL ${i+1}/${craigslistLimit}`, { leadsFound: craigslistLeads.length });
+            logStep(`Craigslist - URL ${i+1}/${craigslistLimit}`, { 
+              leadsScraped: craigslistLeads.length,
+              newLeadsAdded: newLeadsCount
+            });
           }
         } catch (err) {
           logStep(`Craigslist failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
@@ -1638,12 +1729,17 @@ serve(async (req) => {
           const fsboComLeads = await scrapeWithZenRowsAutoparse(url, "ForSaleByOwner.com");
           
           if (fsboComLeads && fsboComLeads.length > 0) {
+            let newLeadsCount = 0;
             for (const lead of fsboComLeads) {
               lead.order_id = orderId!;
-              await supabase.from("leads").insert(lead);
+              const inserted = await insertLeadIfUnique(lead);
+              if (inserted) newLeadsCount++;
             }
             
-            logStep(`ForSaleByOwner.com - URL ${i+1}/${fsboComLimit}`, { leadsFound: fsboComLeads.length });
+            logStep(`ForSaleByOwner.com - URL ${i+1}/${fsboComLimit}`, { 
+              leadsScraped: fsboComLeads.length,
+              newLeadsAdded: newLeadsCount
+            });
           }
         } catch (err) {
           logStep(`ForSaleByOwner.com failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
@@ -1679,12 +1775,17 @@ serve(async (req) => {
           const zillowLeads = await scrapeWithZenRowsAutoparse(url, "Zillow");
           
           if (zillowLeads && zillowLeads.length > 0) {
+            let newLeadsCount = 0;
             for (const lead of zillowLeads) {
               lead.order_id = orderId!;
-              await supabase.from("leads").insert(lead);
+              const inserted = await insertLeadIfUnique(lead);
+              if (inserted) newLeadsCount++;
             }
             
-            logStep(`Zillow - URL ${i+1}/${zillowLimit}`, { leadsFound: zillowLeads.length });
+            logStep(`Zillow - URL ${i+1}/${zillowLimit}`, { 
+              leadsScraped: zillowLeads.length,
+              newLeadsAdded: newLeadsCount
+            });
           }
         } catch (err) {
           logStep(`Zillow failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
@@ -1720,12 +1821,17 @@ serve(async (req) => {
           const truliaLeads = await scrapeWithZenRowsAutoparse(url, "Trulia");
           
           if (truliaLeads && truliaLeads.length > 0) {
+            let newLeadsCount = 0;
             for (const lead of truliaLeads) {
               lead.order_id = orderId!;
-              await supabase.from("leads").insert(lead);
+              const inserted = await insertLeadIfUnique(lead);
+              if (inserted) newLeadsCount++;
             }
             
-            logStep(`Trulia - URL ${i+1}/${truliaLimit}`, { leadsFound: truliaLeads.length });
+            logStep(`Trulia - URL ${i+1}/${truliaLimit}`, { 
+              leadsScraped: truliaLeads.length,
+              newLeadsAdded: newLeadsCount
+            });
           }
         } catch (err) {
           logStep(`Trulia failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
