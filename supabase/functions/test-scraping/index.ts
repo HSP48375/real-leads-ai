@@ -10,7 +10,13 @@ interface Lead {
   phone?: string;
   email?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  propertyType?: string;
   price?: string;
+  description?: string;
+  listingDate?: string;
+  url?: string;
   source?: string;
 }
 
@@ -125,7 +131,7 @@ function getCraigslistMetro(city: string, state: string): string {
 }
 
 // Parse Craigslist HTML to extract leads
-function parseCraigslistHTML(html: string): Lead[] {
+function parseCraigslistHTML(html: string, baseUrl: string): Lead[] {
   const leads: Lead[] = [];
   
   // Craigslist uses <li class="cl-static-search-result"> for listings
@@ -153,6 +159,7 @@ function parseCraigslistHTML(html: string): Lead[] {
         name: title,
         address: location || 'Location not specified',
         price: price || 'Price not listed',
+        url,
         source: 'Craigslist',
       });
     }
@@ -223,6 +230,82 @@ function parseOwnersComHTML(html: string): Lead[] {
   return leads;
 }
 
+// Helper: strip HTML tags
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Helper: extract phone numbers from text
+function extractPhones(text: string): string[] {
+  const phoneRegex = /(\+1[-.\s]?)?(\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}/g;
+  const matches = text.match(phoneRegex) || [];
+  // Deduplicate and normalize
+  const set = new Set(matches.map(p => p.trim()));
+  return Array.from(set);
+}
+
+// Helper: extract emails from text
+function extractEmails(text: string): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const matches = text.match(emailRegex) || [];
+  const set = new Set(matches.map(e => e.toLowerCase()));
+  return Array.from(set);
+}
+
+// Deep scrape a single Craigslist listing page to gather contact info
+async function deepScrapeCraigslistListing(url: string, city: string, state: string): Promise<Lead | null> {
+  try {
+    const html = await scrapeWithZenRows(url, 'Craigslist Listing');
+    const text = stripHtml(html);
+
+    // Title
+    const titleMatch = html.match(/<span[^>]*id="titletextonly"[^>]*>([^<]+)<\/span>/i) ||
+                       html.match(/<h1[^>]*class="[^"]*postingtitle[^\"]*"[^>]*>([\s\S]*?)<\/h1>/i) ||
+                       html.match(/<title>([^<]+)<\/title>/i);
+    const name = titleMatch?.[1]?.replace(/\s+\|\s*craigslist.*/i, '').trim();
+
+    // Price
+    const priceMatch = html.match(/\$[\d,.]+/);
+    const price = priceMatch?.[0];
+
+    // Address
+    const addressMatch = html.match(/<div[^>]*class="mapaddress"[^>]*>([^<]+)<\/div>/i) ||
+                         html.match(/<span[^>]*class="mapaddress"[^>]*>([^<]+)<\/span>/i) ||
+                         html.match(/Address:\s*([^<\n]+)[<\n]/i);
+    const address = addressMatch?.[1]?.trim();
+
+    // Listing date
+    const dateMatch = html.match(/<time[^>]*datetime="([^"]+)"[^>]*>/i);
+    const listingDate = dateMatch?.[1];
+
+    // Description text
+    const bodyMatch = html.match(/<section[^>]*id="postingbody"[^>]*>([\s\S]*?)<\/section>/i) ||
+                      html.match(/<section[^>]*id="postingbody"[^>]*>[\s\S]*?<div class="print-information">/i);
+    const description = bodyMatch ? stripHtml(bodyMatch[0]) : text.substring(0, 2000);
+
+    const phones = extractPhones(text);
+    const emails = extractEmails(text);
+
+    return {
+      name: name || 'FSBO Listing',
+      phone: phones[0],
+      email: emails[0],
+      address: address || undefined,
+      city,
+      state,
+      propertyType: 'FSBO',
+      price: price || undefined,
+      description,
+      listingDate,
+      url,
+      source: 'Craigslist',
+    };
+  } catch (e) {
+    console.log('Deep scrape failed for', url, e);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -246,11 +329,6 @@ Deno.serve(async (req) => {
         waitFor: undefined,
       },
       {
-        name: 'BuyOwner',
-        url: `https://www.buyowner.com/fsbo-${city.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}`,
-        waitFor: '.property',
-      },
-      {
         name: 'Owners.com',
         url: `https://owner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
         waitFor: '.listing',
@@ -264,17 +342,28 @@ Deno.serve(async (req) => {
       
       try {
         const htmlContent = await scrapeWithZenRows(source.url, source.name, source.waitFor);
-        const timeTaken = Date.now() - startTime;
         
         // Parse HTML to extract actual leads
         let parsedLeads: Lead[] = [];
         if (source.name === 'Craigslist') {
-          parsedLeads = parseCraigslistHTML(htmlContent);
-        } else if (source.name === 'BuyOwner') {
-          parsedLeads = parseBuyOwnerHTML(htmlContent);
+          // 1) Parse list page for candidate listings
+          const listLeads = parseCraigslistHTML(htmlContent, `https://${craigslistMetro}.craigslist.org`);
+          const urls = listLeads.map(l => l.url).filter((u): u is string => !!u);
+
+          // 2) Deep scrape first N listings for contact info
+          const maxListings = 10;
+          const toProcess = urls.slice(0, maxListings);
+          const details: Lead[] = [];
+          for (const url of toProcess) {
+            const detail = await deepScrapeCraigslistListing(url, city, state);
+            if (detail) details.push(detail);
+          }
+          parsedLeads = details;
         } else if (source.name === 'Owners.com') {
           parsedLeads = parseOwnersComHTML(htmlContent);
         }
+        
+        const timeTaken = Date.now() - startTime;
         
         testResults.push({
           source: source.name,
