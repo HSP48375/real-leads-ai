@@ -97,12 +97,12 @@ CRITICAL:
 - Return {"leads": []} if no listings found`;
 
 
-// ZenRows scraper with proper anti-bot bypass parameters
-async function scrapeWithZenRows(url: string, source: string, waitForSelector?: string, maxRetries = 2): Promise<Lead[]> {
-  const RETRY_DELAY_MS = 10000; // 10 seconds between retries
+// ZenRows scraper with HTML parsing for Craigslist
+async function scrapeWithZenRowsHTML(url: string, source: string, maxRetries = 2): Promise<Lead[]> {
+  const RETRY_DELAY_MS = 10000;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    logStep(`Scraping ${source} with ZenRows`, { url, attempt, maxRetries, waitForSelector });
+    logStep(`Scraping ${source} with ZenRows HTML`, { url, attempt, maxRetries });
 
     if (!ZENROWS_API_KEY) {
       logStep(`ZenRows API key missing for ${source}`);
@@ -110,27 +110,14 @@ async function scrapeWithZenRows(url: string, source: string, waitForSelector?: 
     }
 
     try {
-      // Build ZenRows URL with proper anti-bot parameters
       const zenrowsUrl = new URL('https://api.zenrows.com/v1/');
       zenrowsUrl.searchParams.set('apikey', ZENROWS_API_KEY);
       zenrowsUrl.searchParams.set('url', url);
       zenrowsUrl.searchParams.set('js_render', 'true');
       zenrowsUrl.searchParams.set('premium_proxy', 'true');
       zenrowsUrl.searchParams.set('wait', '3000');
-      
-      if (waitForSelector) {
-        zenrowsUrl.searchParams.set('wait_for', waitForSelector);
-      }
 
-      logStep(`ZenRows request for ${source}`, { 
-        targetUrl: url, 
-        attempt, 
-        params: 'js_render=true&premium_proxy=true&wait=3000'
-      });
-
-      const response = await fetch(zenrowsUrl.toString(), {
-        method: "GET",
-      });
+      const response = await fetch(zenrowsUrl.toString(), { method: "GET" });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -140,16 +127,12 @@ async function scrapeWithZenRows(url: string, source: string, waitForSelector?: 
         logStep(`ZenRows error for ${source}`, { 
           status: response.status, 
           error: errorText.substring(0, 200),
-          isTimeout,
-          isRateLimit,
           attempt,
           willRetry: (isTimeout || isRateLimit) && attempt < maxRetries
         });
         
-        // Retry on timeout or rate limit
         if ((isTimeout || isRateLimit) && attempt < maxRetries) {
           const delay = isRateLimit ? RETRY_DELAY_MS * 2 : RETRY_DELAY_MS;
-          logStep(`Waiting ${delay/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
@@ -159,19 +142,56 @@ async function scrapeWithZenRows(url: string, source: string, waitForSelector?: 
 
       const htmlContent = await response.text();
       logStep(`ZenRows HTML retrieved for ${source}`, { 
-        status: response.status,
         htmlLength: htmlContent.length,
         attempt 
       });
 
-      // For now, return empty array since we need HTML parsing logic
-      // TODO: Add HTML parsing to extract leads from the raw HTML
-      logStep(`${source} - HTML parsing not yet implemented`, { 
-        htmlLength: htmlContent.length,
-        preview: htmlContent.substring(0, 200)
-      });
+      // Parse Craigslist HTML - extract phone numbers and addresses
+      const leads: Lead[] = [];
       
-      return [];
+      if (source === "Craigslist") {
+        // Extract listing items - Craigslist uses <li class="cl-static-search-result">
+        const listingRegex = /<li[^>]*class="[^"]*cl-static-search-result[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
+        const listings = htmlContent.match(listingRegex) || [];
+        
+        logStep(`Craigslist listings found`, { count: listings.length });
+        
+        for (const listing of listings) {
+          try {
+            // Extract title/address from <div class="title">
+            const titleMatch = listing.match(/<div[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+            const titleText = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+            
+            // Extract link and ID
+            const linkMatch = listing.match(/href="([^"]+)"/);
+            const linkUrl = linkMatch ? linkMatch[1] : '';
+            
+            // Extract price
+            const priceMatch = listing.match(/<div[^>]*class="[^"]*price[^"]*"[^>]*>\$?([\d,]+)<\/div>/i);
+            const price = priceMatch ? `$${priceMatch[1]}` : '';
+            
+            // Skip if no contact info (we'll add phone parsing later)
+            if (titleText && linkUrl) {
+              leads.push({
+                order_id: '',
+                seller_name: 'Owner',
+                contact: 'See listing',
+                address: titleText,
+                price: price || undefined,
+                url: linkUrl.startsWith('http') ? linkUrl : `https://craigslist.org${linkUrl}`,
+                source: 'Craigslist',
+                source_type: 'web_scrape',
+                listing_title: titleText,
+              });
+            }
+          } catch (e) {
+            logStep(`Error parsing Craigslist listing`, { error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+      }
+      
+      logStep(`${source} leads parsed`, { count: leads.length });
+      return leads;
       
     } catch (error) {
       const willRetry = attempt < maxRetries;
@@ -182,7 +202,6 @@ async function scrapeWithZenRows(url: string, source: string, waitForSelector?: 
       });
       
       if (willRetry) {
-        logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         continue;
       }
@@ -192,6 +211,119 @@ async function scrapeWithZenRows(url: string, source: string, waitForSelector?: 
   }
   
   logStep(`${source} - all ZenRows retries exhausted`);
+  return [];
+}
+
+// ZenRows scraper with AUTOPARSE for real estate sites (Zillow, Trulia, ForSaleByOwner)
+async function scrapeWithZenRowsAutoparse(url: string, source: string, maxRetries = 2): Promise<Lead[]> {
+  const RETRY_DELAY_MS = 10000;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    logStep(`Scraping ${source} with ZenRows Autoparse`, { url, attempt, maxRetries });
+
+    if (!ZENROWS_API_KEY) {
+      logStep(`ZenRows API key missing for ${source}`);
+      return [];
+    }
+
+    try {
+      const zenrowsUrl = new URL('https://api.zenrows.com/v1/');
+      zenrowsUrl.searchParams.set('apikey', ZENROWS_API_KEY);
+      zenrowsUrl.searchParams.set('url', url);
+      zenrowsUrl.searchParams.set('js_render', 'true');
+      zenrowsUrl.searchParams.set('premium_proxy', 'true');
+      zenrowsUrl.searchParams.set('wait', '3000');
+      zenrowsUrl.searchParams.set('autoparse', 'true'); // Enable autoparse for real estate
+
+      const response = await fetch(zenrowsUrl.toString(), { method: "GET" });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const isTimeout = response.status === 504 || response.status === 524;
+        const isRateLimit = response.status === 429;
+        
+        logStep(`ZenRows autoparse error for ${source}`, { 
+          status: response.status, 
+          error: errorText.substring(0, 200),
+          attempt,
+          willRetry: (isTimeout || isRateLimit) && attempt < maxRetries
+        });
+        
+        if ((isTimeout || isRateLimit) && attempt < maxRetries) {
+          const delay = isRateLimit ? RETRY_DELAY_MS * 2 : RETRY_DELAY_MS;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        return [];
+      }
+
+      const jsonData = await response.json();
+      logStep(`ZenRows autoparse data retrieved for ${source}`, { 
+        hasListings: !!jsonData?.listings,
+        listingsCount: jsonData?.listings?.length || 0,
+        attempt 
+      });
+
+      // Parse autoparsed real estate data
+      const leads: Lead[] = [];
+      
+      if (jsonData?.listings && Array.isArray(jsonData.listings)) {
+        for (const listing of jsonData.listings) {
+          try {
+            // ZenRows autoparse returns structured real estate data
+            const address = listing.address || listing.full_address || '';
+            const price = listing.price || listing.listing_price || '';
+            const phone = listing.phone || listing.contact_phone || '';
+            
+            if (address || phone) {
+              leads.push({
+                order_id: '',
+                seller_name: listing.agent_name || listing.seller_name || 'Owner',
+                contact: phone || 'See listing',
+                email: listing.email || listing.contact_email,
+                address: address,
+                city: listing.city,
+                state: listing.state,
+                zip: listing.zip || listing.zipcode,
+                price: price,
+                url: listing.url || listing.listing_url,
+                source: source,
+                source_type: 'web_scrape',
+                bedrooms: listing.bedrooms || listing.beds,
+                bathrooms: listing.bathrooms || listing.baths,
+                home_style: listing.property_type || listing.home_type,
+                year_built: listing.year_built,
+                listing_title: listing.title || listing.description?.substring(0, 100),
+              });
+            }
+          } catch (e) {
+            logStep(`Error parsing ${source} listing`, { error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+      }
+      
+      logStep(`${source} autoparse leads extracted`, { count: leads.length });
+      return leads;
+      
+    } catch (error) {
+      const willRetry = attempt < maxRetries;
+      logStep(`${source} ZenRows autoparse exception`, { 
+        error: error instanceof Error ? error.message : String(error),
+        attempt,
+        willRetry
+      });
+      
+      if (willRetry) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        continue;
+      }
+      
+      return [];
+    }
+  }
+  
+  logStep(`${source} - all ZenRows autoparse retries exhausted`);
   return [];
 }
 
@@ -1153,53 +1285,65 @@ serve(async (req) => {
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    // Build dynamic URLs for each source
+    // Build dynamic URLs for ALL sources
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
-    const ownersUrl = `https://owner.com/search/${cityUrls.state}/${cityUrls.ownersCity}`;
+    const forsalebyownerUrl = `https://www.forsalebyowner.com/search/list/${cityUrls.buyownerCity}-${cityUrls.state}`;
+    const zillowUrl = `https://www.zillow.com/${cityUrls.buyownerCity}-${cityUrls.state}/fsbo/`;
+    const truliaUrl = `https://www.trulia.com/for_sale/${order.primary_city},${order.primary_state.toUpperCase()}/fsbo_lt/`;
 
-    logStep("Scraper URLs", { craigslistUrl, buyownerUrl, ownersUrl });
+    logStep("Scraper URLs (5 sources)", { 
+      craigslist: craigslistUrl, 
+      forsalebyowner: forsalebyownerUrl,
+      zillow: zillowUrl,
+      trulia: truliaUrl
+    });
 
-    // Run all 3 scrapers in parallel - FSBO + ZenRows multi-source
+    // Run ALL 5 scrapers in parallel - FSBO + ZenRows multi-source
     const didIncremental = true; // FSBO saves incrementally
 
-    // Execute all scrapers in parallel - FSBO + ZenRows multi-source (95%+ anti-bot bypass)
-    const [fsboLeads, craigslistLeads, buyownerLeads, ownersLeads] = await Promise.all([
+    // Execute all 5 scrapers in parallel (max lead generation)
+    const [fsboLeads, craigslistLeads, forsalebyownerLeads, zillowLeads, truliaLeads] = await Promise.all([
       scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
         { orderId, supabase, maxListings: 60 }
-      ).catch((err) => {
-        logStep("FSBO scraper failed", { error: err.message });
+      ).catch((err: Error) => {
+        logStep("FSBO.com scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(craigslistUrl, "Craigslist").catch((err) => {
-        logStep("Craigslist ZenRows scraper failed", { error: err.message });
+      scrapeWithZenRowsHTML(craigslistUrl, "Craigslist").catch((err: Error) => {
+        logStep("Craigslist scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(buyownerUrl, "BuyOwner", ".property").catch((err) => {
-        logStep("BuyOwner ZenRows scraper failed", { error: err.message });
+      scrapeWithZenRowsAutoparse(forsalebyownerUrl, "ForSaleByOwner.com").catch((err: Error) => {
+        logStep("ForSaleByOwner.com scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(ownersUrl, "Owners.com", ".listing").catch((err) => {
-        logStep("Owners.com ZenRows scraper failed", { error: err.message });
+      scrapeWithZenRowsAutoparse(zillowUrl, "Zillow").catch((err: Error) => {
+        logStep("Zillow scraper failed", { error: err.message });
+        return [] as Lead[];
+      }),
+      
+      scrapeWithZenRowsAutoparse(truliaUrl, "Trulia").catch((err: Error) => {
+        logStep("Trulia scraper failed", { error: err.message });
         return [] as Lead[];
       })
     ]);
 
 
-    // Combine all leads
-    let allLeads = [...fsboLeads, ...craigslistLeads, ...buyownerLeads, ...ownersLeads];
+    // Combine all leads from 5 sources
+    let allLeads = [...fsboLeads, ...craigslistLeads, ...forsalebyownerLeads, ...zillowLeads, ...truliaLeads];
     
     // Set order_id for all leads
     allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
 
-    logStep("All sources scraped", {
-      fsbo: fsboLeads.length,
-      craigslist: craigslistLeads.length,
-      buyowner: buyownerLeads.length,
-      owners: ownersLeads.length,
+    logStep("All 5 sources scraped", {
+      'FSBO.com': fsboLeads.length,
+      'Craigslist': craigslistLeads.length,
+      'ForSaleByOwner.com': forsalebyownerLeads.length,
+      'Zillow': zillowLeads.length,
+      'Trulia': truliaLeads.length,
       total: allLeads.length
     });
 
