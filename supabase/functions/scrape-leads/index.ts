@@ -17,7 +17,64 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 // Get coordinates for a city using Nominatim (OpenStreetMap's free geocoding API)
+// Hardcoded coordinates for major Michigan cities (fallback when geocoding fails)
+const MICHIGAN_CITY_COORDS: { [key: string]: { lat: number; lon: number } } = {
+  "novi": { lat: 42.4806, lon: -83.4755 },
+  "detroit": { lat: 42.3314, lon: -83.0458 },
+  "ann arbor": { lat: 42.2808, lon: -83.7430 },
+  "grand rapids": { lat: 42.9634, lon: -85.6681 },
+  "warren": { lat: 42.5145, lon: -83.0147 },
+  "sterling heights": { lat: 42.5803, lon: -83.0302 },
+  "lansing": { lat: 42.7325, lon: -84.5555 },
+  "livonia": { lat: 42.3684, lon: -83.3527 },
+  "troy": { lat: 42.6064, lon: -83.1498 },
+  "westland": { lat: 42.3242, lon: -83.4002 },
+  "farmington hills": { lat: 42.4989, lon: -83.3677 },
+  "rochester hills": { lat: 42.6584, lon: -83.1499 },
+  "southfield": { lat: 42.4734, lon: -83.2219 },
+  "dearborn": { lat: 42.3223, lon: -83.1763 },
+  "st. clair shores": { lat: 42.4974, lon: -82.8966 },
+  "royal oak": { lat: 42.4895, lon: -83.1446 },
+  "pontiac": { lat: 42.6389, lon: -83.2910 },
+  "northville": { lat: 42.4309, lon: -83.4833 },
+  "plymouth": { lat: 42.3714, lon: -83.4702 },
+  "wixom": { lat: 42.5247, lon: -83.5361 },
+  "south lyon": { lat: 42.4606, lon: -83.6516 },
+  "canton": { lat: 42.3087, lon: -83.4816 },
+  "west bloomfield": { lat: 42.5681, lon: -83.3830 },
+  "commerce township": { lat: 42.5931, lon: -83.4766 },
+  "waterford": { lat: 42.6612, lon: -83.3900 },
+  "brighton": { lat: 42.5295, lon: -83.7802 },
+  "milford": { lat: 42.5974, lon: -83.5999 },
+};
+
+// Hardcoded nearby cities within 25 miles of major cities (fallback for radius expansion)
+const NEARBY_CITIES: { [key: string]: string[] } = {
+  "novi": [
+    "Novi", "Northville", "Farmington Hills", "Livonia", "Wixom", 
+    "South Lyon", "Plymouth", "Canton", "West Bloomfield", 
+    "Commerce Township", "Milford", "Brighton", "Waterford"
+  ],
+  "detroit": [
+    "Detroit", "Dearborn", "Warren", "Sterling Heights", "Livonia",
+    "Westland", "Southfield", "Royal Oak", "Troy", "St. Clair Shores"
+  ],
+  "ann arbor": [
+    "Ann Arbor", "Ypsilanti", "Saline", "Dexter", "Chelsea",
+    "Canton", "Plymouth", "Belleville"
+  ],
+};
+
 async function getCityCoordinates(city: string, state: string): Promise<{ lat: number; lon: number } | null> {
+  const cityLower = city.toLowerCase().trim();
+  
+  // First, try hardcoded coordinates
+  if (MICHIGAN_CITY_COORDS[cityLower]) {
+    logStep(`Using hardcoded coordinates for ${city}`, MICHIGAN_CITY_COORDS[cityLower]);
+    return MICHIGAN_CITY_COORDS[cityLower];
+  }
+  
+  // Fallback to Nominatim API
   try {
     const query = encodeURIComponent(`${city}, ${state}, USA`);
     const response = await fetch(
@@ -29,44 +86,58 @@ async function getCityCoordinates(city: string, state: string): Promise<{ lat: n
       }
     );
     
-    const data = await response.json();
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon)
-      };
+    if (!response.ok) {
+      logStep(`Nominatim API error for ${city}`, { status: response.status });
+      return null;
     }
-    return null;
+    
+    const data = await response.json();
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      logStep(`No geocoding results for ${city}, ${state}`);
+      return null;
+    }
+    
+    return {
+      lat: parseFloat(data[0].lat),
+      lon: parseFloat(data[0].lon)
+    };
   } catch (error) {
-    logStep(`Error geocoding ${city}, ${state}`, { error: error instanceof Error ? error.message : String(error) });
+    logStep('Error geocoding', { city, state, error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
 
-// Find all cities within radius using Nominatim reverse geocoding
-async function getCitiesWithinRadius(
-  centerCity: string,
-  centerState: string,
-  radiusMiles: number
-): Promise<string[]> {
+// Find all cities within radius using hardcoded lists + geocoding fallback
+async function getCitiesWithinRadius(centerCity: string, centerState: string, radiusMiles: number): Promise<string[]> {
   try {
+    const cityLower = centerCity.toLowerCase().trim();
+    
+    // First, try hardcoded nearby cities list (fastest and most reliable)
+    if (NEARBY_CITIES[cityLower]) {
+      logStep(`Using hardcoded nearby cities for ${centerCity}`, { 
+        count: NEARBY_CITIES[cityLower].length,
+        cities: NEARBY_CITIES[cityLower]
+      });
+      return NEARBY_CITIES[cityLower];
+    }
+    
     logStep(`Finding cities within ${radiusMiles} miles of ${centerCity}, ${centerState}`);
     
-    // Get coordinates of center city
+    // Fallback to geocoding + radius search
     const centerCoords = await getCityCoordinates(centerCity, centerState);
     if (!centerCoords) {
-      logStep(`Could not geocode center city: ${centerCity}, ${centerState}`);
-      return [centerCity]; // Fallback to just the center city
+      logStep(`Could not geocode center city: ${centerCity}, ${centerState} - using single city fallback`);
+      return [centerCity];
     }
     
     logStep(`Center coordinates`, { lat: centerCoords.lat, lon: centerCoords.lon });
     
     // Search for cities in a bounding box around the center
-    // 1 degree latitude ≈ 69 miles, 1 degree longitude ≈ 54.6 miles (at 45° latitude)
     const latDelta = radiusMiles / 69;
     const lonDelta = radiusMiles / 54.6;
     
-    const cities: Set<string> = new Set([centerCity]); // Always include center city
+    const cities: Set<string> = new Set([centerCity]);
     
     // Query nearby places using Nominatim
     const query = encodeURIComponent(`city near ${centerCity}, ${centerState}, USA`);
@@ -81,7 +152,17 @@ async function getCitiesWithinRadius(
       }
     );
     
+    if (!response.ok) {
+      logStep(`Nominatim search failed for ${centerCity}`, { status: response.status });
+      return [centerCity];
+    }
+    
     const nearbyPlaces = await response.json();
+    
+    if (!Array.isArray(nearbyPlaces)) {
+      logStep(`Invalid response from Nominatim for ${centerCity}`);
+      return [centerCity];
+    }
     
     // Filter by distance and type
     for (const place of nearbyPlaces) {
@@ -105,7 +186,7 @@ async function getCitiesWithinRadius(
     
   } catch (error) {
     logStep('Error finding cities within radius', { error: error instanceof Error ? error.message : String(error) });
-    return [centerCity]; // Fallback to just the center city
+    return [centerCity];
   }
 }
 
