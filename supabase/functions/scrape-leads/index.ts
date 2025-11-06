@@ -931,39 +931,20 @@ serve(async (req) => {
       total: allLeads.length
     });
 
-    // Deduplicate leads
-    const uniqueLeads = deduplicateLeads(allLeads);
-
-    // Check existing leads
+    // Leads were already saved one-by-one during scraping to avoid timeouts
+    // Just count what we have in the database now
     const { data: existingLeads } = await supabase
       .from("leads")
       .select("id", { count: "exact" })
       .eq("order_id", orderId);
     
-    const existingCount = existingLeads?.length || 0;
-    const totalLeadsAfterSave = existingCount + uniqueLeads.length;
+    const totalLeadsAfterSave = existingLeads?.length || 0;
 
     logStep("Lead count analysis", {
-      existing: existingCount,
-      newUnique: uniqueLeads.length,
-      totalAfterSave: totalLeadsAfterSave,
+      totalLeadsSaved: totalLeadsAfterSave,
       minRequired: tierQuota.min,
       maxAllowed: tierQuota.max
     });
-
-    // Save new leads to database
-    if (uniqueLeads.length > 0) {
-      const { error: insertErr } = await supabase
-        .from("leads")
-        .insert(uniqueLeads);
-
-      if (insertErr) {
-        logStep("ERROR inserting leads", { error: insertErr.message });
-        throw new Error(`Failed to insert leads: ${insertErr.message}`);
-      }
-
-      logStep("Leads saved to database", { count: uniqueLeads.length });
-    }
 
     // Check if we've met the minimum quota
     const quotaMet = totalLeadsAfterSave >= tierQuota.min;
