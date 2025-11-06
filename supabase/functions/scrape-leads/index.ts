@@ -1415,9 +1415,19 @@ serve(async (req) => {
       return currentCount >= tierQuota.min && currentCount <= tierQuota.max;
     };
 
+    // Track execution time to prevent timeout
+    const executionStartTime = Date.now();
+    const MAX_EXECUTION_TIME_MS = 50000; // 50 seconds max (edge functions timeout ~60s)
+    
+    const shouldExitDueToTimeout = (): boolean => {
+      const elapsed = Date.now() - executionStartTime;
+      return elapsed > MAX_EXECUTION_TIME_MS;
+    };
+
     logStep("Starting SEQUENTIAL scraping with intelligent stopping", {
       targetRange: `${tierQuota.min}-${tierQuota.max}`,
-      strategy: "Cost-optimized: FSBO → Craigslist → Others"
+      strategy: "Cost-optimized: FSBO → Craigslist → Others",
+      maxExecutionTime: `${MAX_EXECUTION_TIME_MS}ms`
     });
 
     // SOURCE 1: FSBO.com via Apify (CHEAPEST - $0.05-0.15 per order)
@@ -1444,8 +1454,50 @@ serve(async (req) => {
       logStep("SOURCE 1: FSBO.com - Complete", { 
         totalLeads: totalLeadsCollected,
         targetMin: tierQuota.min,
-        targetMet: isTargetMet(totalLeadsCollected)
+        targetMet: isTargetMet(totalLeadsCollected),
+        elapsedTime: `${Date.now() - executionStartTime}ms`
       });
+      
+      // Check if we should exit due to timeout
+      if (shouldExitDueToTimeout()) {
+        logStep("⏱️ TIMEOUT APPROACHING - Triggering retry", { 
+          leadsCollected: totalLeadsCollected,
+          elapsedTime: `${Date.now() - executionStartTime}ms`,
+          attempt: scrapeAttempts
+        });
+        
+        // Increment attempt counter and trigger retry
+        await supabase
+          .from("orders")
+          .update({
+            scrape_attempts: scrapeAttempts + 1,
+            status: "processing",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+        
+        // Trigger retry
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ orderId })
+        });
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Timeout approaching - retrying',
+            leadsFound: totalLeadsCollected,
+            elapsedTime: Date.now() - executionStartTime,
+            attempt: scrapeAttempts + 1
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       
       if (isTargetMet(totalLeadsCollected)) {
         logStep("🎯 TARGET MET after FSBO.com - Stopping", { 
@@ -1486,8 +1538,47 @@ serve(async (req) => {
       logStep("SOURCE 2: Craigslist - Complete", { 
         totalLeads: totalLeadsCollected,
         targetMin: tierQuota.min,
-        targetMet: isTargetMet(totalLeadsCollected)
+        targetMet: isTargetMet(totalLeadsCollected),
+        elapsedTime: `${Date.now() - executionStartTime}ms`
       });
+      
+      // Check timeout again
+      if (shouldExitDueToTimeout()) {
+        logStep("⏱️ TIMEOUT APPROACHING - Triggering retry after Craigslist", { 
+          leadsCollected: totalLeadsCollected,
+          elapsedTime: `${Date.now() - executionStartTime}ms`
+        });
+        
+        await supabase
+          .from("orders")
+          .update({
+            scrape_attempts: scrapeAttempts + 1,
+            status: "processing",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+        
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ orderId })
+        });
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Timeout approaching - retrying',
+            leadsFound: totalLeadsCollected,
+            elapsedTime: Date.now() - executionStartTime,
+            attempt: scrapeAttempts + 1
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       
       if (isTargetMet(totalLeadsCollected)) {
         logStep("🎯 TARGET MET after Craigslist - Stopping", { 
