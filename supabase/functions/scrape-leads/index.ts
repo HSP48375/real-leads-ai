@@ -231,12 +231,12 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
 }
 
 // Deep scrape individual listing page to extract contact information with retry logic
-async function deepScrapeListingPage(url: string, source: string, fallbackAddress: string = "", maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string; address?: string; bedrooms?: number; bathrooms?: number; homeStyle?: string; yearBuilt?: number } | null> {
+async function deepScrapeListingPage(url: string, source: string, fallbackAddress: string = "", maxRetries = 2): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string; address?: string; bedrooms?: number; bathrooms?: number; homeStyle?: string; yearBuilt?: number } | null> {
   if (!OLOSTEP_API_KEY) {
     return null;
   }
 
-  const DEEP_SCRAPE_DELAY_MS = 5000; // 5 seconds between retries
+  const DEEP_SCRAPE_DELAY_MS = 2000; // 2 seconds between retries (optimized for speed)
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -485,172 +485,204 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
     
     logStep("FSBO items with URLs for deep scraping", { count: itemsWithUrls.length });
 
-    // Deep scrape each listing (limit to prevent timeout)
+    // Deep scrape each listing with PARALLEL processing to speed things up
     const maxDeepScrapes = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
     const batchSize = options?.batchSize ?? 5;
     const pending: Lead[] = [];
     const seenPhones = new Set<string>(); // DEDUPLICATE BY PHONE NUMBER ONLY
     const rejectionReasons: { [key: string]: number } = {};
     
-    for (let i = 0; i < maxDeepScrapes; i++) {
-      const item = itemsWithUrls[i];
-      logStep("FSBO deep scrape progress", { index: i + 1, total: maxDeepScrapes, url: item.url });
+    // Process 5 listings in parallel for faster scraping
+    const PARALLEL_BATCH_SIZE = 5;
+    
+    for (let i = 0; i < maxDeepScrapes; i += PARALLEL_BATCH_SIZE) {
+      const batchEnd = Math.min(i + PARALLEL_BATCH_SIZE, maxDeepScrapes);
+      const batchItems = itemsWithUrls.slice(i, batchEnd);
       
-      // Try direct contact first
-      let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
-      let email = item.email || item.contactEmail || "";
-      let firstName = "";
-      let lastName = "";
-      let bedrooms: number | null = null;
-      let bathrooms: number | null = null;
-      let homeStyle = "";
-      let yearBuilt: number | null = null;
-
-      // Always deep scrape for complete contact info and property details
-      // Pass the original address from search results as fallback
-      const fallbackAddress = item.address || item.streetAddress || "";
-      let addressFromDeepScrape = "";
-      
-      if (item.url) {
-        const contactInfo = await deepScrapeListingPage(item.url, "FSBO", fallbackAddress);
-        if (contactInfo) {
-          phone = contactInfo.phone || phone;
-          email = contactInfo.email || email;
-          firstName = contactInfo.firstName || firstName;
-          lastName = contactInfo.lastName || lastName;
-          addressFromDeepScrape = contactInfo.address || "";
-          bedrooms = contactInfo.bedrooms !== undefined ? contactInfo.bedrooms : bedrooms;
-          bathrooms = contactInfo.bathrooms !== undefined ? contactInfo.bathrooms : bathrooms;
-          homeStyle = contactInfo.homeStyle || homeStyle;
-          yearBuilt = contactInfo.yearBuilt !== undefined ? contactInfo.yearBuilt : yearBuilt;
-        }
-      }
-
-      // VALIDATION 1: Must have phone number
-      if (!phone) {
-        const reason = "missing_phone";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing phone", { url: item.url });
-        continue;
-      }
-
-      // VALIDATION 2: Check for duplicate phone (USE PHONE AS UNIQUE IDENTIFIER)
-      if (seenPhones.has(phone)) {
-        const reason = "duplicate_phone";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - duplicate phone", { url: item.url, phone });
-        continue;
-      }
-      seenPhones.add(phone);
-
-      // VALIDATION 3: Must have first AND last name
-      if (!firstName || !lastName) {
-        const reason = "missing_name";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing first or last name", { 
-          url: item.url, 
-          phone,
-          firstName,
-          lastName
-        });
-        continue;
-      }
-
-      // VALIDATION 4: Must have address (from deep scrape with fallback or original search result)
-      const address = addressFromDeepScrape || fallbackAddress;
-      if (!address.trim()) {
-        const reason = "missing_address";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing address", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 5: Must have price
-      const price = item.price || item.listPrice || "";
-      if (!price) {
-        const reason = "missing_price";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing price", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 6: Must have bedrooms
-      if (bedrooms === null || bedrooms === undefined) {
-        const reason = "missing_bedrooms";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing bedrooms", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 7: Must have bathrooms
-      if (bathrooms === null || bathrooms === undefined) {
-        const reason = "missing_bathrooms";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing bathrooms", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 8: Must have home style
-      if (!homeStyle || !homeStyle.trim()) {
-        const reason = "missing_home_style";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing home style", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 9: Must have year built
-      if (yearBuilt === null || yearBuilt === undefined) {
-        const reason = "missing_year_built";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing year built", { url: item.url, phone });
-        continue;
-      }
-
-      // ALL 9 CORE VALIDATIONS PASSED - CREATE COMPLETE LEAD
-      // Optional fields (nice to have but not required):
-      const title = item.title || "";
-      const propertyType = item.propertyType || item.type || "";
-      
-      const lead: Lead = {
-        order_id: options?.orderId || "",
-        seller_name: `${firstName} ${lastName}`,
-        contact: phone,
-        email: email,
-        address: address,
-        city: item.city || undefined,
-        state: item.state || undefined,
-        zip: item.zip || item.zipcode || undefined,
-        price: price || undefined,
-        url: item.url || undefined,
-        source: "FSBO",
-        source_type: "fsbo",
-        date_listed: item.datePosted || new Date().toISOString(),
-        listing_title: title || propertyType || undefined,
-        address_line_1: address || undefined,
-        address_line_2: undefined,
-        zipcode: item.zip || item.zipcode || undefined,
-        bedrooms: bedrooms,
-        bathrooms: bathrooms,
-        home_style: homeStyle,
-        year_built: yearBuilt,
-      };
-
-      logStep("ACCEPTED - complete lead with 9 core fields", { 
-        phone, 
-        email, 
-        name: `${firstName} ${lastName}`,
-        address,
-        price,
-        bedrooms,
-        bathrooms,
-        homeStyle,
-        yearBuilt
+      logStep("FSBO parallel batch progress", { 
+        batchStart: i + 1, 
+        batchEnd, 
+        total: maxDeepScrapes,
+        batchSize: batchItems.length
       });
+      
+      // Process batch in parallel
+      const batchResults = await Promise.all(
+        batchItems.map(async (item: any) => {
+          // Try direct contact first
+          let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
+          let email = item.email || item.contactEmail || "";
+          let firstName = "";
+          let lastName = "";
+          let bedrooms: number | null = null;
+          let bathrooms: number | null = null;
+          let homeStyle = "";
+          let yearBuilt: number | null = null;
 
-      leads.push(lead);
-      pending.push(lead);
+          // Always deep scrape for complete contact info and property details
+          const fallbackAddress = item.address || item.streetAddress || "";
+          let addressFromDeepScrape = "";
+          
+          if (item.url) {
+            const contactInfo = await deepScrapeListingPage(item.url, "FSBO", fallbackAddress);
+            if (contactInfo) {
+              phone = contactInfo.phone || phone;
+              email = contactInfo.email || email;
+              firstName = contactInfo.firstName || firstName;
+              lastName = contactInfo.lastName || lastName;
+              addressFromDeepScrape = contactInfo.address || "";
+              bedrooms = contactInfo.bedrooms !== undefined ? contactInfo.bedrooms : bedrooms;
+              bathrooms = contactInfo.bathrooms !== undefined ? contactInfo.bathrooms : bathrooms;
+              homeStyle = contactInfo.homeStyle || homeStyle;
+              yearBuilt = contactInfo.yearBuilt !== undefined ? contactInfo.yearBuilt : yearBuilt;
+            }
+          }
 
-      // Incremental save in batches
+          return {
+            item,
+            phone,
+            email,
+            firstName,
+            lastName,
+            addressFromDeepScrape,
+            fallbackAddress,
+            bedrooms,
+            bathrooms,
+            homeStyle,
+            yearBuilt
+          };
+        })
+      );
+      
+      // Process batch results and apply validations
+      for (const result of batchResults) {
+        const { item, phone, email, firstName, lastName, addressFromDeepScrape, fallbackAddress, bedrooms, bathrooms, homeStyle, yearBuilt } = result;
+        
+        // VALIDATION 1: Must have phone number
+        if (!phone) {
+          const reason = "missing_phone";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing phone", { url: item.url });
+          continue;
+        }
+
+        // VALIDATION 2: Check for duplicate phone (USE PHONE AS UNIQUE IDENTIFIER)
+        if (seenPhones.has(phone)) {
+          const reason = "duplicate_phone";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - duplicate phone", { url: item.url, phone });
+          continue;
+        }
+        seenPhones.add(phone);
+
+        // VALIDATION 3: Must have first AND last name
+        if (!firstName || !lastName) {
+          const reason = "missing_name";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing first or last name", { 
+            url: item.url, 
+            phone,
+            firstName,
+            lastName
+          });
+          continue;
+        }
+
+        // VALIDATION 4: Must have address (from deep scrape with fallback or original search result)
+        const address = addressFromDeepScrape || fallbackAddress;
+        if (!address.trim()) {
+          const reason = "missing_address";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing address", { url: item.url, phone });
+          continue;
+        }
+
+        // VALIDATION 5: Must have price
+        const price = item.price || item.listPrice || "";
+        if (!price) {
+          const reason = "missing_price";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing price", { url: item.url, phone });
+          continue;
+        }
+
+        // VALIDATION 6: Must have bedrooms
+        if (bedrooms === null || bedrooms === undefined) {
+          const reason = "missing_bedrooms";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing bedrooms", { url: item.url, phone });
+          continue;
+        }
+
+        // VALIDATION 7: Must have bathrooms
+        if (bathrooms === null || bathrooms === undefined) {
+          const reason = "missing_bathrooms";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing bathrooms", { url: item.url, phone });
+          continue;
+        }
+
+        // VALIDATION 8: Must have home style
+        if (!homeStyle || !homeStyle.trim()) {
+          const reason = "missing_home_style";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing home style", { url: item.url, phone });
+          continue;
+        }
+
+        // VALIDATION 9: Must have year built
+        if (yearBuilt === null || yearBuilt === undefined) {
+          const reason = "missing_year_built";
+          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+          logStep("REJECTED - missing year built", { url: item.url, phone });
+          continue;
+        }
+
+        // ALL 9 CORE VALIDATIONS PASSED - CREATE COMPLETE LEAD
+        const title = item.title || "";
+        const propertyType = item.propertyType || item.type || "";
+        
+        const lead: Lead = {
+          order_id: options?.orderId || "",
+          seller_name: `${firstName} ${lastName}`,
+          contact: phone,
+          email: email,
+          address: address,
+          city: item.city || undefined,
+          state: item.state || undefined,
+          zip: item.zip || item.zipcode || undefined,
+          price: price || undefined,
+          url: item.url || undefined,
+          source: "FSBO",
+          source_type: "fsbo",
+          date_listed: item.datePosted || new Date().toISOString(),
+          listing_title: title || propertyType || undefined,
+          address_line_1: address || undefined,
+          address_line_2: undefined,
+          zipcode: item.zip || item.zipcode || undefined,
+          bedrooms: bedrooms,
+          bathrooms: bathrooms,
+          home_style: homeStyle,
+          year_built: yearBuilt,
+        };
+
+        logStep("ACCEPTED - complete lead with 9 core fields", { 
+          phone, 
+          email, 
+          name: `${firstName} ${lastName}`,
+          address,
+          price,
+          bedrooms,
+          bathrooms,
+          homeStyle,
+          yearBuilt
+        });
+
+        leads.push(lead);
+        pending.push(lead);
+      }
+      
+      // Incremental save after each parallel batch
       if (options?.orderId && options?.supabase && pending.length >= batchSize) {
         try {
           const { error } = await options.supabase
@@ -659,7 +691,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
           if (error) {
             logStep("Incremental insert error", { error: error.message, count: pending.length });
           } else {
-            logStep("Incremental insert success", { count: pending.length, upToIndex: i + 1 });
+            logStep("Incremental insert success", { count: pending.length, batchEnd });
             pending.length = 0;
           }
         } catch (e) {
