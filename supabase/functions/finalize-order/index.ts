@@ -163,8 +163,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: 'No leads yet to finalize.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // DEDUPLICATE LEADS - prevent duplicate entries in CSV
+    // DEDUPLICATE LEADS - Track duplicates for deletion
     const uniqueLeads: any[] = [];
+    const duplicateIds: string[] = [];
     const seen = new Set<string>();
     
     for (const lead of rawLeads) {
@@ -172,10 +173,23 @@ serve(async (req) => {
       if (!seen.has(key)) {
         seen.add(key);
         uniqueLeads.push(lead);
+      } else {
+        // This is a duplicate - mark for deletion
+        duplicateIds.push(lead.id);
       }
     }
     
-    console.log(`[FINALIZE] Deduplication: ${rawLeads.length} → ${uniqueLeads.length} leads (removed ${rawLeads.length - uniqueLeads.length} duplicates)`);
+    console.log(`[FINALIZE] Deduplication: ${rawLeads.length} → ${uniqueLeads.length} leads (${duplicateIds.length} duplicates marked for deletion)`);
+
+    // Delete duplicate leads from database immediately
+    if (duplicateIds.length > 0) {
+      const { error: delErr } = await supabase.from('leads').delete().in('id', duplicateIds);
+      if (delErr) {
+        console.error('[FINALIZE] Failed to delete duplicates:', delErr);
+      } else {
+        console.log(`[FINALIZE] Deleted ${duplicateIds.length} duplicate leads from database`);
+      }
+    }
 
     // ENFORCE STRICT LEAD CAPS - Match exact tier maximums
     const maxLeadLimits = {
@@ -188,12 +202,18 @@ serve(async (req) => {
     const maxAllowed = maxLeadLimits[order.tier as keyof typeof maxLeadLimits] || 26;
     const leads = uniqueLeads.slice(0, maxAllowed);
     
-    console.log(`[FINALIZE] Enforcing lead cap: ${rawLeads.length} → ${leads.length} (max: ${maxAllowed})`);
-    if (rawLeads.length > leads.length) {
-      // Remove excess leads from database
-      const excessIds = rawLeads.slice(maxAllowed).map(l => l.id);
-      await supabase.from('leads').delete().in('id', excessIds);
-      console.log(`[FINALIZE] Deleted ${excessIds.length} excess leads`);
+    console.log(`[FINALIZE] Enforcing lead cap: ${uniqueLeads.length} → ${leads.length} (max: ${maxAllowed})`);
+    
+    // Delete excess leads beyond tier cap from database
+    if (uniqueLeads.length > maxAllowed) {
+      const excessLeads = uniqueLeads.slice(maxAllowed);
+      const excessIds = excessLeads.map(l => l.id);
+      const { error: capErr } = await supabase.from('leads').delete().in('id', excessIds);
+      if (capErr) {
+        console.error('[FINALIZE] Failed to delete excess leads:', capErr);
+      } else {
+        console.log(`[FINALIZE] Deleted ${excessIds.length} leads exceeding tier cap`);
+      }
     }
 
     // Generate CSV file
