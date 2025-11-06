@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-// ============ RADIUS-BASED CITY LOOKUP ============
+// ============ MAPBOX GEOCODING API - RELIABLE & NATIONWIDE ============
+
+const MAPBOX_API_KEY = Deno.env.get("MAPBOX_API_KEY");
 
 // Haversine formula to calculate distance between two points in miles
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -16,172 +18,107 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-// Get coordinates for a city using Nominatim (OpenStreetMap's free geocoding API)
-// Hardcoded coordinates for major Michigan cities (fallback when geocoding fails)
-const MICHIGAN_CITY_COORDS: { [key: string]: { lat: number; lon: number } } = {
-  "novi": { lat: 42.4806, lon: -83.4755 },
-  "detroit": { lat: 42.3314, lon: -83.0458 },
-  "ann arbor": { lat: 42.2808, lon: -83.7430 },
-  "grand rapids": { lat: 42.9634, lon: -85.6681 },
-  "warren": { lat: 42.5145, lon: -83.0147 },
-  "sterling heights": { lat: 42.5803, lon: -83.0302 },
-  "lansing": { lat: 42.7325, lon: -84.5555 },
-  "livonia": { lat: 42.3684, lon: -83.3527 },
-  "troy": { lat: 42.6064, lon: -83.1498 },
-  "westland": { lat: 42.3242, lon: -83.4002 },
-  "farmington hills": { lat: 42.4989, lon: -83.3677 },
-  "rochester hills": { lat: 42.6584, lon: -83.1499 },
-  "southfield": { lat: 42.4734, lon: -83.2219 },
-  "dearborn": { lat: 42.3223, lon: -83.1763 },
-  "st. clair shores": { lat: 42.4974, lon: -82.8966 },
-  "royal oak": { lat: 42.4895, lon: -83.1446 },
-  "pontiac": { lat: 42.6389, lon: -83.2910 },
-  "northville": { lat: 42.4309, lon: -83.4833 },
-  "plymouth": { lat: 42.3714, lon: -83.4702 },
-  "wixom": { lat: 42.5247, lon: -83.5361 },
-  "south lyon": { lat: 42.4606, lon: -83.6516 },
-  "canton": { lat: 42.3087, lon: -83.4816 },
-  "west bloomfield": { lat: 42.5681, lon: -83.3830 },
-  "commerce township": { lat: 42.5931, lon: -83.4766 },
-  "waterford": { lat: 42.6612, lon: -83.3900 },
-  "brighton": { lat: 42.5295, lon: -83.7802 },
-  "milford": { lat: 42.5974, lon: -83.5999 },
-};
-
-// Hardcoded nearby cities within 25 miles of major cities (fallback for radius expansion)
-const NEARBY_CITIES: { [key: string]: string[] } = {
-  "novi": [
-    "Novi", "Northville", "Farmington Hills", "Livonia", "Wixom", 
-    "South Lyon", "Plymouth", "Canton", "West Bloomfield", 
-    "Commerce Township", "Milford", "Brighton", "Waterford"
-  ],
-  "detroit": [
-    "Detroit", "Dearborn", "Warren", "Sterling Heights", "Livonia",
-    "Westland", "Southfield", "Royal Oak", "Troy", "St. Clair Shores"
-  ],
-  "ann arbor": [
-    "Ann Arbor", "Ypsilanti", "Saline", "Dexter", "Chelsea",
-    "Canton", "Plymouth", "Belleville"
-  ],
-};
-
+// Get coordinates for a city using Mapbox Geocoding API (100% reliable, 100k free requests/month)
 async function getCityCoordinates(city: string, state: string): Promise<{ lat: number; lon: number } | null> {
-  const cityLower = city.toLowerCase().trim();
-  
-  // First, try hardcoded coordinates
-  if (MICHIGAN_CITY_COORDS[cityLower]) {
-    logStep(`Using hardcoded coordinates for ${city}`, MICHIGAN_CITY_COORDS[cityLower]);
-    return MICHIGAN_CITY_COORDS[cityLower];
+  if (!MAPBOX_API_KEY) {
+    logStep('Mapbox API key missing - cannot geocode');
+    return null;
   }
   
-  // Fallback to Nominatim API
   try {
     const query = encodeURIComponent(`${city}, ${state}, USA`);
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-      {
-        headers: {
-          'User-Agent': 'FSBO-Lead-Scraper/1.0'
-        }
-      }
-    );
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_API_KEY}&types=place&country=US&limit=1`;
+    
+    logStep(`Geocoding ${city}, ${state} with Mapbox`, { url: url.replace(MAPBOX_API_KEY, 'HIDDEN') });
+    
+    const response = await fetch(url);
     
     if (!response.ok) {
-      logStep(`Nominatim API error for ${city}`, { status: response.status });
+      logStep(`Mapbox geocoding error for ${city}`, { status: response.status });
       return null;
     }
     
     const data = await response.json();
     
-    if (!Array.isArray(data) || data.length === 0) {
+    if (!data.features || data.features.length === 0) {
       logStep(`No geocoding results for ${city}, ${state}`);
       return null;
     }
     
-    return {
-      lat: parseFloat(data[0].lat),
-      lon: parseFloat(data[0].lon)
-    };
+    const [lon, lat] = data.features[0].center;
+    logStep(`Successfully geocoded ${city}, ${state}`, { lat, lon });
+    
+    return { lat, lon };
   } catch (error) {
-    logStep('Error geocoding', { city, state, error: error instanceof Error ? error.message : String(error) });
+    logStep('Error geocoding with Mapbox', { city, state, error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
 
-// Find all cities within radius using hardcoded lists + geocoding fallback
+// Find all cities within radius using Mapbox's powerful proximity search
 async function getCitiesWithinRadius(centerCity: string, centerState: string, radiusMiles: number): Promise<string[]> {
+  if (!MAPBOX_API_KEY) {
+    logStep('Mapbox API key missing - cannot find cities in radius');
+    return [centerCity];
+  }
+  
   try {
-    const cityLower = centerCity.toLowerCase().trim();
-    
-    // First, try hardcoded nearby cities list (fastest and most reliable)
-    if (NEARBY_CITIES[cityLower]) {
-      logStep(`Using hardcoded nearby cities for ${centerCity}`, { 
-        count: NEARBY_CITIES[cityLower].length,
-        cities: NEARBY_CITIES[cityLower]
-      });
-      return NEARBY_CITIES[cityLower];
-    }
-    
     logStep(`Finding cities within ${radiusMiles} miles of ${centerCity}, ${centerState}`);
     
-    // Fallback to geocoding + radius search
+    // First, get coordinates of center city
     const centerCoords = await getCityCoordinates(centerCity, centerState);
     if (!centerCoords) {
-      logStep(`Could not geocode center city: ${centerCity}, ${centerState} - using single city fallback`);
+      logStep(`Could not geocode center city: ${centerCity}, ${centerState}`);
       return [centerCity];
     }
     
     logStep(`Center coordinates`, { lat: centerCoords.lat, lon: centerCoords.lon });
     
-    // Search for cities in a bounding box around the center
+    // Calculate bounding box (approximate: 1 degree lat = 69 miles, 1 degree lon = 54.6 miles at 42°N)
     const latDelta = radiusMiles / 69;
     const lonDelta = radiusMiles / 54.6;
     
-    const cities: Set<string> = new Set([centerCity]);
+    const minLon = centerCoords.lon - lonDelta;
+    const minLat = centerCoords.lat - latDelta;
+    const maxLon = centerCoords.lon + lonDelta;
+    const maxLat = centerCoords.lat + latDelta;
     
-    // Query nearby places using Nominatim
-    const query = encodeURIComponent(`city near ${centerCity}, ${centerState}, USA`);
-    const viewbox = `${centerCoords.lon - lonDelta},${centerCoords.lat + latDelta},${centerCoords.lon + lonDelta},${centerCoords.lat - latDelta}`;
+    // Search for cities in bounding box using Mapbox
+    const bbox = `${minLon},${minLat},${maxLon},${maxLat}`;
+    const query = encodeURIComponent('city');
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_API_KEY}&types=place&country=US&bbox=${bbox}&limit=50`;
     
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=100&bounded=1&viewbox=${viewbox}`,
-      {
-        headers: {
-          'User-Agent': 'FSBO-Lead-Scraper/1.0'
-        }
-      }
-    );
+    logStep('Searching cities in bounding box with Mapbox', { bbox });
+    
+    const response = await fetch(url);
     
     if (!response.ok) {
-      logStep(`Nominatim search failed for ${centerCity}`, { status: response.status });
+      logStep(`Mapbox search failed for ${centerCity}`, { status: response.status });
       return [centerCity];
     }
     
-    const nearbyPlaces = await response.json();
+    const data = await response.json();
     
-    if (!Array.isArray(nearbyPlaces)) {
-      logStep(`Invalid response from Nominatim for ${centerCity}`);
+    if (!data.features || data.features.length === 0) {
+      logStep(`No cities found within ${radiusMiles} miles of ${centerCity}`);
       return [centerCity];
     }
     
-    // Filter by distance and type
-    for (const place of nearbyPlaces) {
-      if (place.type === 'city' || place.type === 'town' || place.type === 'village' || place.class === 'place') {
-        const distance = calculateDistance(
-          centerCoords.lat,
-          centerCoords.lon,
-          parseFloat(place.lat),
-          parseFloat(place.lon)
-        );
-        
-        if (distance <= radiusMiles) {
-          const cityName = place.name || place.display_name.split(',')[0];
-          cities.add(cityName);
-        }
+    // Filter cities by actual distance and extract names
+    const cities: Set<string> = new Set([centerCity]);
+    
+    for (const feature of data.features) {
+      const [lon, lat] = feature.center;
+      const distance = calculateDistance(centerCoords.lat, centerCoords.lon, lat, lon);
+      
+      if (distance <= radiusMiles) {
+        const cityName = feature.text || feature.place_name.split(',')[0];
+        cities.add(cityName);
+        logStep(`Found city: ${cityName}`, { distance: distance.toFixed(1) + ' miles' });
       }
     }
     
-    logStep(`Found ${cities.size} cities within ${radiusMiles} miles`);
+    logStep(`Found ${cities.size} cities within ${radiusMiles} miles`, { cities: Array.from(cities) });
     return Array.from(cities);
     
   } catch (error) {
