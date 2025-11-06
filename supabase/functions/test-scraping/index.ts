@@ -69,6 +69,48 @@ async function scrapeWithZenRows(url: string, source: string): Promise<string> {
   throw lastError || new Error(`Failed to scrape ${source} after 3 attempts`);
 }
 
+// Map cities to their Craigslist metro area subdomains
+function getCraigslistMetro(city: string, state: string): string {
+  const cityLower = city.toLowerCase().trim();
+  const stateLower = state.toLowerCase().trim();
+  
+  const metroMappings: { [state: string]: { [city: string]: string } } = {
+    'mi': {
+      'novi': 'detroit',
+      'troy': 'detroit',
+      'livonia': 'detroit',
+      'dearborn': 'detroit',
+      'warren': 'detroit',
+      'sterling heights': 'detroit',
+      'detroit': 'detroit',
+      'ann arbor': 'annarbor',
+      'grand rapids': 'grandrapids',
+    },
+    'ca': {
+      'los angeles': 'losangeles',
+      'san francisco': 'sfbay',
+      'san diego': 'sandiego',
+    },
+    'tx': {
+      'houston': 'houston',
+      'dallas': 'dallas',
+      'austin': 'austin',
+    },
+    'ny': {
+      'new york': 'newyork',
+      'brooklyn': 'newyork',
+      'buffalo': 'buffalo',
+    },
+  };
+  
+  const stateMap = metroMappings[stateLower];
+  if (stateMap && stateMap[cityLower]) {
+    return stateMap[cityLower];
+  }
+  
+  return cityLower.replace(/\s+/g, '');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -81,15 +123,14 @@ Deno.serve(async (req) => {
     const state = 'MI';
     const testResults: ScrapingResult[] = [];
 
-    // Test sources with their URLs
+    // Get Craigslist metro
+    const craigslistMetro = getCraigslistMetro(city, state);
+
+    // Test sources with their URLs (Facebook removed)
     const sources = [
       {
         name: 'Craigslist',
-        url: `https://${state.toLowerCase()}.craigslist.org/search/rea?query=for+sale+by+owner+${city}`,
-      },
-      {
-        name: 'Facebook',
-        url: `https://www.facebook.com/marketplace/${city}-${state}/forsalebyowner`,
+        url: `https://${craigslistMetro}.craigslist.org/search/rea?query=for+sale+by+owner+${city}`,
       },
       {
         name: 'BuyOwner',

@@ -857,6 +857,137 @@ interface CityUrlMapping {
   state: string;
 }
 
+// Map cities to their Craigslist metro area subdomains
+function getCraigslistMetro(city: string, state: string): string {
+  const cityLower = city.toLowerCase().trim();
+  const stateLower = state.toLowerCase().trim();
+  
+  // Metro area mappings by state
+  const metroMappings: { [state: string]: { [city: string]: string } } = {
+    // Michigan
+    'mi': {
+      'novi': 'detroit',
+      'troy': 'detroit',
+      'livonia': 'detroit',
+      'dearborn': 'detroit',
+      'warren': 'detroit',
+      'sterling heights': 'detroit',
+      'farmington hills': 'detroit',
+      'westland': 'detroit',
+      'rochester hills': 'detroit',
+      'southfield': 'detroit',
+      'royal oak': 'detroit',
+      'detroit': 'detroit',
+      'ann arbor': 'annarbor',
+      'ypsilanti': 'annarbor',
+      'grand rapids': 'grandrapids',
+      'lansing': 'lansing',
+      'flint': 'flint',
+    },
+    // California
+    'ca': {
+      'los angeles': 'losangeles',
+      'santa monica': 'losangeles',
+      'pasadena': 'losangeles',
+      'long beach': 'losangeles',
+      'glendale': 'losangeles',
+      'burbank': 'losangeles',
+      'san francisco': 'sfbay',
+      'oakland': 'sfbay',
+      'san jose': 'sfbay',
+      'berkeley': 'sfbay',
+      'palo alto': 'sfbay',
+      'san diego': 'sandiego',
+      'sacramento': 'sacramento',
+      'fresno': 'fresno',
+    },
+    // Texas
+    'tx': {
+      'houston': 'houston',
+      'dallas': 'dallas',
+      'fort worth': 'dallas',
+      'austin': 'austin',
+      'san antonio': 'sanantonio',
+      'el paso': 'elpaso',
+    },
+    // New York
+    'ny': {
+      'new york': 'newyork',
+      'brooklyn': 'newyork',
+      'manhattan': 'newyork',
+      'queens': 'newyork',
+      'bronx': 'newyork',
+      'staten island': 'newyork',
+      'buffalo': 'buffalo',
+      'rochester': 'rochester',
+      'albany': 'albany',
+    },
+    // Florida
+    'fl': {
+      'miami': 'miami',
+      'orlando': 'orlando',
+      'tampa': 'tampa',
+      'jacksonville': 'jacksonville',
+      'fort lauderdale': 'miami',
+    },
+    // Illinois
+    'il': {
+      'chicago': 'chicago',
+      'naperville': 'chicago',
+      'aurora': 'chicago',
+    },
+    // Pennsylvania
+    'pa': {
+      'philadelphia': 'philadelphia',
+      'pittsburgh': 'pittsburgh',
+    },
+    // Ohio
+    'oh': {
+      'cleveland': 'cleveland',
+      'columbus': 'columbus',
+      'cincinnati': 'cincinnati',
+    },
+    // Georgia
+    'ga': {
+      'atlanta': 'atlanta',
+    },
+    // North Carolina
+    'nc': {
+      'charlotte': 'charlotte',
+      'raleigh': 'raleigh',
+    },
+    // Washington
+    'wa': {
+      'seattle': 'seattle',
+      'tacoma': 'seattle',
+      'spokane': 'spokane',
+    },
+    // Massachusetts
+    'ma': {
+      'boston': 'boston',
+    },
+    // Arizona
+    'az': {
+      'phoenix': 'phoenix',
+      'tucson': 'tucson',
+    },
+    // Colorado
+    'co': {
+      'denver': 'denver',
+      'boulder': 'boulder',
+    },
+  };
+  
+  // Check if we have a mapping for this state
+  const stateMap = metroMappings[stateLower];
+  if (stateMap && stateMap[cityLower]) {
+    return stateMap[cityLower];
+  }
+  
+  // Fallback: use city name (sanitized)
+  return cityLower.replace(/\s+/g, '');
+}
+
 function buildUrlsFromCityState(city: string, state: string): CityUrlMapping {
   if (!city || !state) {
     throw new Error(`Invalid input: city="${city}", state="${state}"`);
@@ -885,8 +1016,8 @@ function buildUrlsFromCityState(city: string, state: string): CityUrlMapping {
     throw new Error(`Missing city name`);
   }
   
-  // Build Craigslist subdomain (remove spaces, lowercase)
-  const craigslistSubdomain = cityLower.replace(/\s+/g, '');
+  // Get Craigslist metro subdomain
+  const craigslistSubdomain = getCraigslistMetro(city, state);
   
   // Build BuyOwner city (hyphenated, lowercase)
   const buyownerCity = cityLower.replace(/\s+/g, '-');
@@ -1014,16 +1145,15 @@ serve(async (req) => {
 
     // Build dynamic URLs for each source
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const facebookUrl = `https://www.facebook.com/marketplace/search/?query=house%20for%20sale%20by%20owner&exact=false`;
     const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
 
-    logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
+    logStep("Scraper URLs", { craigslistUrl, buyownerUrl });
 
-    // Run all 4 scrapers in parallel - FSBO + Olostep multi-source
+    // Run all 3 scrapers in parallel - FSBO + ZenRows multi-source
     const didIncremental = true; // FSBO saves incrementally
 
     // Execute all scrapers in parallel - FSBO + ZenRows multi-source (95%+ anti-bot bypass)
-    const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
+    const [fsboLeads, craigslistLeads, buyownerLeads] = await Promise.all([
       scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
         { orderId, supabase, maxListings: 60 }
       ).catch((err) => {
@@ -1036,11 +1166,6 @@ serve(async (req) => {
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(facebookUrl, "Facebook").catch((err) => {
-        logStep("Facebook ZenRows scraper failed", { error: err.message });
-        return [] as Lead[];
-      }),
-      
       scrapeWithZenRows(buyownerUrl, "BuyOwner").catch((err) => {
         logStep("BuyOwner ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
@@ -1049,7 +1174,7 @@ serve(async (req) => {
 
 
     // Combine all leads
-    let allLeads = [...fsboLeads, ...craigslistLeads, ...facebookLeads, ...buyownerLeads];
+    let allLeads = [...fsboLeads, ...craigslistLeads, ...buyownerLeads];
     
     // Set order_id for all leads
     allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
@@ -1057,7 +1182,6 @@ serve(async (req) => {
     logStep("All sources scraped", {
       fsbo: fsboLeads.length,
       craigslist: craigslistLeads.length,
-      facebook: facebookLeads.length,
       buyowner: buyownerLeads.length,
       total: allLeads.length
     });
