@@ -44,8 +44,24 @@ interface Lead {
   zipcode?: string;
 }
 
-// Enhanced LLM extraction prompt for Olostep
-const OLOSTEP_EXTRACTION_PROMPT = "Extract ALL property listings from this page. For each property, extract: owner_name, owner_phone, owner_email, property_address, city, state, zip, price, bedrooms, bathrooms, square_feet, lot_size, year_built, property_type (house/condo/land), days_on_market, description. Return as JSON array with key 'leads'.";
+// Enhanced LLM extraction prompt for Olostep - simplified for better JSON extraction
+const OLOSTEP_EXTRACTION_PROMPT = `You are extracting real estate listings. Return ONLY a valid JSON object with this exact structure:
+{
+  "leads": [
+    {
+      "owner_name": "string",
+      "owner_phone": "string", 
+      "owner_email": "string",
+      "property_address": "string",
+      "city": "string",
+      "state": "string",
+      "zip": "string",
+      "price": "string"
+    }
+  ]
+}
+Extract ALL visible property listings. If no listings found, return {"leads": []}.`;
+
 
 async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): Promise<Lead[]> {
   const RETRY_DELAY_MS = 30000; // 30 seconds between retries
@@ -105,13 +121,35 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
       logStep(`Olostep raw response for ${source}`, { 
         status: response.status,
         dataKeys: Object.keys(data || {}),
-        fullData: JSON.stringify(data).substring(0, 500),
+        hasResult: !!data?.result,
+        hasJsonContent: !!data?.result?.json_content,
         attempt 
       });
 
       const leads: Lead[] = [];
-      // Try multiple possible response structures
-      const extractedLeads = data?.leads || data?.data?.leads || data?.llm_extract?.leads || [];
+      
+      // Try to parse JSON content from Olostep response
+      let extractedLeads: any[] = [];
+      
+      // First try: direct leads array
+      if (data?.leads && Array.isArray(data.leads)) {
+        extractedLeads = data.leads;
+      }
+      // Second try: nested in result.json_content
+      else if (data?.result?.json_content) {
+        try {
+          const jsonContent = typeof data.result.json_content === 'string' 
+            ? JSON.parse(data.result.json_content)
+            : data.result.json_content;
+          
+          extractedLeads = jsonContent?.leads || [];
+        } catch (e) {
+          logStep(`${source} JSON parsing error`, { 
+            error: e instanceof Error ? e.message : String(e),
+            attempt 
+          });
+        }
+      }
 
       if (!Array.isArray(extractedLeads) || extractedLeads.length === 0) {
         logStep(`${source} returned no leads array`, { 
@@ -188,13 +226,21 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
 }
 
 async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
-  logStep("Scraping FSBO.com", { city });
+  logStep("Scraping FSBO.com via Apify", { city });
+
+  if (!APIFY_API_KEY) {
+    logStep("Apify API key missing");
+    return [];
+  }
 
   try {
+    // Correct input format for the FSBO actor
     const actorInput = {
-      search: city,
+      searchQueries: [city], // Required field - array of search queries
       maxItems: 100
     };
+
+    logStep("Apify FSBO input", actorInput);
 
     const apifyActorPath = FSBO_ACTOR_ID.replace("/", "~");
     const startRunResp = await fetch(
