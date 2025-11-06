@@ -629,15 +629,10 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
           continue;
         }
 
-        // VALIDATION 9: Must have year built
-        if (yearBuilt === null || yearBuilt === undefined) {
-          const reason = "missing_year_built";
-          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          logStep("REJECTED - missing year built", { url: item.url, phone });
-          continue;
-        }
-
-        // ALL 9 CORE VALIDATIONS PASSED - CREATE COMPLETE LEAD
+        // VALIDATION 9: Year built is optional (many listings don't have it)
+        // Allow leads without year_built since it's supplementary data
+        
+        // ALL 8 CORE VALIDATIONS PASSED - CREATE COMPLETE LEAD
         const title = item.title || "";
         const propertyType = item.propertyType || item.type || "";
         
@@ -665,7 +660,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
           year_built: yearBuilt,
         };
 
-        logStep("ACCEPTED - complete lead with 9 core fields", { 
+        logStep("ACCEPTED - complete lead with 8 required fields (year_built optional)", { 
           phone, 
           email, 
           name: `${firstName} ${lastName}`,
