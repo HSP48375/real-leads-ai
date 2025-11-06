@@ -1,6 +1,114 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
+// ============ RADIUS-BASED CITY LOOKUP ============
+
+// Haversine formula to calculate distance between two points in miles
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Get coordinates for a city using Nominatim (OpenStreetMap's free geocoding API)
+async function getCityCoordinates(city: string, state: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const query = encodeURIComponent(`${city}, ${state}, USA`);
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+      {
+        headers: {
+          'User-Agent': 'FSBO-Lead-Scraper/1.0'
+        }
+      }
+    );
+    
+    const data = await response.json();
+    if (data && data.length > 0) {
+      return {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon)
+      };
+    }
+    return null;
+  } catch (error) {
+    logStep(`Error geocoding ${city}, ${state}`, { error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
+// Find all cities within radius using Nominatim reverse geocoding
+async function getCitiesWithinRadius(
+  centerCity: string,
+  centerState: string,
+  radiusMiles: number
+): Promise<string[]> {
+  try {
+    logStep(`Finding cities within ${radiusMiles} miles of ${centerCity}, ${centerState}`);
+    
+    // Get coordinates of center city
+    const centerCoords = await getCityCoordinates(centerCity, centerState);
+    if (!centerCoords) {
+      logStep(`Could not geocode center city: ${centerCity}, ${centerState}`);
+      return [centerCity]; // Fallback to just the center city
+    }
+    
+    logStep(`Center coordinates`, { lat: centerCoords.lat, lon: centerCoords.lon });
+    
+    // Search for cities in a bounding box around the center
+    // 1 degree latitude ≈ 69 miles, 1 degree longitude ≈ 54.6 miles (at 45° latitude)
+    const latDelta = radiusMiles / 69;
+    const lonDelta = radiusMiles / 54.6;
+    
+    const cities: Set<string> = new Set([centerCity]); // Always include center city
+    
+    // Query nearby places using Nominatim
+    const query = encodeURIComponent(`city near ${centerCity}, ${centerState}, USA`);
+    const viewbox = `${centerCoords.lon - lonDelta},${centerCoords.lat + latDelta},${centerCoords.lon + lonDelta},${centerCoords.lat - latDelta}`;
+    
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=100&bounded=1&viewbox=${viewbox}`,
+      {
+        headers: {
+          'User-Agent': 'FSBO-Lead-Scraper/1.0'
+        }
+      }
+    );
+    
+    const nearbyPlaces = await response.json();
+    
+    // Filter by distance and type
+    for (const place of nearbyPlaces) {
+      if (place.type === 'city' || place.type === 'town' || place.type === 'village' || place.class === 'place') {
+        const distance = calculateDistance(
+          centerCoords.lat,
+          centerCoords.lon,
+          parseFloat(place.lat),
+          parseFloat(place.lon)
+        );
+        
+        if (distance <= radiusMiles) {
+          const cityName = place.name || place.display_name.split(',')[0];
+          cities.add(cityName);
+        }
+      }
+    }
+    
+    logStep(`Found ${cities.size} cities within ${radiusMiles} miles`);
+    return Array.from(cities);
+    
+  } catch (error) {
+    logStep('Error finding cities within radius', { error: error instanceof Error ? error.message : String(error) });
+    return [centerCity]; // Fallback to just the center city
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -987,13 +1095,6 @@ function deduplicateLeads(leads: Lead[]): Lead[] {
   return deduplicated;
 }
 
-interface CityUrlMapping {
-  craigslistSubdomain: string;
-  buyownerCity: string;
-  ownersCity: string;
-  state: string;
-}
-
 // Map cities to their Craigslist metro area subdomains
 function getCraigslistMetro(city: string, state: string): string {
   const cityLower = city.toLowerCase().trim();
@@ -1125,57 +1226,47 @@ function getCraigslistMetro(city: string, state: string): string {
   return cityLower.replace(/\s+/g, '');
 }
 
-function buildUrlsFromCityState(city: string, state: string): CityUrlMapping {
+// Build URLs for a specific source and city
+function buildUrlsFromCityState(city: string, state: string, source: 'craigslist' | 'fsbo' | 'zillow' | 'trulia'): string[] {
   if (!city || !state) {
-    throw new Error(`Invalid input: city="${city}", state="${state}"`);
+    logStep("Invalid input", { city, state });
+    return [];
   }
   
   // Validate state code (should be 2 letters)
   if (state.length !== 2 || !/^[A-Za-z]{2}$/.test(state)) {
-    logStep("ERROR: Invalid state code", { 
-      city, 
-      state, 
-      error: "State must be 2-letter abbreviation" 
-    });
-    throw new Error(`Invalid state code: "${state}". Must be 2-letter abbreviation (e.g., MI, CA, NY)`);
+    logStep("Invalid state code", { city, state });
+    return [];
   }
   
   const stateLower = state.toLowerCase();
+  const stateUpper = state.toUpperCase();
   const cityLower = city.toLowerCase();
+  const cityHyphenated = cityLower.replace(/\s+/g, '-');
   
   // Validate city name is not empty
   if (!city || city.trim().length === 0) {
-    logStep("ERROR: Missing city name", { 
-      city, 
-      state, 
-      error: "City name is empty" 
-    });
-    throw new Error(`Missing city name`);
+    logStep("Missing city name", { city, state });
+    return [];
   }
   
-  // Get Craigslist metro subdomain
-  const craigslistSubdomain = getCraigslistMetro(city, state);
-  
-  // Build BuyOwner city (hyphenated, lowercase)
-  const buyownerCity = cityLower.replace(/\s+/g, '-');
-  
-  // Build Owners.com city (same format as BuyOwner)
-  const ownersCity = cityLower.replace(/\s+/g, '-');
-  
-  logStep("City URL mapping", {
-    input: `${city}, ${state}`,
-    parsed: { city, state },
-    craigslist: craigslistSubdomain,
-    buyowner: buyownerCity,
-    owners: ownersCity
-  });
-  
-  return {
-    craigslistSubdomain,
-    buyownerCity,
-    ownersCity,
-    state: stateLower
-  };
+  switch (source) {
+    case 'craigslist':
+      const craigslistSubdomain = getCraigslistMetro(city, state);
+      return [`https://${craigslistSubdomain}.craigslist.org/search/rea?query=owner`];
+      
+    case 'fsbo':
+      return [`https://www.forsalebyowner.com/search/list/${cityHyphenated}-${stateLower}`];
+      
+    case 'zillow':
+      return [`https://www.zillow.com/${cityHyphenated}-${stateLower}/fsbo/`];
+      
+    case 'trulia':
+      return [`https://www.trulia.com/for_sale/${city},${stateUpper}/fsbo_lt/`];
+      
+    default:
+      return [];
+  }
 }
 
 serve(async (req) => {
@@ -1245,106 +1336,139 @@ serve(async (req) => {
 
     const scrapeAttempts = (order.scrape_attempts || 0) + 1;
 
-    // Parse city and build dynamic URLs with error handling
-    let cityUrls: CityUrlMapping;
-    try {
-      cityUrls = buildUrlsFromCityState(order.primary_city, order.primary_state);
-    } catch (parseError) {
-      const errorMsg = parseError instanceof Error ? parseError.message : "Invalid city/state format";
-      logStep("ERROR: City/state parsing failed", { 
-        city: order.primary_city,
-        state: order.primary_state, 
-        error: errorMsg 
-      });
-      
-      // Update order with error
-      await supabase
-        .from("orders")
-        .update({
-          status: "failed",
-          error_message: errorMsg,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      return new Response(
-        JSON.stringify({ 
-          error: errorMsg,
-          hint: 'Both city and state are required'
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    logStep("Starting multi-source scrape", { 
+    logStep("Starting RADIUS-BASED multi-source scrape", { 
       city: order.primary_city,
+      state: order.primary_state,
+      radius: order.search_radius || 25,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
-    // Build dynamic URLs for ALL sources
-    const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const forsalebyownerUrl = `https://www.forsalebyowner.com/search/list/${cityUrls.buyownerCity}-${cityUrls.state}`;
-    const zillowUrl = `https://www.zillow.com/${cityUrls.buyownerCity}-${cityUrls.state}/fsbo/`;
-    const truliaUrl = `https://www.trulia.com/for_sale/${order.primary_city},${order.primary_state.toUpperCase()}/fsbo_lt/`;
-
-    logStep("Scraper URLs (5 sources)", { 
-      craigslist: craigslistUrl, 
-      forsalebyowner: forsalebyownerUrl,
-      zillow: zillowUrl,
-      trulia: truliaUrl
+    // Get all cities within the search radius
+    const radiusMiles = order.search_radius || 25;
+    const citiesInRadius = await getCitiesWithinRadius(
+      order.primary_city,
+      order.primary_state,
+      radiusMiles
+    );
+    
+    // Combine with additional cities from order
+    const allCities = [...new Set([...citiesInRadius, ...(order.additional_cities || [])])];
+    logStep(`Total cities to search (${allCities.length})`, { 
+      first10: allCities.slice(0, 10).join(', ') + (allCities.length > 10 ? '...' : '')
     });
 
-    // Run ALL 5 scrapers in parallel - FSBO + ZenRows multi-source
+    // Build URLs for all cities in radius
+    const craigslistUrls: string[] = [];
+    const fsboComUrls: string[] = [];
+    const zillowUrls: string[] = [];
+    const truliaUrls: string[] = [];
+    
+    for (const city of allCities) {
+      craigslistUrls.push(...buildUrlsFromCityState(city, order.primary_state, 'craigslist'));
+      fsboComUrls.push(...buildUrlsFromCityState(city, order.primary_state, 'fsbo'));
+      zillowUrls.push(...buildUrlsFromCityState(city, order.primary_state, 'zillow'));
+      truliaUrls.push(...buildUrlsFromCityState(city, order.primary_state, 'trulia'));
+    }
+    
+    logStep(`Total URLs to scrape`, { 
+      craigslist: craigslistUrls.length,
+      forsalebyowner: fsboComUrls.length, 
+      zillow: zillowUrls.length,
+      trulia: truliaUrls.length,
+      totalCities: allCities.length
+    });
+
+    // Update order with cities searched
+    await supabase
+      .from("orders")
+      .update({ 
+        cities_searched: allCities,
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", orderId);
+
+    // Run ALL scrapers in parallel with multiple cities
     const didIncremental = true; // FSBO saves incrementally
 
-    // Execute all 5 scrapers in parallel (max lead generation)
-    const [fsboLeads, craigslistLeads, forsalebyownerLeads, zillowLeads, truliaLeads] = await Promise.all([
-      scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
-        { orderId, supabase, maxListings: 60 }
-      ).catch((err: Error) => {
-        logStep("FSBO.com scraper failed", { error: err.message });
-        return [] as Lead[];
-      }),
-      
-      scrapeWithZenRowsHTML(craigslistUrl, "Craigslist").catch((err: Error) => {
-        logStep("Craigslist scraper failed", { error: err.message });
-        return [] as Lead[];
-      }),
-      
-      scrapeWithZenRowsAutoparse(forsalebyownerUrl, "ForSaleByOwner.com").catch((err: Error) => {
-        logStep("ForSaleByOwner.com scraper failed", { error: err.message });
-        return [] as Lead[];
-      }),
-      
-      scrapeWithZenRowsAutoparse(zillowUrl, "Zillow").catch((err: Error) => {
-        logStep("Zillow scraper failed", { error: err.message });
-        return [] as Lead[];
-      }),
-      
-      scrapeWithZenRowsAutoparse(truliaUrl, "Trulia").catch((err: Error) => {
-        logStep("Trulia scraper failed", { error: err.message });
-        return [] as Lead[];
-      })
-    ]);
+    // Execute all scrapers in parallel - scrape ALL cities for maximum lead generation
+    const scrapeTasks = [];
+    
+    // FSBO.com - scrape all cities
+    for (const city of allCities) {
+      scrapeTasks.push(
+        scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
+          { orderId, supabase, maxListings: 20 }
+        ).catch((err: Error) => {
+          logStep(`FSBO.com scraper failed for ${city}`, { error: err.message });
+          return [] as Lead[];
+        })
+      );
+    }
+    
+    // Craigslist - scrape all URLs
+    for (const url of craigslistUrls.slice(0, 10)) { // Limit to avoid rate limits
+      scrapeTasks.push(
+        scrapeWithZenRowsHTML(url, "Craigslist").catch((err: Error) => {
+          logStep("Craigslist scraper failed", { error: err.message });
+          return [] as Lead[];
+        })
+      );
+    }
+    
+    // ForSaleByOwner.com - scrape all URLs
+    for (const url of fsboComUrls.slice(0, 10)) {
+      scrapeTasks.push(
+        scrapeWithZenRowsAutoparse(url, "ForSaleByOwner.com").catch((err: Error) => {
+          logStep("ForSaleByOwner.com scraper failed", { error: err.message });
+          return [] as Lead[];
+        })
+      );
+    }
+    
+    // Zillow - scrape all URLs
+    for (const url of zillowUrls.slice(0, 10)) {
+      scrapeTasks.push(
+        scrapeWithZenRowsAutoparse(url, "Zillow").catch((err: Error) => {
+          logStep("Zillow scraper failed", { error: err.message });
+          return [] as Lead[];
+        })
+      );
+    }
+    
+    // Trulia - scrape all URLs
+    for (const url of truliaUrls.slice(0, 10)) {
+      scrapeTasks.push(
+        scrapeWithZenRowsAutoparse(url, "Trulia").catch((err: Error) => {
+          logStep("Trulia scraper failed", { error: err.message });
+          return [] as Lead[];
+        })
+      );
+    }
+    
+    logStep(`Executing ${scrapeTasks.length} scrape tasks in parallel`);
+    const allScraperResults = await Promise.all(scrapeTasks);
 
 
-    // Combine all leads from 5 sources
-    let allLeads = [...fsboLeads, ...craigslistLeads, ...forsalebyownerLeads, ...zillowLeads, ...truliaLeads];
+    // Combine all leads from all scrapers
+    let allLeads: Lead[] = [];
+    for (const result of allScraperResults) {
+      if (Array.isArray(result)) {
+        allLeads = allLeads.concat(result);
+      }
+    }
     
     // Set order_id for all leads
     allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
+    
+    // Deduplicate by phone/address
+    allLeads = deduplicateLeads(allLeads);
 
-    logStep("All 5 sources scraped", {
-      'FSBO.com': fsboLeads.length,
-      'Craigslist': craigslistLeads.length,
-      'ForSaleByOwner.com': forsalebyownerLeads.length,
-      'Zillow': zillowLeads.length,
-      'Trulia': truliaLeads.length,
-      total: allLeads.length
+    logStep("All radius sources scraped", {
+      totalRawLeads: allScraperResults.flat().length,
+      afterDeduplication: allLeads.length,
+      citiesSearched: allCities.length,
+      radiusMiles: radiusMiles
     });
 
     // Leads were already saved one-by-one during scraping to avoid timeouts
