@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 // ============ MAPBOX GEOCODING API - RELIABLE & NATIONWIDE ============
 
@@ -2009,7 +2010,46 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // Insufficient leads
+      // Insufficient leads - notify customer
+      logStep("INSUFFICIENT LEADS - Sending notification email", {
+        leadsFound: totalLeadsAfterSave,
+        required: tierQuota.min,
+        customerEmail: order.customer_email
+      });
+
+      // Send failure notification email
+      if (order.customer_email) {
+        try {
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+          
+          await resend.emails.send({
+            from: 'FSBO Lead Generation <onboarding@resend.dev>',
+            to: [order.customer_email],
+            subject: `Order Update: Unable to Find Sufficient Leads in ${order.primary_city}`,
+            html: `
+              <h2>Order Status Update</h2>
+              <p>Hi ${order.customer_name || 'there'},</p>
+              <p>We've attempted to collect leads for your order in <strong>${order.primary_city}</strong>, but unfortunately we were only able to find <strong>${totalLeadsAfterSave} leads</strong> after ${scrapeAttempts} attempts.</p>
+              <p>Your <strong>${order.tier}</strong> tier requires a minimum of <strong>${tierQuota.min} leads</strong>.</p>
+              <h3>What happens next?</h3>
+              <ul>
+                <li>You have NOT been charged for this order</li>
+                <li>We recommend trying a different city or larger metropolitan area</li>
+                <li>You can contact support for assistance</li>
+              </ul>
+              <p>We apologize for the inconvenience.</p>
+              <p>Best regards,<br/>FSBO Lead Generation Team</p>
+            `
+          });
+          
+          logStep("Insufficient leads notification email sent");
+        } catch (emailError) {
+          logStep("Failed to send insufficient leads email", { 
+            error: emailError instanceof Error ? emailError.message : String(emailError) 
+          });
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: false,
