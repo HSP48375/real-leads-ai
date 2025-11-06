@@ -15,7 +15,7 @@ interface ScrapingResult {
 }
 
 // ZenRows scraping function - returns HTML content
-async function scrapeWithZenRows(url: string, source: string): Promise<string> {
+async function scrapeWithZenRows(url: string, source: string, waitForSelector?: string): Promise<string> {
   const ZENROWS_API_KEY = Deno.env.get('ZENROWS_API_KEY');
   if (!ZENROWS_API_KEY) {
     throw new Error('ZENROWS_API_KEY not configured');
@@ -29,6 +29,10 @@ async function scrapeWithZenRows(url: string, source: string): Promise<string> {
   zenrowsUrl.searchParams.set('js_render', 'true');
   zenrowsUrl.searchParams.set('premium_proxy', 'true');
   zenrowsUrl.searchParams.set('wait', '3000');
+  
+  if (waitForSelector) {
+    zenrowsUrl.searchParams.set('wait_for', waitForSelector);
+  }
 
   let lastError: Error | null = null;
   
@@ -131,14 +135,17 @@ Deno.serve(async (req) => {
       {
         name: 'Craigslist',
         url: `https://${craigslistMetro}.craigslist.org/search/rea?query=for+sale+by+owner+${city}`,
+        waitFor: undefined,
       },
       {
         name: 'BuyOwner',
-        url: `https://www.buyowner.com/search?location=${city},${state}`,
+        url: `https://www.buyowner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
+        waitFor: '.property',
       },
       {
         name: 'Owners.com',
-        url: `https://www.owner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
+        url: `https://owner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
+        waitFor: '.listing',
       },
     ];
 
@@ -148,7 +155,7 @@ Deno.serve(async (req) => {
       const startTime = Date.now();
       
       try {
-        const htmlContent = await scrapeWithZenRows(source.url, source.name);
+        const htmlContent = await scrapeWithZenRows(source.url, source.name, source.waitFor);
         const timeTaken = Date.now() - startTime;
         
         // For now, just return success with HTML length info

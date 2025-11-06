@@ -98,11 +98,11 @@ CRITICAL:
 
 
 // ZenRows scraper with proper anti-bot bypass parameters
-async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): Promise<Lead[]> {
+async function scrapeWithZenRows(url: string, source: string, waitForSelector?: string, maxRetries = 2): Promise<Lead[]> {
   const RETRY_DELAY_MS = 10000; // 10 seconds between retries
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    logStep(`Scraping ${source} with ZenRows`, { url, attempt, maxRetries });
+    logStep(`Scraping ${source} with ZenRows`, { url, attempt, maxRetries, waitForSelector });
 
     if (!ZENROWS_API_KEY) {
       logStep(`ZenRows API key missing for ${source}`);
@@ -117,6 +117,10 @@ async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): P
       zenrowsUrl.searchParams.set('js_render', 'true');
       zenrowsUrl.searchParams.set('premium_proxy', 'true');
       zenrowsUrl.searchParams.set('wait', '3000');
+      
+      if (waitForSelector) {
+        zenrowsUrl.searchParams.set('wait_for', waitForSelector);
+      }
 
       logStep(`ZenRows request for ${source}`, { 
         targetUrl: url, 
@@ -1151,8 +1155,8 @@ serve(async (req) => {
 
     // Build dynamic URLs for each source
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
-    const ownersUrl = `https://www.owner.com/search/${cityUrls.state}/${cityUrls.ownersCity}`;
+    const buyownerUrl = `https://www.buyowner.com/search/${cityUrls.state}/${cityUrls.buyownerCity}`;
+    const ownersUrl = `https://owner.com/search/${cityUrls.state}/${cityUrls.ownersCity}`;
 
     logStep("Scraper URLs", { craigslistUrl, buyownerUrl, ownersUrl });
 
@@ -1173,12 +1177,12 @@ serve(async (req) => {
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(buyownerUrl, "BuyOwner").catch((err) => {
+      scrapeWithZenRows(buyownerUrl, "BuyOwner", ".property").catch((err) => {
         logStep("BuyOwner ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
       }),
       
-      scrapeWithZenRows(ownersUrl, "Owners.com").catch((err) => {
+      scrapeWithZenRows(ownersUrl, "Owners.com", ".listing").catch((err) => {
         logStep("Owners.com ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
       })
