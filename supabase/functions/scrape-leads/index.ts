@@ -84,11 +84,12 @@ async function getCitiesWithinRadius(centerCity: string, centerState: string, ra
     const maxLat = centerCoords.lat + latDelta;
     
     // Search for cities in bounding box using Mapbox
+    // Use state name in query to get better results
     const bbox = `${minLon},${minLat},${maxLon},${maxLat}`;
-    const query = encodeURIComponent('city');
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_API_KEY}&types=place&country=US&bbox=${bbox}&limit=50`;
+    const query = encodeURIComponent(centerState);
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_API_KEY}&types=place&country=US&bbox=${bbox}&limit=50&proximity=${centerCoords.lon},${centerCoords.lat}`;
     
-    logStep('Searching cities in bounding box with Mapbox', { bbox });
+    logStep('Searching cities in bounding box with Mapbox', { bbox, state: centerState });
     
     const response = await fetch(url);
     
