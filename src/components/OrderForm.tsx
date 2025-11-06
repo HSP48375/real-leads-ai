@@ -248,9 +248,9 @@ const OrderForm = ({ orderParams, onTierChange }: OrderFormProps) => {
       // Call the create-checkout-session edge function
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
-          tier: formData.tier,
-          billing: formData.billing,
-          price: formData.price,
+          tier: orderParams.tier,
+          billing: orderParams.billing,
+          price: orderParams.price,
           leads: orderParams.leads,
           city: formData.city,
           state: formData.state,
