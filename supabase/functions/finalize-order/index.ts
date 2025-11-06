@@ -168,13 +168,53 @@ serve(async (req) => {
     const duplicateIds: string[] = [];
     const seen = new Set<string>();
     
+    // Helper to normalize phone numbers
+    const normalizePhone = (phone: string): string => {
+      if (!phone) return '';
+      return phone.replace(/\D/g, '').slice(-10); // Last 10 digits only
+    };
+    
+    // Helper to normalize address
+    const normalizeAddress = (addr: string): string => {
+      if (!addr) return '';
+      return addr.toLowerCase()
+        .replace(/[.,]/g, '') // Remove periods and commas
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+    };
+    
     for (const lead of rawLeads) {
-      const key = `${(lead.contact || '').toLowerCase()}-${(lead.address || '').toLowerCase()}`;
+      // Only deduplicate if we have BOTH contact AND address
+      const normalizedPhone = normalizePhone(lead.contact || '');
+      const normalizedEmail = (lead.email || '').toLowerCase().trim();
+      const normalizedAddr = normalizeAddress(lead.address || '');
+      
+      // Skip deduplication if missing critical fields
+      if (!normalizedAddr || (!normalizedPhone && !normalizedEmail)) {
+        console.log(`[FINALIZE] Keeping lead without complete data:`, {
+          id: lead.id.slice(0, 8),
+          hasPhone: !!normalizedPhone,
+          hasEmail: !!normalizedEmail,
+          hasAddress: !!normalizedAddr
+        });
+        uniqueLeads.push(lead);
+        continue;
+      }
+      
+      // Create deduplication key using phone OR email + address
+      const contactKey = normalizedPhone || normalizedEmail;
+      const key = `${contactKey}-${normalizedAddr}`;
+      
       if (!seen.has(key)) {
         seen.add(key);
         uniqueLeads.push(lead);
       } else {
-        // This is a duplicate - mark for deletion
+        // This is a true duplicate - mark for deletion
+        console.log(`[FINALIZE] Duplicate found:`, {
+          id: lead.id.slice(0, 8),
+          contact: contactKey.slice(0, 10) + '...',
+          address: normalizedAddr.slice(0, 30) + '...'
+        });
         duplicateIds.push(lead.id);
       }
     }
