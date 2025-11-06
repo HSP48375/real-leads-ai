@@ -43,6 +43,10 @@ interface Lead {
   address_line_1?: string;
   address_line_2?: string;
   zipcode?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  home_style?: string;
+  year_built?: number;
 }
 
 // Enhanced LLM extraction prompt for Olostep - simplified for better JSON extraction
@@ -227,7 +231,7 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
 }
 
 // Deep scrape individual listing page to extract contact information with retry logic
-async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string } | null> {
+async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; firstName?: string; lastName?: string; bedrooms?: number; bathrooms?: number; homeStyle?: string; yearBuilt?: number } | null> {
   if (!OLOSTEP_API_KEY) {
     return null;
   }
@@ -243,29 +247,34 @@ async function deepScrapeListingPage(url: string, source: string, maxRetries = 3
         formats: ["json"],
         wait_before_scraping: 4000,
         llm_extract: {
-          prompt: `Extract ALL contact information from this property listing page. Search EVERYWHERE for contact details. Return ONLY valid JSON:
+          prompt: `Extract ALL information from this property listing page. Search EVERYWHERE for complete details. Return ONLY valid JSON:
 {
   "owner_first_name": "string",
   "owner_last_name": "string", 
   "owner_phone": "string",
-  "owner_email": "string"
+  "owner_email": "string",
+  "bedrooms": number,
+  "bathrooms": number,
+  "home_style": "string (e.g., Ranch, Colonial, Contemporary, Cape Cod, Victorian, etc.)",
+  "year_built": number
 }
 
-CRITICAL - Search these locations for email:
+CRITICAL - Search these locations for contact info:
 - Contact seller buttons/forms
-- Any text patterns: [name]@gmail.com, [name]@[domain].com, [name]@yahoo.com
+- Any text patterns: [name]@gmail.com, [name]@[domain].com
 - "Email:" labels or "Contact:" sections
 - Hidden in JavaScript or data attributes
 - Author/seller profile sections
-
-CRITICAL - Search these locations for name:
 - "Contact [First Last]" in titles
 - "Posted by [First Last]" in descriptions
-- Seller profile names
-- Email addresses (extract john.doe@gmail.com → John Doe)
-- Phone number labels like "Call John Smith"
 
-Return first name and last name separately. If not found, return empty strings.`
+CRITICAL - Property details to extract:
+- Bedrooms: Look for "beds", "BR", "bedrooms" in description
+- Bathrooms: Look for "baths", "BA", "bathrooms" in description  
+- Home style: Look for property type, architectural style, house type
+- Year built: Look for "built in", "year built", construction date
+
+Return first name and last name separately. Extract all numeric values. If not found, return null for numbers or empty strings for text.`
         }
       };
 
@@ -325,6 +334,10 @@ Return first name and last name separately. If not found, return empty strings.`
       const email = contactInfo.owner_email || "";
       const firstName = contactInfo.owner_first_name || "";
       const lastName = contactInfo.owner_last_name || "";
+      const bedrooms = contactInfo.bedrooms || null;
+      const bathrooms = contactInfo.bathrooms || null;
+      const homeStyle = contactInfo.home_style || "";
+      const yearBuilt = contactInfo.year_built || null;
 
       if (!phone || !email) {
         logStep(`Deep scrape incomplete - need phone AND email for ${source}`, { 
@@ -350,9 +363,13 @@ Return first name and last name separately. If not found, return empty strings.`
         hasEmail: !!email,
         hasFirstName: !!firstName,
         hasLastName: !!lastName,
+        hasBedrooms: bedrooms !== null,
+        hasBathrooms: bathrooms !== null,
+        hasHomeStyle: !!homeStyle,
+        hasYearBuilt: yearBuilt !== null,
         attempt 
       });
-      return { phone, email, firstName, lastName };
+      return { phone, email, firstName, lastName, bedrooms, bathrooms, homeStyle, yearBuilt };
 
     } catch (error) {
       const willRetry = attempt < maxRetries;
@@ -479,8 +496,12 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       let email = item.email || item.contactEmail || "";
       let firstName = "";
       let lastName = "";
+      let bedrooms: number | null = null;
+      let bathrooms: number | null = null;
+      let homeStyle = "";
+      let yearBuilt: number | null = null;
 
-      // Always deep scrape for complete contact info
+      // Always deep scrape for complete contact info and property details
       if (item.url) {
         const contactInfo = await deepScrapeListingPage(item.url, "FSBO");
         if (contactInfo) {
@@ -488,6 +509,10 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
           email = contactInfo.email || email;
           firstName = contactInfo.firstName || firstName;
           lastName = contactInfo.lastName || lastName;
+          bedrooms = contactInfo.bedrooms !== undefined ? contactInfo.bedrooms : bedrooms;
+          bathrooms = contactInfo.bathrooms !== undefined ? contactInfo.bathrooms : bathrooms;
+          homeStyle = contactInfo.homeStyle || homeStyle;
+          yearBuilt = contactInfo.yearBuilt !== undefined ? contactInfo.yearBuilt : yearBuilt;
         }
       }
 
@@ -557,7 +582,39 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // ALL VALIDATIONS PASSED - CREATE COMPLETE LEAD
+      // VALIDATION 8: Must have bedrooms
+      if (bedrooms === null || bedrooms === undefined) {
+        const reason = "missing_bedrooms";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing bedrooms", { url: item.url, phone });
+        continue;
+      }
+
+      // VALIDATION 9: Must have bathrooms
+      if (bathrooms === null || bathrooms === undefined) {
+        const reason = "missing_bathrooms";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing bathrooms", { url: item.url, phone });
+        continue;
+      }
+
+      // VALIDATION 10: Must have home style
+      if (!homeStyle || !homeStyle.trim()) {
+        const reason = "missing_home_style";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing home style", { url: item.url, phone });
+        continue;
+      }
+
+      // VALIDATION 11: Must have year built
+      if (yearBuilt === null || yearBuilt === undefined) {
+        const reason = "missing_year_built";
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+        logStep("REJECTED - missing year built", { url: item.url, phone });
+        continue;
+      }
+
+      // ALL 11 VALIDATIONS PASSED - CREATE COMPLETE LEAD
       const lead: Lead = {
         order_id: options?.orderId || "",
         seller_name: `${firstName} ${lastName}`,
@@ -576,14 +633,22 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         address_line_1: address || undefined,
         address_line_2: undefined,
         zipcode: item.zip || item.zipcode || undefined,
+        bedrooms: bedrooms,
+        bathrooms: bathrooms,
+        home_style: homeStyle,
+        year_built: yearBuilt,
       };
 
-      logStep("ACCEPTED - complete lead", { 
+      logStep("ACCEPTED - complete lead with all 11 fields", { 
         phone, 
         email, 
         name: `${firstName} ${lastName}`,
         address,
-        price
+        price,
+        bedrooms,
+        bathrooms,
+        homeStyle,
+        yearBuilt
       });
 
       leads.push(lead);

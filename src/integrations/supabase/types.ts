@@ -19,11 +19,14 @@ export type Database = {
           address: string
           address_line_1: string | null
           address_line_2: string | null
+          bathrooms: number | null
+          bedrooms: number | null
           city: string | null
           contact: string | null
           created_at: string
           date_listed: string | null
           email: string | null
+          home_style: string | null
           id: string
           listing_title: string | null
           order_id: string
@@ -33,6 +36,7 @@ export type Database = {
           source_type: string | null
           state: string | null
           url: string | null
+          year_built: number | null
           zip: string | null
           zipcode: string | null
         }
@@ -40,11 +44,14 @@ export type Database = {
           address: string
           address_line_1?: string | null
           address_line_2?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           city?: string | null
           contact?: string | null
           created_at?: string
           date_listed?: string | null
           email?: string | null
+          home_style?: string | null
           id?: string
           listing_title?: string | null
           order_id: string
@@ -54,6 +61,7 @@ export type Database = {
           source_type?: string | null
           state?: string | null
           url?: string | null
+          year_built?: number | null
           zip?: string | null
           zipcode?: string | null
         }
@@ -61,11 +69,14 @@ export type Database = {
           address?: string
           address_line_1?: string | null
           address_line_2?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           city?: string | null
           contact?: string | null
           created_at?: string
           date_listed?: string | null
           email?: string | null
+          home_style?: string | null
           id?: string
           listing_title?: string | null
           order_id?: string
@@ -75,6 +86,7 @@ export type Database = {
           source_type?: string | null
           state?: string | null
           url?: string | null
+          year_built?: number | null
           zip?: string | null
           zipcode?: string | null
         }

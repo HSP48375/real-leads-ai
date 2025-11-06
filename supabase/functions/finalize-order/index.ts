@@ -18,8 +18,8 @@ function generateCSVFile(leads: any[], order: any): string {
 
   const rows: string[] = [];
   
-  // Headers - ALL available FSBO.com fields
-  rows.push('First Name,Last Name,Address Line 1,Address Line 2,Full Address,City,State,Zip,Phone,Email,Price,Listing Title,URL,Days Listed');
+  // Headers - ALL available FSBO.com fields including property details
+  rows.push('First Name,Last Name,Address Line 1,Address Line 2,Full Address,City,State,Zip,Phone,Email,Price,Bedrooms,Bathrooms,Home Style,Year Built,Listing Title,URL,Days Listed');
   
   leads.forEach(lead => {
     // Parse name into first/last
@@ -89,6 +89,10 @@ function generateCSVFile(leads: any[], order: any): string {
       cleanValue(formattedPhone),
       cleanValue(email),
       cleanValue(price),
+      cleanValue(lead.bedrooms !== null && lead.bedrooms !== undefined ? String(lead.bedrooms) : ''),
+      cleanValue(lead.bathrooms !== null && lead.bathrooms !== undefined ? String(lead.bathrooms) : ''),
+      cleanValue(lead.home_style || ''),
+      cleanValue(lead.year_built !== null && lead.year_built !== undefined ? String(lead.year_built) : ''),
       cleanValue(lead.listing_title || ''),
       cleanValue(lead.url || ''),
       cleanValue(daysListed)
