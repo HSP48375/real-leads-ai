@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     // Get Craigslist metro
     const craigslistMetro = getCraigslistMetro(city, state);
 
-    // Test sources with their URLs (Facebook removed)
+    // Test sources with their URLs (Facebook removed, FSBO via Apify)
     const sources = [
       {
         name: 'Craigslist',
@@ -137,8 +137,8 @@ Deno.serve(async (req) => {
         url: `https://www.buyowner.com/search?location=${city},${state}`,
       },
       {
-        name: 'FSBO.com',
-        url: `https://www.fsbo.com/${state}/${city}`,
+        name: 'Owners.com',
+        url: `https://www.owner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
       },
     ];
 

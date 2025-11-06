@@ -854,6 +854,7 @@ function deduplicateLeads(leads: Lead[]): Lead[] {
 interface CityUrlMapping {
   craigslistSubdomain: string;
   buyownerCity: string;
+  ownersCity: string;
   state: string;
 }
 
@@ -1022,16 +1023,21 @@ function buildUrlsFromCityState(city: string, state: string): CityUrlMapping {
   // Build BuyOwner city (hyphenated, lowercase)
   const buyownerCity = cityLower.replace(/\s+/g, '-');
   
+  // Build Owners.com city (same format as BuyOwner)
+  const ownersCity = cityLower.replace(/\s+/g, '-');
+  
   logStep("City URL mapping", {
     input: `${city}, ${state}`,
     parsed: { city, state },
     craigslist: craigslistSubdomain,
-    buyowner: buyownerCity
+    buyowner: buyownerCity,
+    owners: ownersCity
   });
   
   return {
     craigslistSubdomain,
     buyownerCity,
+    ownersCity,
     state: stateLower
   };
 }
@@ -1146,14 +1152,15 @@ serve(async (req) => {
     // Build dynamic URLs for each source
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
     const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
+    const ownersUrl = `https://www.owner.com/search/${cityUrls.state}/${cityUrls.ownersCity}`;
 
-    logStep("Scraper URLs", { craigslistUrl, buyownerUrl });
+    logStep("Scraper URLs", { craigslistUrl, buyownerUrl, ownersUrl });
 
     // Run all 3 scrapers in parallel - FSBO + ZenRows multi-source
     const didIncremental = true; // FSBO saves incrementally
 
     // Execute all scrapers in parallel - FSBO + ZenRows multi-source (95%+ anti-bot bypass)
-    const [fsboLeads, craigslistLeads, buyownerLeads] = await Promise.all([
+    const [fsboLeads, craigslistLeads, buyownerLeads, ownersLeads] = await Promise.all([
       scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
         { orderId, supabase, maxListings: 60 }
       ).catch((err) => {
@@ -1169,12 +1176,17 @@ serve(async (req) => {
       scrapeWithZenRows(buyownerUrl, "BuyOwner").catch((err) => {
         logStep("BuyOwner ZenRows scraper failed", { error: err.message });
         return [] as Lead[];
+      }),
+      
+      scrapeWithZenRows(ownersUrl, "Owners.com").catch((err) => {
+        logStep("Owners.com ZenRows scraper failed", { error: err.message });
+        return [] as Lead[];
       })
     ]);
 
 
     // Combine all leads
-    let allLeads = [...fsboLeads, ...craigslistLeads, ...buyownerLeads];
+    let allLeads = [...fsboLeads, ...craigslistLeads, ...buyownerLeads, ...ownersLeads];
     
     // Set order_id for all leads
     allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
@@ -1183,6 +1195,7 @@ serve(async (req) => {
       fsbo: fsboLeads.length,
       craigslist: craigslistLeads.length,
       buyowner: buyownerLeads.length,
+      owners: ownersLeads.length,
       total: allLeads.length
     });
 
