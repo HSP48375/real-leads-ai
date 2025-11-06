@@ -300,7 +300,7 @@ Look for: Contact seller button, phone numbers, email addresses, seller name. If
   }
 }
 
-async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
+async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number; batchSize?: number }): Promise<Lead[]> {
   logStep("Scraping FSBO.com via Apify", { city });
 
   if (!APIFY_API_KEY) {
@@ -387,10 +387,14 @@ async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
     logStep("FSBO items with URLs for deep scraping", { count: itemsWithUrls.length });
 
     // Deep scrape each listing (limit to prevent timeout)
-    const maxDeepScrapes = Math.min(itemsWithUrls.length, 20);
+    const maxDeepScrapes = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
+    const batchSize = options?.batchSize ?? 5;
+    const pending: Lead[] = [];
+    const seen = new Set<string>();
     
     for (let i = 0; i < maxDeepScrapes; i++) {
       const item = itemsWithUrls[i];
+      logStep("FSBO deep scrape progress", { index: i + 1, total: maxDeepScrapes, url: item.url });
       
       // Try direct contact first
       let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
@@ -408,12 +412,12 @@ async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
       }
 
       if (!phone && !email) {
-        logStep("Skipping FSBO lead without contact", {});
+        logStep("Skipping FSBO lead without contact", { url: item.url });
         continue;
       }
 
-      leads.push({
-        order_id: "", // Will be set later
+      const lead: Lead = {
+        order_id: options?.orderId || "",
         seller_name: sellerName || "Unknown",
         contact: phone || email,
         address: item.address || item.streetAddress || "",
@@ -429,7 +433,49 @@ async function scrapeWithApifyFSBO(city: string): Promise<Lead[]> {
         address_line_1: item.address || undefined,
         address_line_2: undefined,
         zipcode: item.zip || item.zipcode || undefined,
-      });
+      };
+
+      const key = `${lead.contact.toLowerCase()}-${lead.address.toLowerCase()}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+
+      leads.push(lead);
+      pending.push(lead);
+
+      // Incremental save in batches
+      if (options?.orderId && options?.supabase && pending.length >= batchSize) {
+        try {
+          const { error } = await options.supabase
+            .from("leads")
+            .insert(pending);
+          if (error) {
+            logStep("Incremental insert error", { error: error.message, count: pending.length });
+          } else {
+            logStep("Incremental insert success", { count: pending.length, upToIndex: i + 1 });
+            pending.length = 0;
+          }
+        } catch (e) {
+          logStep("Incremental insert exception", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    }
+
+    // Flush remaining pending leads
+    if (options?.orderId && options?.supabase && pending.length > 0) {
+      try {
+        const { error } = await options.supabase
+          .from("leads")
+          .insert(pending);
+        if (error) {
+          logStep("Final incremental insert error", { error: error.message, count: pending.length });
+        } else {
+          logStep("Final incremental insert success", { count: pending.length });
+        }
+      } catch (e) {
+        logStep("Final incremental insert exception", { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     logStep("FSBO leads extracted", { count: leads.length });
@@ -632,24 +678,20 @@ serve(async (req) => {
     logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
 
     // Run all 4 scrapers in parallel - don't fail entire order if one fails
-    const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
-      scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`).catch(err => {
-        logStep("FSBO scraper failed", { error: err.message });
-        return [];
-      }),
-      scrapeWithOlostep(craigslistUrl, "Craigslist", 3).catch(err => {
-        logStep("Craigslist scraper failed", { error: err.message });
-        return [];
-      }),
-      scrapeWithOlostep(facebookUrl, "Facebook", 3).catch(err => {
-        logStep("Facebook scraper failed", { error: err.message });
-        return [];
-      }),
-      scrapeWithOlostep(buyownerUrl, "BuyOwner", 3).catch(err => {
-        logStep("BuyOwner scraper failed", { error: err.message });
-        return [];
-      })
-    ]);
+    const didIncremental = true; // FSBO saves incrementally
+
+    const fsboLeads = await scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`,
+      { orderId, supabase, maxListings: 60, batchSize: 5 }
+    ).catch((err) => {
+      logStep("FSBO scraper failed", { error: err.message });
+      return [] as Lead[];
+    });
+
+    // Skip other sources for now to reduce timeouts
+    const craigslistLeads: Lead[] = [];
+    const facebookLeads: Lead[] = [];
+    const buyownerLeads: Lead[] = [];
+
 
     // Combine all leads
     let allLeads = [...fsboLeads, ...craigslistLeads, ...facebookLeads, ...buyownerLeads];
