@@ -225,79 +225,126 @@ async function scrapeWithOlostep(url: string, source: string, maxRetries = 3): P
   return [];
 }
 
-// Deep scrape individual listing page to extract contact information
-async function deepScrapeListingPage(url: string, source: string): Promise<{ phone?: string; email?: string; name?: string } | null> {
+// Deep scrape individual listing page to extract contact information with retry logic
+async function deepScrapeListingPage(url: string, source: string, maxRetries = 3): Promise<{ phone?: string; email?: string; name?: string } | null> {
   if (!OLOSTEP_API_KEY) {
     return null;
   }
 
-  try {
-    logStep(`Deep scraping ${source} listing`, { url });
+  const DEEP_SCRAPE_DELAY_MS = 5000; // 5 seconds between retries
 
-    const payload = {
-      url_to_scrape: url,
-      formats: ["json"],
-      wait_before_scraping: 3000,
-      llm_extract: {
-        prompt: `Extract contact information from this property listing page. Return ONLY a valid JSON object:
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logStep(`Deep scraping ${source} listing`, { url, attempt, maxRetries });
+
+      const payload = {
+        url_to_scrape: url,
+        formats: ["json"],
+        wait_before_scraping: 4000,
+        llm_extract: {
+          prompt: `Extract ALL contact information from this individual property listing page. Look specifically for: owner_name, owner_phone, owner_email, contact_method, best_time_to_call. Return ONLY a valid JSON object:
 {
   "owner_name": "string",
   "owner_phone": "string",
   "owner_email": "string"
 }
-Look for: Contact seller button, phone numbers, email addresses, seller name. If not found, return empty strings.`
-      }
-    };
+Search in: Contact seller sections, phone numbers (any format), email addresses, seller/agent name fields. If not found, return empty strings.`
+        }
+      };
 
-    const response = await fetch("https://api.olostep.com/v1/scrapes", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+      const response = await fetch("https://api.olostep.com/v1/scrapes", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OLOSTEP_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      logStep(`Deep scrape failed for ${source}`, { status: response.status, url });
-      return null;
-    }
-
-    const data = await response.json();
-    
-    // Parse contact info from response
-    let contactInfo: any = {};
-    
-    if (data?.result?.json_content) {
-      try {
-        contactInfo = typeof data.result.json_content === 'string' 
-          ? JSON.parse(data.result.json_content)
-          : data.result.json_content;
-      } catch (e) {
-        logStep(`Deep scrape JSON parse error for ${source}`, { url });
+      if (!response.ok) {
+        const isTimeout = response.status === 504;
+        logStep(`Deep scrape failed for ${source}`, { 
+          status: response.status, 
+          url, 
+          attempt,
+          isTimeout,
+          willRetry: isTimeout && attempt < maxRetries
+        });
+        
+        // Retry on timeout
+        if (isTimeout && attempt < maxRetries) {
+          logStep(`Waiting ${DEEP_SCRAPE_DELAY_MS/1000}s before deep scrape retry ${attempt + 1}/${maxRetries}`, { url });
+          await new Promise(resolve => setTimeout(resolve, DEEP_SCRAPE_DELAY_MS));
+          continue;
+        }
+        
         return null;
       }
-    }
 
-    const phone = (contactInfo.owner_phone || "").replace(/\D/g, "");
-    const email = contactInfo.owner_email || "";
-    const name = contactInfo.owner_name || "";
+      const data = await response.json();
+      
+      // Parse contact info from response
+      let contactInfo: any = {};
+      
+      if (data?.result?.json_content) {
+        try {
+          contactInfo = typeof data.result.json_content === 'string' 
+            ? JSON.parse(data.result.json_content)
+            : data.result.json_content;
+        } catch (e) {
+          logStep(`Deep scrape JSON parse error for ${source}`, { url, attempt });
+          
+          if (attempt < maxRetries) {
+            logStep(`Waiting ${DEEP_SCRAPE_DELAY_MS/1000}s before deep scrape retry ${attempt + 1}/${maxRetries}`, { url });
+            await new Promise(resolve => setTimeout(resolve, DEEP_SCRAPE_DELAY_MS));
+            continue;
+          }
+          
+          return null;
+        }
+      }
 
-    if (!phone && !email) {
-      logStep(`Deep scrape found no contact info for ${source}`, { url });
+      const phone = (contactInfo.owner_phone || "").replace(/\D/g, "");
+      const email = contactInfo.owner_email || "";
+      const name = contactInfo.owner_name || "";
+
+      if (!phone && !email) {
+        logStep(`Deep scrape found no contact info for ${source}`, { url, attempt });
+        
+        // Retry if no contact info found and retries available
+        if (attempt < maxRetries) {
+          logStep(`Waiting ${DEEP_SCRAPE_DELAY_MS/1000}s before deep scrape retry ${attempt + 1}/${maxRetries}`, { url });
+          await new Promise(resolve => setTimeout(resolve, DEEP_SCRAPE_DELAY_MS));
+          continue;
+        }
+        
+        return null;
+      }
+
+      logStep(`Deep scrape success for ${source}`, { url, hasPhone: !!phone, hasEmail: !!email, attempt });
+      return { phone, email, name };
+
+    } catch (error) {
+      const willRetry = attempt < maxRetries;
+      logStep(`Deep scrape exception for ${source}`, { 
+        url,
+        error: error instanceof Error ? error.message : String(error),
+        attempt,
+        willRetry
+      });
+      
+      if (willRetry) {
+        logStep(`Waiting ${DEEP_SCRAPE_DELAY_MS/1000}s before deep scrape retry ${attempt + 1}/${maxRetries}`, { url });
+        await new Promise(resolve => setTimeout(resolve, DEEP_SCRAPE_DELAY_MS));
+        continue;
+      }
+      
       return null;
     }
-
-    logStep(`Deep scrape success for ${source}`, { url, hasPhone: !!phone, hasEmail: !!email });
-    return { phone, email, name };
-
-  } catch (error) {
-    logStep(`Deep scrape exception for ${source}`, { 
-      url,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return null;
   }
+  
+  logStep(`Deep scrape - all retries exhausted for ${source}`, { url });
+  return null;
 }
 
 async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number; batchSize?: number }): Promise<Lead[]> {
