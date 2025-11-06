@@ -16,7 +16,8 @@ const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 const TIER_QUOTAS = {
   starter: { min: 20, max: 25 },
   growth: { min: 40, max: 50 },
-  scale: { min: 80, max: 120 },
+  pro: { min: 110, max: 130 },
+  enterprise: { min: 150, max: 200 },
 };
 
 const MAX_SCRAPE_ATTEMPTS = 3;

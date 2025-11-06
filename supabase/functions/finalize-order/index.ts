@@ -177,12 +177,12 @@ serve(async (req) => {
     
     console.log(`[FINALIZE] Deduplication: ${rawLeads.length} → ${uniqueLeads.length} leads (removed ${rawLeads.length - uniqueLeads.length} duplicates)`);
 
-    // ENFORCE STRICT LEAD CAPS
+    // ENFORCE STRICT LEAD CAPS - Match exact tier maximums
     const maxLeadLimits = {
-      starter: 26,
-      growth: 51,
-      pro: 101,
-      enterprise: 151,
+      starter: 25,
+      growth: 50,
+      pro: 130,
+      enterprise: 200,
     };
     
     const maxAllowed = maxLeadLimits[order.tier as keyof typeof maxLeadLimits] || 26;
