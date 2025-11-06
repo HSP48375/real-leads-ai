@@ -23,6 +23,7 @@ export type Database = {
           contact: string | null
           created_at: string
           date_listed: string | null
+          email: string | null
           id: string
           listing_title: string | null
           order_id: string
@@ -43,6 +44,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           date_listed?: string | null
+          email?: string | null
           id?: string
           listing_title?: string | null
           order_id: string
@@ -63,6 +65,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           date_listed?: string | null
+          email?: string | null
           id?: string
           listing_title?: string | null
           order_id?: string

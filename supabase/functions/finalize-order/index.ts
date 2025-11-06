@@ -47,19 +47,18 @@ function generateCSVFile(leads: any[], order: any): string {
     }
     
     // Parse contact for phone/email
-    const contact = lead.contact || '';
-    let phone = '';
-    let email = '';
-    if (contact.includes('@')) {
-      email = contact;
-    } else if (contact) {
-      // Format phone as (248) 555-1234
-      const digits = contact.replace(/\D+/g, '');
+    const phone = lead.contact || '';
+    const email = lead.email || ''; // Use separate email column
+    
+    // Format phone as (248) 555-1234
+    let formattedPhone = '';
+    if (phone) {
+      const digits = phone.replace(/\D+/g, '');
       if (digits.length >= 10) {
         const d = digits.slice(-10);
-        phone = `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
+        formattedPhone = `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
       } else {
-        phone = contact;
+        formattedPhone = phone;
       }
     }
     
@@ -87,7 +86,7 @@ function generateCSVFile(leads: any[], order: any): string {
       cleanValue(lead.city || ''),
       cleanValue(lead.state || 'MI'),
       cleanValue(lead.zipcode || lead.zip || ''),
-      cleanValue(phone),
+      cleanValue(formattedPhone),
       cleanValue(email),
       cleanValue(price),
       cleanValue(lead.listing_title || ''),
