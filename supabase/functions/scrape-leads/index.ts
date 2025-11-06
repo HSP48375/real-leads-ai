@@ -897,20 +897,33 @@ serve(async (req) => {
 
     logStep("Scraper URLs", { craigslistUrl, facebookUrl, buyownerUrl });
 
-    // Run all 4 scrapers in parallel - don't fail entire order if one fails
+    // Run all 4 scrapers in parallel - FSBO + Olostep multi-source
     const didIncremental = true; // FSBO saves incrementally
 
-    const fsboLeads = await scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`,
-      { orderId, supabase, maxListings: 60 }
-    ).catch((err) => {
-      logStep("FSBO scraper failed", { error: err.message });
-      return [] as Lead[];
-    });
-
-    // Skip other sources for now to reduce timeouts
-    const craigslistLeads: Lead[] = [];
-    const facebookLeads: Lead[] = [];
-    const buyownerLeads: Lead[] = [];
+    // Execute all scrapers in parallel for maximum lead coverage
+    const [fsboLeads, craigslistLeads, facebookLeads, buyownerLeads] = await Promise.all([
+      scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`, 
+        { orderId, supabase, maxListings: 60 }
+      ).catch((err) => {
+        logStep("FSBO scraper failed", { error: err.message });
+        return [] as Lead[];
+      }),
+      
+      scrapeWithOlostep(craigslistUrl, "Craigslist").catch((err) => {
+        logStep("Craigslist scraper failed", { error: err.message });
+        return [] as Lead[];
+      }),
+      
+      scrapeWithOlostep(facebookUrl, "Facebook").catch((err) => {
+        logStep("Facebook scraper failed", { error: err.message });
+        return [] as Lead[];
+      }),
+      
+      scrapeWithOlostep(buyownerUrl, "BuyOwner").catch((err) => {
+        logStep("BuyOwner scraper failed", { error: err.message });
+        return [] as Lead[];
+      })
+    ]);
 
 
     // Combine all leads
