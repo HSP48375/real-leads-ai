@@ -12,11 +12,11 @@ const OLOSTEP_API_KEY = Deno.env.get("OLOSTEP_API_KEY");
 // FSBO scraper only for Apify - correct actor ID with 108 successful runs
 const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 
-// Tier quota definitions - lowered minimum to 10
+// Tier quota definitions - match actual tier promises
 const TIER_QUOTAS = {
-  starter: { min: 10, max: 25 },
-  growth: { min: 10, max: 50 },
-  scale: { min: 10, max: 100 },
+  starter: { min: 20, max: 25 },
+  growth: { min: 40, max: 50 },
+  scale: { min: 80, max: 120 },
 };
 
 const MAX_SCRAPE_ATTEMPTS = 3;
@@ -399,7 +399,7 @@ PRIORITY: Phone number is REQUIRED. Email is optional but include if found. Retu
   return null;
 }
 
-async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number; batchSize?: number }): Promise<Lead[]> {
+async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; supabase?: any; maxListings?: number }): Promise<Lead[]> {
   logStep("Scraping FSBO.com via Apify", { city });
 
   if (!APIFY_API_KEY) {
@@ -487,8 +487,6 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
 
     // Deep scrape each listing with PARALLEL processing to speed things up
     const maxDeepScrapes = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
-    const batchSize = options?.batchSize ?? 5;
-    const pending: Lead[] = [];
     const seenPhones = new Set<string>(); // DEDUPLICATE BY PHONE NUMBER ONLY
     const rejectionReasons: { [key: string]: number } = {};
     
@@ -679,40 +677,22 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         });
 
         leads.push(lead);
-        pending.push(lead);
-      }
-      
-      // Incremental save after each parallel batch
-      if (options?.orderId && options?.supabase && pending.length >= batchSize) {
-        try {
-          const { error } = await options.supabase
-            .from("leads")
-            .insert(pending);
-          if (error) {
-            logStep("Incremental insert error", { error: error.message, count: pending.length });
-          } else {
-            logStep("Incremental insert success", { count: pending.length, batchEnd });
-            pending.length = 0;
+        
+        // Save each lead immediately to avoid timeouts
+        if (options?.orderId && options?.supabase) {
+          try {
+            const { error } = await options.supabase
+              .from("leads")
+              .insert([lead]);
+            if (error) {
+              logStep("Lead insert error", { error: error.message, phone });
+            } else {
+              logStep("Lead saved", { phone, totalSaved: leads.length });
+            }
+          } catch (e) {
+            logStep("Lead insert exception", { error: e instanceof Error ? e.message : String(e), phone });
           }
-        } catch (e) {
-          logStep("Incremental insert exception", { error: e instanceof Error ? e.message : String(e) });
         }
-      }
-    }
-
-    // Flush remaining pending leads
-    if (options?.orderId && options?.supabase && pending.length > 0) {
-      try {
-        const { error } = await options.supabase
-          .from("leads")
-          .insert(pending);
-        if (error) {
-          logStep("Final incremental insert error", { error: error.message, count: pending.length });
-        } else {
-          logStep("Final incremental insert success", { count: pending.length });
-        }
-      } catch (e) {
-        logStep("Final incremental insert exception", { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -925,7 +905,7 @@ serve(async (req) => {
     const didIncremental = true; // FSBO saves incrementally
 
     const fsboLeads = await scrapeWithApifyFSBO(`${order.primary_city}, ${order.primary_state}`,
-      { orderId, supabase, maxListings: 60, batchSize: 1 }
+      { orderId, supabase, maxListings: 60 }
     ).catch((err) => {
       logStep("FSBO scraper failed", { error: err.message });
       return [] as Lead[];
