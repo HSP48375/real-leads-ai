@@ -5,12 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface Lead {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  price?: string;
+  source?: string;
+}
+
 interface ScrapingResult {
   source: string;
   success: boolean;
   leadsFound: number;
   error?: string;
-  leads?: any[];
+  leads?: Lead[];
   timeTaken: number;
 }
 
@@ -115,6 +124,105 @@ function getCraigslistMetro(city: string, state: string): string {
   return cityLower.replace(/\s+/g, '');
 }
 
+// Parse Craigslist HTML to extract leads
+function parseCraigslistHTML(html: string): Lead[] {
+  const leads: Lead[] = [];
+  
+  // Craigslist uses <li class="cl-static-search-result"> for listings
+  const listingRegex = /<li[^>]*class="[^"]*cl-static-search-result[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
+  const matches = html.matchAll(listingRegex);
+  
+  for (const match of matches) {
+    const listingHtml = match[1];
+    
+    // Extract title/link
+    const titleMatch = listingHtml.match(/<a[^>]*href="([^"]+)"[^>]*class="[^"]*posting-title[^"]*"[^>]*>([^<]+)<\/a>/i);
+    const url = titleMatch?.[1];
+    const title = titleMatch?.[2]?.trim();
+    
+    // Extract price
+    const priceMatch = listingHtml.match(/<span class="priceinfo">([^<]+)<\/span>/i);
+    const price = priceMatch?.[1]?.trim();
+    
+    // Extract location
+    const locationMatch = listingHtml.match(/<span class="location">([^<]+)<\/span>/i);
+    const location = locationMatch?.[1]?.trim();
+    
+    if (title) {
+      leads.push({
+        name: title,
+        address: location || 'Location not specified',
+        price: price || 'Price not listed',
+        source: 'Craigslist',
+      });
+    }
+  }
+  
+  return leads;
+}
+
+// Parse BuyOwner HTML to extract leads
+function parseBuyOwnerHTML(html: string): Lead[] {
+  const leads: Lead[] = [];
+  
+  // BuyOwner uses property cards
+  const propertyRegex = /<div[^>]*class="[^"]*property[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
+  const matches = html.matchAll(propertyRegex);
+  
+  for (const match of matches) {
+    const propertyHtml = match[1];
+    
+    // Extract address
+    const addressMatch = propertyHtml.match(/<span[^>]*class="[^"]*address[^"]*"[^>]*>([^<]+)<\/span>/i);
+    const address = addressMatch?.[1]?.trim();
+    
+    // Extract price
+    const priceMatch = propertyHtml.match(/<span[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)<\/span>/i);
+    const price = priceMatch?.[1]?.trim();
+    
+    if (address) {
+      leads.push({
+        address,
+        price: price || 'Price not listed',
+        source: 'BuyOwner',
+      });
+    }
+  }
+  
+  return leads;
+}
+
+// Parse Owners.com HTML to extract leads
+function parseOwnersComHTML(html: string): Lead[] {
+  const leads: Lead[] = [];
+  
+  // Owners.com uses listing cards
+  const listingRegex = /<div[^>]*class="[^"]*listing[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
+  const matches = html.matchAll(listingRegex);
+  
+  for (const match of matches) {
+    const listingHtml = match[1];
+    
+    // Extract address
+    const addressMatch = listingHtml.match(/<h3[^>]*>([^<]+)<\/h3>/i);
+    const address = addressMatch?.[1]?.trim();
+    
+    // Extract price
+    const priceMatch = listingHtml.match(/\$[\d,]+/);
+    const price = priceMatch?.[0];
+    
+    if (address) {
+      leads.push({
+        address,
+        price: price || 'Price not listed',
+        source: 'Owners.com',
+      });
+    }
+  }
+  
+  return leads;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -158,16 +266,25 @@ Deno.serve(async (req) => {
         const htmlContent = await scrapeWithZenRows(source.url, source.name, source.waitFor);
         const timeTaken = Date.now() - startTime;
         
-        // For now, just return success with HTML length info
+        // Parse HTML to extract actual leads
+        let parsedLeads: Lead[] = [];
+        if (source.name === 'Craigslist') {
+          parsedLeads = parseCraigslistHTML(htmlContent);
+        } else if (source.name === 'BuyOwner') {
+          parsedLeads = parseBuyOwnerHTML(htmlContent);
+        } else if (source.name === 'Owners.com') {
+          parsedLeads = parseOwnersComHTML(htmlContent);
+        }
+        
         testResults.push({
           source: source.name,
           success: true,
-          leadsFound: 0, // Will be parsed in next iteration
-          leads: [{ htmlLength: htmlContent.length, preview: htmlContent.substring(0, 500) }],
+          leadsFound: parsedLeads.length,
+          leads: parsedLeads.slice(0, 5), // Include first 5 leads as sample
           timeTaken,
         });
         
-        console.log(`✓ ${source.name}: Retrieved ${htmlContent.length} chars in ${timeTaken}ms`);
+        console.log(`✓ ${source.name}: Found ${parsedLeads.length} leads in ${timeTaken}ms`);
       } catch (error) {
         const timeTaken = Date.now() - startTime;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
