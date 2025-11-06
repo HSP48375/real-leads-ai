@@ -1155,7 +1155,7 @@ serve(async (req) => {
 
     // Build dynamic URLs for each source
     const craigslistUrl = `https://${cityUrls.craigslistSubdomain}.craigslist.org/search/rea?query=owner`;
-    const buyownerUrl = `https://www.buyowner.com/search/${cityUrls.state}/${cityUrls.buyownerCity}`;
+    const buyownerUrl = `https://www.buyowner.com/fsbo-${cityUrls.buyownerCity}-${cityUrls.state}`;
     const ownersUrl = `https://owner.com/search/${cityUrls.state}/${cityUrls.ownersCity}`;
 
     logStep("Scraper URLs", { craigslistUrl, buyownerUrl, ownersUrl });

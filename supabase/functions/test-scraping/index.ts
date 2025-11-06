@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       },
       {
         name: 'BuyOwner',
-        url: `https://www.buyowner.com/search/${state.toLowerCase()}/${city.toLowerCase().replace(/\s+/g, '-')}`,
+        url: `https://www.buyowner.com/fsbo-${city.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}`,
         waitFor: '.property',
       },
       {
