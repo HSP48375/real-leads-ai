@@ -1388,97 +1388,249 @@ serve(async (req) => {
       })
       .eq("id", orderId);
 
-    // Run ALL scrapers in parallel with multiple cities
+    // INTELLIGENT SEQUENTIAL SCRAPING - Run sources one by one until target is met
+    // Cost order: FSBO (cheapest via Apify) → Craigslist → ForSaleByOwner.com → Zillow → Trulia
+    
     const didIncremental = true; // FSBO saves incrementally
+    let totalLeadsCollected = 0;
+    let sourcesRun: string[] = [];
+    
+    // Helper function to check current lead count in database
+    const getCurrentLeadCount = async (): Promise<number> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id", { count: "exact" })
+        .eq("order_id", orderId);
+      
+      if (error) {
+        logStep("Error checking lead count", { error: error.message });
+        return 0;
+      }
+      
+      return data?.length || 0;
+    };
+    
+    // Helper function to check if target is met
+    const isTargetMet = (currentCount: number): boolean => {
+      return currentCount >= tierQuota.min && currentCount <= tierQuota.max;
+    };
 
-    // Execute all scrapers in parallel - scrape ALL cities for maximum lead generation
-    const scrapeTasks = [];
-    
-    // FSBO.com - scrape all cities
-    for (const city of allCities) {
-      scrapeTasks.push(
-        scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
-          { orderId, supabase, maxListings: 20 }
-        ).catch((err: Error) => {
-          logStep(`FSBO.com scraper failed for ${city}`, { error: err.message });
-          return [] as Lead[];
-        })
-      );
-    }
-    
-    // Craigslist - scrape all URLs
-    for (const url of craigslistUrls.slice(0, 10)) { // Limit to avoid rate limits
-      scrapeTasks.push(
-        scrapeWithZenRowsHTML(url, "Craigslist").catch((err: Error) => {
-          logStep("Craigslist scraper failed", { error: err.message });
-          return [] as Lead[];
-        })
-      );
-    }
-    
-    // ForSaleByOwner.com - scrape all URLs
-    for (const url of fsboComUrls.slice(0, 10)) {
-      scrapeTasks.push(
-        scrapeWithZenRowsAutoparse(url, "ForSaleByOwner.com").catch((err: Error) => {
-          logStep("ForSaleByOwner.com scraper failed", { error: err.message });
-          return [] as Lead[];
-        })
-      );
-    }
-    
-    // Zillow - scrape all URLs
-    for (const url of zillowUrls.slice(0, 10)) {
-      scrapeTasks.push(
-        scrapeWithZenRowsAutoparse(url, "Zillow").catch((err: Error) => {
-          logStep("Zillow scraper failed", { error: err.message });
-          return [] as Lead[];
-        })
-      );
-    }
-    
-    // Trulia - scrape all URLs
-    for (const url of truliaUrls.slice(0, 10)) {
-      scrapeTasks.push(
-        scrapeWithZenRowsAutoparse(url, "Trulia").catch((err: Error) => {
-          logStep("Trulia scraper failed", { error: err.message });
-          return [] as Lead[];
-        })
-      );
-    }
-    
-    logStep(`Executing ${scrapeTasks.length} scrape tasks in parallel`);
-    const allScraperResults = await Promise.all(scrapeTasks);
+    logStep("Starting SEQUENTIAL scraping with intelligent stopping", {
+      targetRange: `${tierQuota.min}-${tierQuota.max}`,
+      strategy: "Cost-optimized: FSBO → Craigslist → Others"
+    });
 
-
-    // Combine all leads from all scrapers
-    let allLeads: Lead[] = [];
-    for (const result of allScraperResults) {
-      if (Array.isArray(result)) {
-        allLeads = allLeads.concat(result);
+    // SOURCE 1: FSBO.com via Apify (CHEAPEST - $0.05-0.15 per order)
+    if (totalLeadsCollected < tierQuota.min) {
+      logStep("SOURCE 1: FSBO.com - Starting", { citiesCount: allCities.length });
+      
+      for (const city of allCities) {
+        try {
+          const fsboLeads = await scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
+            { orderId, supabase, maxListings: 20 }
+          );
+          
+          if (fsboLeads && fsboLeads.length > 0) {
+            logStep(`FSBO.com - ${city}`, { leadsFound: fsboLeads.length });
+          }
+        } catch (err) {
+          logStep(`FSBO.com failed for ${city}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      
+      totalLeadsCollected = await getCurrentLeadCount();
+      sourcesRun.push("FSBO.com");
+      
+      logStep("SOURCE 1: FSBO.com - Complete", { 
+        totalLeads: totalLeadsCollected,
+        targetMin: tierQuota.min,
+        targetMet: isTargetMet(totalLeadsCollected)
+      });
+      
+      if (isTargetMet(totalLeadsCollected)) {
+        logStep("🎯 TARGET MET after FSBO.com - Stopping", { 
+          leadsCollected: totalLeadsCollected,
+          sourcesUsed: sourcesRun 
+        });
       }
     }
-    
-    // Set order_id for all leads
-    allLeads = allLeads.map(lead => ({ ...lead, order_id: orderId! }));
-    
-    // Deduplicate by phone/address
-    allLeads = deduplicateLeads(allLeads);
 
-    logStep("All radius sources scraped", {
-      totalRawLeads: allScraperResults.flat().length,
-      afterDeduplication: allLeads.length,
+    // SOURCE 2: Craigslist via ZenRows ($0.11-0.22 per order with 10 deep scrapes)
+    if (totalLeadsCollected < tierQuota.min) {
+      logStep("SOURCE 2: Craigslist - Starting", { urlsCount: craigslistUrls.length });
+      
+      const craigslistLimit = Math.min(craigslistUrls.length, 10); // Limit to control costs
+      
+      for (let i = 0; i < craigslistLimit; i++) {
+        const url = craigslistUrls[i];
+        try {
+          const craigslistLeads = await scrapeWithZenRowsHTML(url, "Craigslist");
+          
+          if (craigslistLeads && craigslistLeads.length > 0) {
+            // Save leads to database
+            for (const lead of craigslistLeads) {
+              lead.order_id = orderId!;
+              await supabase.from("leads").insert(lead);
+            }
+            
+            logStep(`Craigslist - URL ${i+1}/${craigslistLimit}`, { leadsFound: craigslistLeads.length });
+          }
+        } catch (err) {
+          logStep(`Craigslist failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      
+      totalLeadsCollected = await getCurrentLeadCount();
+      sourcesRun.push("Craigslist");
+      
+      logStep("SOURCE 2: Craigslist - Complete", { 
+        totalLeads: totalLeadsCollected,
+        targetMin: tierQuota.min,
+        targetMet: isTargetMet(totalLeadsCollected)
+      });
+      
+      if (isTargetMet(totalLeadsCollected)) {
+        logStep("🎯 TARGET MET after Craigslist - Stopping", { 
+          leadsCollected: totalLeadsCollected,
+          sourcesUsed: sourcesRun 
+        });
+      }
+    }
+
+    // SOURCE 3: ForSaleByOwner.com via ZenRows Autoparse
+    if (totalLeadsCollected < tierQuota.min) {
+      logStep("SOURCE 3: ForSaleByOwner.com - Starting", { urlsCount: fsboComUrls.length });
+      
+      const fsboComLimit = Math.min(fsboComUrls.length, 10);
+      
+      for (let i = 0; i < fsboComLimit; i++) {
+        const url = fsboComUrls[i];
+        try {
+          const fsboComLeads = await scrapeWithZenRowsAutoparse(url, "ForSaleByOwner.com");
+          
+          if (fsboComLeads && fsboComLeads.length > 0) {
+            for (const lead of fsboComLeads) {
+              lead.order_id = orderId!;
+              await supabase.from("leads").insert(lead);
+            }
+            
+            logStep(`ForSaleByOwner.com - URL ${i+1}/${fsboComLimit}`, { leadsFound: fsboComLeads.length });
+          }
+        } catch (err) {
+          logStep(`ForSaleByOwner.com failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      
+      totalLeadsCollected = await getCurrentLeadCount();
+      sourcesRun.push("ForSaleByOwner.com");
+      
+      logStep("SOURCE 3: ForSaleByOwner.com - Complete", { 
+        totalLeads: totalLeadsCollected,
+        targetMin: tierQuota.min,
+        targetMet: isTargetMet(totalLeadsCollected)
+      });
+      
+      if (isTargetMet(totalLeadsCollected)) {
+        logStep("🎯 TARGET MET after ForSaleByOwner.com - Stopping", { 
+          leadsCollected: totalLeadsCollected,
+          sourcesUsed: sourcesRun 
+        });
+      }
+    }
+
+    // SOURCE 4: Zillow via ZenRows Autoparse
+    if (totalLeadsCollected < tierQuota.min) {
+      logStep("SOURCE 4: Zillow - Starting", { urlsCount: zillowUrls.length });
+      
+      const zillowLimit = Math.min(zillowUrls.length, 10);
+      
+      for (let i = 0; i < zillowLimit; i++) {
+        const url = zillowUrls[i];
+        try {
+          const zillowLeads = await scrapeWithZenRowsAutoparse(url, "Zillow");
+          
+          if (zillowLeads && zillowLeads.length > 0) {
+            for (const lead of zillowLeads) {
+              lead.order_id = orderId!;
+              await supabase.from("leads").insert(lead);
+            }
+            
+            logStep(`Zillow - URL ${i+1}/${zillowLimit}`, { leadsFound: zillowLeads.length });
+          }
+        } catch (err) {
+          logStep(`Zillow failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      
+      totalLeadsCollected = await getCurrentLeadCount();
+      sourcesRun.push("Zillow");
+      
+      logStep("SOURCE 4: Zillow - Complete", { 
+        totalLeads: totalLeadsCollected,
+        targetMin: tierQuota.min,
+        targetMet: isTargetMet(totalLeadsCollected)
+      });
+      
+      if (isTargetMet(totalLeadsCollected)) {
+        logStep("🎯 TARGET MET after Zillow - Stopping", { 
+          leadsCollected: totalLeadsCollected,
+          sourcesUsed: sourcesRun 
+        });
+      }
+    }
+
+    // SOURCE 5: Trulia via ZenRows Autoparse
+    if (totalLeadsCollected < tierQuota.min) {
+      logStep("SOURCE 5: Trulia - Starting", { urlsCount: truliaUrls.length });
+      
+      const truliaLimit = Math.min(truliaUrls.length, 10);
+      
+      for (let i = 0; i < truliaLimit; i++) {
+        const url = truliaUrls[i];
+        try {
+          const truliaLeads = await scrapeWithZenRowsAutoparse(url, "Trulia");
+          
+          if (truliaLeads && truliaLeads.length > 0) {
+            for (const lead of truliaLeads) {
+              lead.order_id = orderId!;
+              await supabase.from("leads").insert(lead);
+            }
+            
+            logStep(`Trulia - URL ${i+1}/${truliaLimit}`, { leadsFound: truliaLeads.length });
+          }
+        } catch (err) {
+          logStep(`Trulia failed for URL ${i+1}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      
+      totalLeadsCollected = await getCurrentLeadCount();
+      sourcesRun.push("Trulia");
+      
+      logStep("SOURCE 5: Trulia - Complete", { 
+        totalLeads: totalLeadsCollected,
+        targetMin: tierQuota.min,
+        targetMet: isTargetMet(totalLeadsCollected)
+      });
+      
+      if (isTargetMet(totalLeadsCollected)) {
+        logStep("🎯 TARGET MET after Trulia - Stopping", { 
+          leadsCollected: totalLeadsCollected,
+          sourcesUsed: sourcesRun 
+        });
+      }
+    }
+
+    logStep("Sequential scraping complete", {
+      totalLeadsCollected,
+      targetRange: `${tierQuota.min}-${tierQuota.max}`,
+      sourcesRun: sourcesRun.join(" → "),
       citiesSearched: allCities.length,
       radiusMiles: radiusMiles
     });
 
-    // Leads were already saved one-by-one during scraping to avoid timeouts
-    // Just count what we have in the database now
-    const { data: existingLeads } = await supabase
-      .from("leads")
-      .select("id", { count: "exact" })
-      .eq("order_id", orderId);
-    
-    const totalLeadsAfterSave = existingLeads?.length || 0;
+    // Leads were saved during sequential scraping
+    // totalLeadsCollected already has the final count from last check
+    const totalLeadsAfterSave = totalLeadsCollected;
 
     logStep("Lead count analysis", {
       totalLeadsSaved: totalLeadsAfterSave,
