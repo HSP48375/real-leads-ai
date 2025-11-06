@@ -251,8 +251,8 @@ async function deepScrapeListingPage(url: string, source: string, maxRetries = 3
 {
   "owner_first_name": "string",
   "owner_last_name": "string", 
-  "owner_phone": "string",
-  "owner_email": "string",
+  "owner_phone": "string (REQUIRED)",
+  "owner_email": "string (optional - include if found)",
   "bedrooms": number,
   "bathrooms": number,
   "home_style": "string (e.g., Ranch, Colonial, Contemporary, Cape Cod, Victorian, etc.)",
@@ -274,7 +274,7 @@ CRITICAL - Property details to extract:
 - Home style: Look for property type, architectural style, house type
 - Year built: Look for "built in", "year built", construction date
 
-Return first name and last name separately. Extract all numeric values. If not found, return null for numbers or empty strings for text.`
+PRIORITY: Phone number is REQUIRED. Email is optional but include if found. Return first name and last name separately. Extract all numeric values. If not found, return null for numbers or empty strings for text.`
         }
       };
 
@@ -339,8 +339,8 @@ Return first name and last name separately. Extract all numeric values. If not f
       const homeStyle = contactInfo.home_style || "";
       const yearBuilt = contactInfo.year_built || null;
 
-      if (!phone || !email) {
-        logStep(`Deep scrape incomplete - need phone AND email for ${source}`, { 
+      if (!phone) {
+        logStep(`Deep scrape incomplete - phone required for ${source}`, { 
           url, 
           attempt,
           hasPhone: !!phone,
@@ -533,15 +533,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
       }
       seenPhones.add(phone);
 
-      // VALIDATION 3: Must have email
-      if (!email) {
-        const reason = "missing_email";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing email", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 4: Must have first AND last name
+      // VALIDATION 3: Must have first AND last name
       if (!firstName || !lastName) {
         const reason = "missing_name";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
@@ -554,7 +546,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 5: Must have address
+      // VALIDATION 4: Must have address
       const address = item.address || item.streetAddress || "";
       if (!address.trim()) {
         const reason = "missing_address";
@@ -563,7 +555,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 6: Must have price
+      // VALIDATION 5: Must have price
       const price = item.price || item.listPrice || "";
       if (!price) {
         const reason = "missing_price";
@@ -572,17 +564,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 7: Must have property type or listing title
-      const title = item.title || "";
-      const propertyType = item.propertyType || item.type || "";
-      if (!title && !propertyType) {
-        const reason = "missing_listing_info";
-        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-        logStep("REJECTED - missing listing info", { url: item.url, phone });
-        continue;
-      }
-
-      // VALIDATION 8: Must have bedrooms
+      // VALIDATION 6: Must have bedrooms
       if (bedrooms === null || bedrooms === undefined) {
         const reason = "missing_bedrooms";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
@@ -590,7 +572,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 9: Must have bathrooms
+      // VALIDATION 7: Must have bathrooms
       if (bathrooms === null || bathrooms === undefined) {
         const reason = "missing_bathrooms";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
@@ -598,7 +580,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 10: Must have home style
+      // VALIDATION 8: Must have home style
       if (!homeStyle || !homeStyle.trim()) {
         const reason = "missing_home_style";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
@@ -606,7 +588,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // VALIDATION 11: Must have year built
+      // VALIDATION 9: Must have year built
       if (yearBuilt === null || yearBuilt === undefined) {
         const reason = "missing_year_built";
         rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
@@ -614,7 +596,11 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         continue;
       }
 
-      // ALL 11 VALIDATIONS PASSED - CREATE COMPLETE LEAD
+      // ALL 9 CORE VALIDATIONS PASSED - CREATE COMPLETE LEAD
+      // Optional fields (nice to have but not required):
+      const title = item.title || "";
+      const propertyType = item.propertyType || item.type || "";
+      
       const lead: Lead = {
         order_id: options?.orderId || "",
         seller_name: `${firstName} ${lastName}`,
@@ -639,7 +625,7 @@ async function scrapeWithApifyFSBO(city: string, options?: { orderId?: string; s
         year_built: yearBuilt,
       };
 
-      logStep("ACCEPTED - complete lead with all 11 fields", { 
+      logStep("ACCEPTED - complete lead with 9 core fields", { 
         phone, 
         email, 
         name: `${firstName} ${lastName}`,
