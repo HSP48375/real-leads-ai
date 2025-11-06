@@ -97,9 +97,9 @@ CRITICAL:
 - Return {"leads": []} if no listings found`;
 
 
-// ZenRows scraper with professional anti-bot bypass (95%+ success rate)
+// ZenRows scraper with proper anti-bot bypass parameters
 async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): Promise<Lead[]> {
-  const RETRY_DELAY_MS = 10000; // 10 seconds between retries (faster than Olostep)
+  const RETRY_DELAY_MS = 10000; // 10 seconds between retries
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     logStep(`Scraping ${source} with ZenRows`, { url, attempt, maxRetries });
@@ -110,26 +110,22 @@ async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): P
     }
 
     try {
-      const payload = {
-        url: url,
-        js_render: true,
-        antibot: true,
-        premium_proxy: true,
-        wait: 4000,
-        extract: {
-          prompt: ZENROWS_EXTRACTION_PROMPT
-        }
-      };
+      // Build ZenRows URL with proper anti-bot parameters
+      const zenrowsUrl = new URL('https://api.zenrows.com/v1/');
+      zenrowsUrl.searchParams.set('apikey', ZENROWS_API_KEY);
+      zenrowsUrl.searchParams.set('url', url);
+      zenrowsUrl.searchParams.set('js_render', 'true');
+      zenrowsUrl.searchParams.set('premium_proxy', 'true');
+      zenrowsUrl.searchParams.set('wait', '3000');
 
-      logStep(`ZenRows payload for ${source}`, payload);
+      logStep(`ZenRows request for ${source}`, { 
+        targetUrl: url, 
+        attempt, 
+        params: 'js_render=true&premium_proxy=true&wait=3000'
+      });
 
-      const response = await fetch("https://api.zenrows.com/v1/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${ZENROWS_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      const response = await fetch(zenrowsUrl.toString(), {
+        method: "GET",
       });
 
       if (!response.ok) {
@@ -139,7 +135,7 @@ async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): P
         
         logStep(`ZenRows error for ${source}`, { 
           status: response.status, 
-          error: errorText,
+          error: errorText.substring(0, 200),
           isTimeout,
           isRateLimit,
           attempt,
@@ -157,86 +153,21 @@ async function scrapeWithZenRows(url: string, source: string, maxRetries = 2): P
         return [];
       }
 
-      const data = await response.json();
-      logStep(`ZenRows raw response for ${source}`, { 
+      const htmlContent = await response.text();
+      logStep(`ZenRows HTML retrieved for ${source}`, { 
         status: response.status,
-        dataKeys: Object.keys(data || {}),
-        hasExtract: !!data?.extract,
-        hasLeads: !!data?.extract?.leads,
+        htmlLength: htmlContent.length,
         attempt 
       });
 
-      const leads: Lead[] = [];
+      // For now, return empty array since we need HTML parsing logic
+      // TODO: Add HTML parsing to extract leads from the raw HTML
+      logStep(`${source} - HTML parsing not yet implemented`, { 
+        htmlLength: htmlContent.length,
+        preview: htmlContent.substring(0, 200)
+      });
       
-      // Parse extracted leads from ZenRows response
-      let extractedLeads: any[] = [];
-      
-      // ZenRows returns data in extract.leads
-      if (data?.extract?.leads && Array.isArray(data.extract.leads)) {
-        extractedLeads = data.extract.leads;
-      }
-      // Fallback to direct leads array
-      else if (data?.leads && Array.isArray(data.leads)) {
-        extractedLeads = data.leads;
-      }
-
-      if (!Array.isArray(extractedLeads) || extractedLeads.length === 0) {
-        logStep(`${source} returned no leads`, { 
-          dataStructure: typeof data,
-          keys: Object.keys(data || {}),
-          attempt 
-        });
-        
-        // Retry if we have attempts left
-        if (attempt < maxRetries) {
-          logStep(`Waiting ${RETRY_DELAY_MS/1000}s before retry ${attempt + 1}/${maxRetries} for ${source}`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-          continue;
-        }
-        
-        return [];
-      }
-
-      for (const item of extractedLeads) {
-        // Require phone (email is optional)
-        const phone = (item.owner_phone || item.phone || "").replace(/\D/g, "");
-        const email = item.owner_email || item.email || "";
-
-        if (!phone) {
-          logStep(`Skipping ${source} lead without phone`, { 
-            address: item.property_address || item.address,
-            hasEmail: !!email 
-          });
-          continue;
-        }
-
-        leads.push({
-          order_id: "",
-          seller_name: item.owner_name || "Unknown",
-          contact: phone,
-          email: email || undefined,
-          address: item.property_address || item.address || "",
-          city: item.city || undefined,
-          state: item.state || undefined,
-          zip: item.zip || undefined,
-          price: item.price || undefined,
-          url: url,
-          source: source,
-          source_type: "fsbo",
-          date_listed: new Date().toISOString(),
-          listing_title: item.description || undefined,
-          address_line_1: item.property_address || item.address || undefined,
-          address_line_2: undefined,
-          zipcode: item.zip || undefined,
-          bedrooms: item.bedrooms || undefined,
-          bathrooms: item.bathrooms || undefined,
-          home_style: item.home_style || undefined,
-          year_built: item.year_built || undefined,
-        });
-      }
-
-      logStep(`${source} leads extracted with ZenRows`, { count: leads.length, attempt });
-      return leads;
+      return [];
       
     } catch (error) {
       const willRetry = attempt < maxRetries;

@@ -28,7 +28,7 @@ async function scrapeWithZenRows(url: string, source: string): Promise<string> {
   zenrowsUrl.searchParams.set('url', url);
   zenrowsUrl.searchParams.set('js_render', 'true');
   zenrowsUrl.searchParams.set('premium_proxy', 'true');
-  zenrowsUrl.searchParams.set('proxy_country', 'us');
+  zenrowsUrl.searchParams.set('wait', '3000');
 
   let lastError: Error | null = null;
   
