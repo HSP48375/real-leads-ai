@@ -35,3 +35,6 @@ timeout_sec = 300
 [functions.test-scraping]
 verify_jwt = false
 timeout_sec = 600
+
+[functions.debug-fsbo-run]
+verify_jwt = false
