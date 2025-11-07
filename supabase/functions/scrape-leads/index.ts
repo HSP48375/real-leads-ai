@@ -215,19 +215,18 @@ interface Lead {
 
 // ============ APIFY FSBO SCRAPER - PROVEN & COST-EFFECTIVE ============
 
-async function deepScrapeListingPage(url: string, source: string, addressFallback: string): Promise<any> {
+async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 10000): Promise<any> {
   try {
     const apiKey = Deno.env.get("APIFY_API_KEY");
     if (!apiKey) {
-      logStep(`${source} deep scrape skipped - no API key`);
       return null;
     }
 
-    // Use Apify's web scraper for deep scraping
+    // Use Apify's web scraper for deep scraping with FAST timeout
     const actorInput = {
       startUrls: [{ url }],
       proxyConfiguration: { useApifyProxy: true },
-      maxRequestRetries: 2,
+      maxRequestRetries: 1, // Reduced from 2
       maxPagesPerCrawl: 1,
       pageFunction: `
         async function pageFunction(context) {
@@ -242,13 +241,7 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
           return {
             phone: phones[0] || '',
             email: emails[0] || '',
-            firstName: '',
-            lastName: '',
-            address: '${addressFallback}',
-            bedrooms: null,
-            bathrooms: null,
-            homeStyle: '',
-            yearBuilt: null
+            address: '${addressFallback}'
           };
         }
       `
@@ -264,19 +257,17 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
     );
 
     if (!response.ok) {
-      logStep(`${source} deep scrape failed`, { status: response.status });
       return null;
     }
 
     const runData = await response.json();
     const runId = runData?.data?.id;
-
     if (!runId) return null;
 
-    // Poll for results
-    let attempts = 0;
-    while (attempts < 20) {
-      await new Promise(r => setTimeout(r, 3000));
+    // Poll with FAST timeout (max 10 seconds instead of 60)
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
       
       const statusResp = await fetch(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
@@ -295,13 +286,11 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
       if (["FAILED", "ABORTED"].includes(status)) {
         return null;
       }
-
-      attempts++;
     }
 
+    // Timeout - return null
     return null;
   } catch (error) {
-    logStep(`Deep scrape error`, { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
@@ -399,112 +388,119 @@ async function scrapeWithApifyFSBO(
     
     logStep("FSBO items with URLs for deep scraping", { count: itemsWithUrls.length });
 
-    // Process results WITHOUT deep scraping (FSBO.com provides phone/email/name in initial scrape)
+    // Process results WITH parallel deep scraping (5 at a time with 10s timeout each)
     const maxListings = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
     const seenPhones = new Set<string>();
     const rejectionReasons: { [key: string]: number } = {};
     
-    logStep("Processing FSBO listings (no deep scrape - using initial data)", { count: maxListings });
+    logStep("Starting parallel deep scraping with timeout protection", { count: maxListings, maxTimePerListing: "10s", batchSize: 5 });
     
-    for (let i = 0; i < maxListings; i++) {
-      const item = itemsWithUrls[i];
+    const BATCH_SIZE = 5; // Process 5 listings at a time
+    
+    for (let batchStart = 0; batchStart < maxListings; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, maxListings);
+      const batchItems = itemsWithUrls.slice(batchStart, batchEnd);
       
-      // Extract data from FSBO.com initial scrape (already has phone/email/name)
-      let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
-      let email = item.email || item.contactEmail || "";
-      let firstName = "";
-      let lastName = "";
+      logStep(`📦 Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}`, { 
+        range: `${batchStart + 1}-${batchEnd}`,
+        total: maxListings
+      });
       
-      // Parse seller name
-      const sellerName = item.seller || item.sellerName || "";
-      if (sellerName) {
-        const parts = sellerName.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          firstName = parts[0];
-          lastName = parts.slice(1).join(" ");
-        } else if (parts.length === 1) {
-          firstName = parts[0];
+      // Deep scrape batch in parallel with 10s timeout per listing
+      const batchResults = await Promise.all(
+        batchItems.map(async (item: any) => {
+          const fallbackAddress = item.address || item.streetAddress || "";
+          const contactInfo = item.url 
+            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, 10000)
+            : null;
+          
+          return {
+            item,
+            phone: (contactInfo?.phone || item.phone || item.contactPhone || "").replace(/\D/g, ""),
+            email: contactInfo?.email || item.email || item.contactEmail || "",
+            address: contactInfo?.address || fallbackAddress
+          };
+        })
+      );
+      
+      // Validate and save batch results
+      for (const result of batchResults) {
+        const { item, phone, email, address } = result;
+        
+        // Parse seller name
+        let firstName = "";
+        let lastName = "";
+        const sellerName = item.seller || item.sellerName || "";
+        if (sellerName) {
+          const parts = sellerName.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            firstName = parts[0];
+            lastName = parts.slice(1).join(" ");
+          } else if (parts.length === 1) {
+            firstName = parts[0];
+            lastName = "Owner";
+          }
+        } else {
+          firstName = "Property";
           lastName = "Owner";
         }
-      }
-      
-      // Extract property details
-      const bedrooms: number | null = item.bedrooms ?? item.beds ?? null;
-      const bathrooms: number | null = item.bathrooms ?? item.baths ?? null;
-      const homeStyle = item.propertyType || item.homeStyle || "";
-      const yearBuilt: number | null = item.yearBuilt ?? null;
-      const address = item.address || item.streetAddress || "";
-      const price = item.price || "";
-      const title = item.title || item.listingTitle || "";
-      
-      // VALIDATION 1: Must have phone number
-      if (!phone) {
-        rejectionReasons["missing_phone"] = (rejectionReasons["missing_phone"] || 0) + 1;
-        continue;
-      }
+        
+        // VALIDATION 1: Must have phone
+        if (!phone) {
+          rejectionReasons["missing_phone"] = (rejectionReasons["missing_phone"] || 0) + 1;
+          continue;
+        }
 
-      // VALIDATION 2: Check for duplicate phone
-      if (seenPhones.has(phone)) {
-        rejectionReasons["duplicate_phone"] = (rejectionReasons["duplicate_phone"] || 0) + 1;
-        continue;
-      }
-      seenPhones.add(phone);
+        // VALIDATION 2: No duplicate phones
+        if (seenPhones.has(phone)) {
+          rejectionReasons["duplicate_phone"] = (rejectionReasons["duplicate_phone"] || 0) + 1;
+          continue;
+        }
+        seenPhones.add(phone);
 
-      // VALIDATION 3: Must have name (or default to "Owner")
-      if (!firstName) {
-        firstName = "Property";
-        lastName = "Owner";
-      }
+        // VALIDATION 3: Must have address
+        if (!address) {
+          rejectionReasons["missing_address"] = (rejectionReasons["missing_address"] || 0) + 1;
+          continue;
+        }
 
-      // VALIDATION 4: Must have address
-      if (!address) {
-        rejectionReasons["missing_address"] = (rejectionReasons["missing_address"] || 0) + 1;
-        continue;
-      }
+        // Build lead object
+        const lead: Lead = {
+          order_id: options?.orderId || "",
+          seller_name: `${firstName} ${lastName}`.trim(),
+          address,
+          city: item.city || undefined,
+          state: item.state || undefined,
+          zip: item.zip || item.zipcode || undefined,
+          price: item.price || undefined,
+          contact: phone,
+          email: email || undefined,
+          url: item.url || undefined,
+          source: "FSBO.com",
+          source_type: "fsbo",
+          date_listed: item.datePosted || item.dateListed || undefined,
+          listing_title: item.title || item.propertyType || undefined,
+          address_line_1: address || undefined,
+          address_line_2: undefined,
+          zipcode: item.zip || item.zipcode || undefined,
+          bedrooms: item.bedrooms ?? item.beds ?? undefined,
+          bathrooms: item.bathrooms ?? item.baths ?? undefined,
+          home_style: item.propertyType || item.homeStyle || undefined,
+          year_built: item.yearBuilt ?? undefined,
+        };
 
-      // Build the lead object
-      const lead: Lead = {
-        order_id: options?.orderId || "",
-        seller_name: `${firstName} ${lastName}`.trim(),
-        address,
-        city: item.city || undefined,
-        state: item.state || undefined,
-        zip: item.zip || item.zipcode || undefined,
-        price: price || undefined,
-        contact: phone,
-        email: email || undefined,
-        url: item.url || undefined,
-        source: "FSBO.com",
-        source_type: "fsbo",
-        date_listed: item.datePosted || item.dateListed || undefined,
-        listing_title: title || homeStyle || undefined,
-        address_line_1: address || undefined,
-        address_line_2: undefined,
-        zipcode: item.zip || item.zipcode || undefined,
-        bedrooms: bedrooms ?? undefined,
-        bathrooms: bathrooms ?? undefined,
-        home_style: homeStyle || undefined,
-        year_built: yearBuilt ?? undefined,
-      };
-
-      logStep("✅ ACCEPTED lead", { 
-        phone, 
-        name: `${firstName} ${lastName}`,
-        address: address.slice(0, 30) + '...',
-        price
-      });
-
-      leads.push(lead);
-      
-      // Save each lead immediately (with duplicate check)
-      if (options?.orderId && options?.supabase && options?.insertLeadIfUnique) {
-        try {
-          const inserted = await options.insertLeadIfUnique(lead);
-          if (inserted) {
-            logStep("Lead saved to DB", { phone, totalSaved: leads.length });
+        leads.push(lead);
+        
+        // Save immediately
+        if (options?.orderId && options?.supabase && options?.insertLeadIfUnique) {
+          try {
+            const inserted = await options.insertLeadIfUnique(lead);
+            if (inserted) {
+              logStep("✅ Lead saved", { phone, name: `${firstName} ${lastName}`, total: leads.length });
+            }
+          } catch (e) {
+            logStep("❌ Lead save failed", { error: e instanceof Error ? e.message : String(e) });
           }
-        } catch (e) {
-          logStep("Lead insert exception", { error: e instanceof Error ? e.message : String(e), phone });
         }
       }
     }
@@ -512,9 +508,9 @@ async function scrapeWithApifyFSBO(
     logStep("✅ FSBO scraping complete", { 
       totalProcessed: maxListings,
       acceptedLeads: leads.length,
-      validationApproach: "FSBO initial data (phone, name, address, price)",
+      validationApproach: "Deep scrape with 10s timeout per listing",
       rejectionReasons,
-      speed: "FAST (no deep scraping)"
+      speed: "OPTIMIZED (parallel batches with timeout protection)"
     });
     
     return leads;
