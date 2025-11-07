@@ -189,6 +189,24 @@ const logStep = (step: string, details?: any) => {
   console.log(`[SCRAPE-LEADS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+// Normalize phone number: remove 1+ prefix, ensure 10 digits
+const normalizePhone = (phone: string): string => {
+  const digitsOnly = phone.replace(/\D/g, "");
+  
+  // If 11 digits and starts with 1, remove the 1
+  if (digitsOnly.length === 11 && digitsOnly.startsWith("1")) {
+    return digitsOnly.substring(1);
+  }
+  
+  // If 10 digits, return as is
+  if (digitsOnly.length === 10) {
+    return digitsOnly;
+  }
+  
+  // Otherwise return the cleaned version (may be invalid)
+  return digitsOnly;
+};
+
 interface Lead {
   order_id: string;
   seller_name: string;
@@ -215,7 +233,7 @@ interface Lead {
 
 // ============ APIFY FSBO SCRAPER - PROVEN & COST-EFFECTIVE ============
 
-async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 10000): Promise<any> {
+async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 6000): Promise<any> {
   try {
     const olostepApiKey = Deno.env.get("OLOSTEP_API_KEY");
     if (!olostepApiKey) {
@@ -320,7 +338,7 @@ async function scrapeWithApifyFSBO(
     logStep("FSBO run started", { runId });
 
     // Poll for completion
-    const maxWaitMs = 5 * 60 * 1000;
+    const maxWaitMs = 45000;
     const pollIntervalMs = 5000;
     const startTime = Date.now();
     let runStatus = "RUNNING";
@@ -369,7 +387,7 @@ async function scrapeWithApifyFSBO(
     
     logStep("Starting parallel deep scraping with timeout protection", { count: maxListings, maxTimePerListing: "10s", batchSize: 5 });
     
-    const BATCH_SIZE = 5; // Process 5 listings at a time
+    const BATCH_SIZE = 3; // Process 3 listings at a time
     
     for (let batchStart = 0; batchStart < maxListings; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, maxListings);
@@ -380,17 +398,17 @@ async function scrapeWithApifyFSBO(
         total: maxListings
       });
       
-      // Deep scrape batch in parallel with 10s timeout per listing
+      // Deep scrape batch in parallel with 6s timeout per listing
       const batchResults = await Promise.all(
         batchItems.map(async (item: any) => {
-          const fallbackAddress = item.address || item.streetAddress || "";
+          const fallbackAddress = item.address || item.streetAddress || item.fullAddress || item.location || item.addressLine || item.address_line_1 || "";
           const contactInfo = item.url 
-            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, 10000)
+            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, 6000)
             : null;
           
           return {
             item,
-            phone: (contactInfo?.phone || item.phone || item.contactPhone || "").replace(/\D/g, ""),
+            phone: normalizePhone(contactInfo?.phone || item.phone || item.contactPhone || ""),
             email: contactInfo?.email || item.email || item.contactEmail || "",
             address: contactInfo?.address || fallbackAddress
           };
@@ -604,7 +622,7 @@ serve(async (req) => {
     };
     
     // Check if max attempts exceeded
-    if (scrapeAttempts > MAX_SCRAPE_ATTEMPTS) {
+    if (scrapeAttempts >= MAX_SCRAPE_ATTEMPTS) {
       const currentLeadCount = await getCurrentLeadCount();
       logStep("⚠️ MAX ATTEMPTS EXCEEDED - Forcing finalization", { 
         attempts: scrapeAttempts,
