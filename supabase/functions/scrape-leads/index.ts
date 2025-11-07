@@ -163,10 +163,10 @@ const FSBO_ACTOR_ID = "dainty_screw/real-estate-fsbo-com-data-scraper";
 
 // Tier quota definitions
 const TIER_QUOTAS = {
-  starter: { min: 20, max: 25 },
-  growth: { min: 40, max: 50 },
-  pro: { min: 110, max: 130 },
-  enterprise: { min: 150, max: 200 },
+  starter: { min: 20, max: 25, maxCities: 2 },
+  growth: { min: 40, max: 50, maxCities: 5 },
+  pro: { min: 110, max: 130, maxCities: 10 },
+  enterprise: { min: 150, max: 200, maxCities: 20 },
 };
 
 const MAX_SCRAPE_ATTEMPTS = 3;
@@ -177,8 +177,13 @@ const APIFY_COSTS = {
   deep_scrape_per_listing: 0.02, // Approximate cost per deep scrape
 };
 
-const TEST_MODE_MAX_CITIES = 2; // Limit test orders to 2 cities
-const COST_WARNING_THRESHOLD = 50; // Warn when monthly costs approach $50
+// Tier-based city limits for cost optimization
+const TIER_CITY_LIMITS = {
+  starter: 2,    // $97 tier: 2 cities max (same as test mode)
+  growth: 5,     // $197 tier: 4-5 cities max
+  pro: 10,       // $397 tier: 8-10 cities max
+  enterprise: 20 // $697 tier: 15-20 cities max
+};
 
 const logStep = (step: string, details?: any) => {
   console.log(`[SCRAPE-LEADS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
@@ -719,7 +724,8 @@ serve(async (req) => {
       );
     }
 
-    // COST PROTECTION: Check if this is a test order
+    // COST OPTIMIZATION: Apply tier-based city limits
+    const tierCityLimit = TIER_CITY_LIMITS[order.tier as keyof typeof TIER_CITY_LIMITS] || 2;
     const isTestMode = Deno.env.get("TEST_MODE") === "true" || order.price_paid < 100;
     
     logStep("Starting FSBO-only scrape", { 
@@ -728,10 +734,12 @@ serve(async (req) => {
       radius: order.search_radius || 25,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`,
-      testMode: isTestMode
+      tier: order.tier,
+      tierCityLimit,
+      isTestMode
     });
 
-    // Get all cities within the search radius
+    // Get all cities within the search radius - DISCOVER ALL for comprehensive coverage
     const radiusMiles = order.search_radius || 25;
     const citiesInRadius = await getCitiesWithinRadius(
       order.primary_city,
@@ -742,18 +750,28 @@ serve(async (req) => {
     // Combine with additional cities from order
     let allCities = [...new Set([...citiesInRadius, ...(order.additional_cities || [])])];
     
-    // COST PROTECTION: Limit cities in test mode
-    if (isTestMode && allCities.length > TEST_MODE_MAX_CITIES) {
-      logStep(`⚠️ TEST MODE: Limiting to ${TEST_MODE_MAX_CITIES} cities (found ${allCities.length})`, {
-        original: allCities.slice(0, 5).join(', '),
-        limited: allCities.slice(0, TEST_MODE_MAX_CITIES).join(', ')
+    logStep(`🗺️ COVERAGE DISCOVERY: Found ${allCities.length} cities within ${radiusMiles} miles`, { 
+      first10: allCities.slice(0, 10).join(', ') + (allCities.length > 10 ? '...' : ''),
+      total: allCities.length
+    });
+    
+    // COST OPTIMIZATION: Apply tier-based city limits (cities are sorted by distance, so we scrape closest first)
+    const originalCityCount = allCities.length;
+    if (allCities.length > tierCityLimit) {
+      logStep(`💰 COST OPTIMIZATION: Limiting to ${tierCityLimit} cities for ${order.tier} tier (found ${originalCityCount})`, {
+        tier: order.tier,
+        pricePoint: `$${order.price_paid}`,
+        original: allCities.slice(0, 5).join(', ') + '...',
+        limited: allCities.slice(0, tierCityLimit).join(', '),
+        costSavings: `~$${((originalCityCount - tierCityLimit) * APIFY_COSTS.fsbo_per_city).toFixed(2)}`
       });
-      allCities = allCities.slice(0, TEST_MODE_MAX_CITIES);
+      allCities = allCities.slice(0, tierCityLimit);
     }
     
-    logStep(`Total cities to search (${allCities.length})`, { 
-      first10: allCities.slice(0, 10).join(', ') + (allCities.length > 10 ? '...' : ''),
-      testMode: isTestMode
+    logStep(`✅ Cities to scrape: ${allCities.length}`, { 
+      cities: allCities.join(', '),
+      tier: order.tier,
+      targetLeads: `${tierQuota.min}-${tierQuota.max}`
     });
 
     // Update order with cities searched
