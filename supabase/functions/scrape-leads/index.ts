@@ -56,66 +56,95 @@ async function getCityCoordinates(city: string, state: string): Promise<{ lat: n
   }
 }
 
-// Find all cities within radius using Mapbox's proximity search
+// Find all cities within radius using multiple Mapbox seed queries and bbox filtering
 async function getCitiesWithinRadius(centerCity: string, centerState: string, radiusMiles: number): Promise<string[]> {
   if (!MAPBOX_API_KEY) {
     logStep('Mapbox API key missing - cannot find cities in radius');
     return [centerCity];
   }
-  
+
   try {
     logStep(`Finding cities within ${radiusMiles} miles of ${centerCity}, ${centerState}`);
-    
+
     const centerCoords = await getCityCoordinates(centerCity, centerState);
     if (!centerCoords) {
       logStep(`Could not geocode center city: ${centerCity}, ${centerState}`);
       return [centerCity];
     }
-    
-    const latDelta = radiusMiles / 69;
-    const lonDelta = radiusMiles / 54.6;
-    
+
+    // Create a latitude/longitude bounding box (approximation)
+    const latDelta = radiusMiles / 69; // ~69 miles per degree latitude
+    const lonDelta = radiusMiles / 54.6; // ~54.6 miles per degree longitude at mid-latitudes
+
     const minLon = centerCoords.lon - lonDelta;
     const minLat = centerCoords.lat - latDelta;
     const maxLon = centerCoords.lon + lonDelta;
     const maxLat = centerCoords.lat + latDelta;
-    
+
     const bbox = `${minLon},${minLat},${maxLon},${maxLat}`;
-    const query = encodeURIComponent(centerState);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_API_KEY}&types=place&country=US&bbox=${bbox}&limit=50&proximity=${centerCoords.lon},${centerCoords.lat}`;
-    
-    logStep('Searching cities in bounding box with Mapbox', { bbox, state: centerState });
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      logStep(`Mapbox search failed for ${centerCity}`, { status: response.status });
-      return [centerCity];
-    }
-    
-    const data = await response.json();
-    
-    if (!data.features || data.features.length === 0) {
-      logStep(`No cities found within ${radiusMiles} miles of ${centerCity}`);
-      return [centerCity];
-    }
-    
-    const cities: Set<string> = new Set([centerCity]);
-    
-    for (const feature of data.features) {
-      const [lon, lat] = feature.center;
-      const distance = calculateDistance(centerCoords.lat, centerCoords.lon, lat, lon);
-      
-      if (distance <= radiusMiles) {
-        const cityName = feature.text || feature.place_name.split(',')[0];
-        cities.add(cityName);
-        logStep(`Found city: ${cityName}`, { distance: distance.toFixed(1) + ' miles' });
+
+    // Use multiple seed queries to comprehensively enumerate places in bbox
+    // Using vowels + common consonants captures most city names
+    const seedQueries = ['a','e','i','o','u','r','n','s','t','l'];
+    const types = 'place,locality';
+    const baseParams = `access_token=${MAPBOX_API_KEY}&types=${types}&country=US&bbox=${bbox}&limit=50&proximity=${centerCoords.lon},${centerCoords.lat}`;
+
+    logStep('Searching cities in bounding box with Mapbox (multi-seed)', { bbox, seeds: seedQueries.join(',') });
+
+    const requests = seedQueries.map((q) =>
+      fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${baseParams}`)
+    );
+
+    const responses = await Promise.allSettled(requests);
+
+    // Aggregate and deduplicate cities by normalized name
+    const citiesSet = new Map<string, { name: string; lat: number; lon: number; distance: number }>();
+
+    for (const res of responses) {
+      if (res.status !== 'fulfilled') continue;
+      const resp = res.value;
+      if (!resp.ok) continue;
+      try {
+        const data = await resp.json();
+        const features = Array.isArray(data?.features) ? data.features : [];
+        for (const feature of features) {
+          if (!feature?.center || !Array.isArray(feature.center)) continue;
+          const [lon, lat] = feature.center as [number, number];
+          const distance = calculateDistance(centerCoords.lat, centerCoords.lon, lat, lon);
+          if (distance > radiusMiles) continue; // enforce true radius, not just bbox
+
+          const rawName: string = feature?.text || (feature?.place_name?.split(',')[0] ?? '');
+          if (!rawName) continue;
+          const normalized = rawName.trim().toLowerCase();
+
+          if (!citiesSet.has(normalized)) {
+            citiesSet.set(normalized, { name: rawName.trim(), lat, lon, distance });
+            logStep(`Found city: ${rawName.trim()}`, { distance: `${distance.toFixed(1)} miles` });
+          } else {
+            // Keep the closer instance if duplicates appear across seeds
+            const existing = citiesSet.get(normalized)!;
+            if (distance < existing.distance) {
+              citiesSet.set(normalized, { name: rawName.trim(), lat, lon, distance });
+            }
+          }
+        }
+      } catch (_) {
+        // ignore JSON parse errors for individual responses
       }
     }
-    
-    logStep(`Found ${cities.size} cities within ${radiusMiles} miles`, { cities: Array.from(cities) });
-    return Array.from(cities);
-    
+
+    // Always include the center city
+    const centerNormalized = centerCity.trim().toLowerCase();
+    if (!citiesSet.has(centerNormalized)) {
+      citiesSet.set(centerNormalized, { name: centerCity.trim(), lat: centerCoords.lat, lon: centerCoords.lon, distance: 0 });
+    }
+
+    // Sort by distance ascending and cap to a reasonable number (e.g., top 25)
+    const sorted = Array.from(citiesSet.values()).sort((a, b) => a.distance - b.distance);
+    const result = sorted.map((c) => c.name);
+
+    logStep(`Found ${result.length} cities within ${radiusMiles} miles`, { cities: result });
+    return result.length > 0 ? result : [centerCity];
   } catch (error) {
     logStep('Error finding cities within radius', { error: error instanceof Error ? error.message : String(error) });
     return [centerCity];
