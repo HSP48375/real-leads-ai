@@ -399,182 +399,122 @@ async function scrapeWithApifyFSBO(
     
     logStep("FSBO items with URLs for deep scraping", { count: itemsWithUrls.length });
 
-    // Deep scrape each listing with PARALLEL processing
-    const maxDeepScrapes = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
+    // Process results WITHOUT deep scraping (FSBO.com provides phone/email/name in initial scrape)
+    const maxListings = Math.min(itemsWithUrls.length, options?.maxListings ?? 60);
     const seenPhones = new Set<string>();
     const rejectionReasons: { [key: string]: number } = {};
     
-    const PARALLEL_BATCH_SIZE = 5;
+    logStep("Processing FSBO listings (no deep scrape - using initial data)", { count: maxListings });
     
-    for (let i = 0; i < maxDeepScrapes; i += PARALLEL_BATCH_SIZE) {
-      const batchEnd = Math.min(i + PARALLEL_BATCH_SIZE, maxDeepScrapes);
-      const batchItems = itemsWithUrls.slice(i, batchEnd);
+    for (let i = 0; i < maxListings; i++) {
+      const item = itemsWithUrls[i];
       
-      logStep("FSBO parallel batch progress", { 
-        batchStart: i + 1, 
-        batchEnd, 
-        total: maxDeepScrapes,
-        batchSize: batchItems.length
+      // Extract data from FSBO.com initial scrape (already has phone/email/name)
+      let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
+      let email = item.email || item.contactEmail || "";
+      let firstName = "";
+      let lastName = "";
+      
+      // Parse seller name
+      const sellerName = item.seller || item.sellerName || "";
+      if (sellerName) {
+        const parts = sellerName.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          firstName = parts[0];
+          lastName = parts.slice(1).join(" ");
+        } else if (parts.length === 1) {
+          firstName = parts[0];
+          lastName = "Owner";
+        }
+      }
+      
+      // Extract property details
+      const bedrooms: number | null = item.bedrooms ?? item.beds ?? null;
+      const bathrooms: number | null = item.bathrooms ?? item.baths ?? null;
+      const homeStyle = item.propertyType || item.homeStyle || "";
+      const yearBuilt: number | null = item.yearBuilt ?? null;
+      const address = item.address || item.streetAddress || "";
+      const price = item.price || "";
+      const title = item.title || item.listingTitle || "";
+      
+      // VALIDATION 1: Must have phone number
+      if (!phone) {
+        rejectionReasons["missing_phone"] = (rejectionReasons["missing_phone"] || 0) + 1;
+        continue;
+      }
+
+      // VALIDATION 2: Check for duplicate phone
+      if (seenPhones.has(phone)) {
+        rejectionReasons["duplicate_phone"] = (rejectionReasons["duplicate_phone"] || 0) + 1;
+        continue;
+      }
+      seenPhones.add(phone);
+
+      // VALIDATION 3: Must have name (or default to "Owner")
+      if (!firstName) {
+        firstName = "Property";
+        lastName = "Owner";
+      }
+
+      // VALIDATION 4: Must have address
+      if (!address) {
+        rejectionReasons["missing_address"] = (rejectionReasons["missing_address"] || 0) + 1;
+        continue;
+      }
+
+      // Build the lead object
+      const lead: Lead = {
+        order_id: options?.orderId || "",
+        seller_name: `${firstName} ${lastName}`.trim(),
+        address,
+        city: item.city || undefined,
+        state: item.state || undefined,
+        zip: item.zip || item.zipcode || undefined,
+        price: price || undefined,
+        contact: phone,
+        email: email || undefined,
+        url: item.url || undefined,
+        source: "FSBO.com",
+        source_type: "fsbo",
+        date_listed: item.datePosted || item.dateListed || undefined,
+        listing_title: title || homeStyle || undefined,
+        address_line_1: address || undefined,
+        address_line_2: undefined,
+        zipcode: item.zip || item.zipcode || undefined,
+        bedrooms: bedrooms ?? undefined,
+        bathrooms: bathrooms ?? undefined,
+        home_style: homeStyle || undefined,
+        year_built: yearBuilt ?? undefined,
+      };
+
+      logStep("✅ ACCEPTED lead", { 
+        phone, 
+        name: `${firstName} ${lastName}`,
+        address: address.slice(0, 30) + '...',
+        price
       });
+
+      leads.push(lead);
       
-      // Process batch in parallel
-      const batchResults = await Promise.all(
-        batchItems.map(async (item: any) => {
-          let phone = (item.phone || item.contactPhone || "").replace(/\D/g, "");
-          let email = item.email || item.contactEmail || "";
-          let firstName = "";
-          let lastName = "";
-          let bedrooms: number | null = null;
-          let bathrooms: number | null = null;
-          let homeStyle = "";
-          let yearBuilt: number | null = null;
-
-          const fallbackAddress = item.address || item.streetAddress || "";
-          let addressFromDeepScrape = "";
-          
-          if (item.url) {
-            const contactInfo = await deepScrapeListingPage(item.url, "FSBO", fallbackAddress);
-            if (contactInfo) {
-              phone = contactInfo.phone || phone;
-              email = contactInfo.email || email;
-              firstName = contactInfo.firstName || firstName;
-              lastName = contactInfo.lastName || lastName;
-              addressFromDeepScrape = contactInfo.address || "";
-              bedrooms = contactInfo.bedrooms !== undefined ? contactInfo.bedrooms : bedrooms;
-              bathrooms = contactInfo.bathrooms !== undefined ? contactInfo.bathrooms : bathrooms;
-              homeStyle = contactInfo.homeStyle || homeStyle;
-              yearBuilt = contactInfo.yearBuilt !== undefined ? contactInfo.yearBuilt : yearBuilt;
-            }
+      // Save each lead immediately (with duplicate check)
+      if (options?.orderId && options?.supabase && options?.insertLeadIfUnique) {
+        try {
+          const inserted = await options.insertLeadIfUnique(lead);
+          if (inserted) {
+            logStep("Lead saved to DB", { phone, totalSaved: leads.length });
           }
-
-          return {
-            item,
-            phone,
-            email,
-            firstName,
-            lastName,
-            addressFromDeepScrape,
-            fallbackAddress,
-            bedrooms,
-            bathrooms,
-            homeStyle,
-            yearBuilt
-          };
-        })
-      );
-      
-      // Process batch results - 4 CORE FIELD VALIDATION (phone, name, address, price)
-      for (const result of batchResults) {
-        let { item, phone, email, firstName, lastName, addressFromDeepScrape, fallbackAddress, bedrooms, bathrooms, homeStyle, yearBuilt } = result;
-        
-        // VALIDATION 1: Must have phone number
-        if (!phone) {
-          const reason = "missing_phone";
-          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          continue;
-        }
-
-        // VALIDATION 2: Check for duplicate phone
-        if (seenPhones.has(phone)) {
-          const reason = "duplicate_phone";
-          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          continue;
-        }
-        seenPhones.add(phone);
-
-        // VALIDATION 3: Must have name
-        if (!firstName || !lastName) {
-          const sellerName = item.seller || "";
-          if (sellerName) {
-            const parts = sellerName.trim().split(/\s+/);
-            if (parts.length >= 2) {
-              firstName = parts[0];
-              lastName = parts.slice(1).join(" ");
-            } else if (parts.length === 1) {
-              firstName = parts[0];
-              lastName = "Owner";
-            }
-          }
-          
-          if (!firstName) {
-            const reason = "missing_name";
-            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-            continue;
-          }
-        }
-
-        // VALIDATION 4: Must have address
-        const address = addressFromDeepScrape || fallbackAddress;
-        if (!address.trim()) {
-          const reason = "missing_address";
-          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          continue;
-        }
-
-        // VALIDATION 5: Must have price
-        const price = item.price || item.listPrice || "";
-        if (!price) {
-          const reason = "missing_price";
-          rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          continue;
-        }
-        
-        // ALL 4 CORE VALIDATIONS PASSED
-        const title = item.title || "";
-        const propertyType = item.propertyType || item.type || "";
-        
-        const lead: Lead = {
-          order_id: options?.orderId || "",
-          seller_name: `${firstName} ${lastName}`,
-          contact: phone,
-          email: email,
-          address: address,
-          city: item.city || undefined,
-          state: item.state || undefined,
-          zip: item.zip || item.zipcode || undefined,
-          price: price || undefined,
-          url: item.url || undefined,
-          source: "FSBO",
-          source_type: "fsbo",
-          date_listed: item.datePosted || new Date().toISOString(),
-          listing_title: title || propertyType || undefined,
-          address_line_1: address || undefined,
-          address_line_2: undefined,
-          zipcode: item.zip || item.zipcode || undefined,
-          bedrooms: bedrooms ?? undefined,
-          bathrooms: bathrooms ?? undefined,
-          home_style: homeStyle || undefined,
-          year_built: yearBuilt ?? undefined,
-        };
-
-        logStep("ACCEPTED - lead with 4 core fields", { 
-          phone, 
-          name: `${firstName} ${lastName}`,
-          address,
-          price
-        });
-
-        leads.push(lead);
-        
-        // Save each lead immediately (with duplicate check)
-        if (options?.orderId && options?.supabase && options?.insertLeadIfUnique) {
-          try {
-            const inserted = await options.insertLeadIfUnique(lead);
-            if (inserted) {
-              logStep("Lead saved", { phone, totalSaved: leads.length });
-            }
-          } catch (e) {
-            logStep("Lead insert exception", { error: e instanceof Error ? e.message : String(e), phone });
-          }
+        } catch (e) {
+          logStep("Lead insert exception", { error: e instanceof Error ? e.message : String(e), phone });
         }
       }
     }
 
-    logStep("FSBO scraping complete", { 
-      totalProcessed: maxDeepScrapes,
+    logStep("✅ FSBO scraping complete", { 
+      totalProcessed: maxListings,
       acceptedLeads: leads.length,
-      validationApproach: "4 core fields (phone, name, address, price)",
-      rejectionReasons
+      validationApproach: "FSBO initial data (phone, name, address, price)",
+      rejectionReasons,
+      speed: "FAST (no deep scraping)"
     });
     
     return leads;
