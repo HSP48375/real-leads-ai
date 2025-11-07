@@ -233,7 +233,7 @@ interface Lead {
 
 // ============ APIFY FSBO SCRAPER - PROVEN & COST-EFFECTIVE ============
 
-async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 6000): Promise<any> {
+async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 15000): Promise<any> {
   try {
     const olostepApiKey = Deno.env.get("OLOSTEP_API_KEY");
     if (!olostepApiKey) {
@@ -306,7 +306,7 @@ async function scrapeWithApifyFSBO(
 
     const actorInput = {
       searchQueries: [city],
-      maxItems: 100
+      maxItems: options?.maxListings || 100 // Use maxListings from options (200 in exhaustive mode)
     };
 
     logStep("Apify FSBO input", actorInput);
@@ -337,8 +337,8 @@ async function scrapeWithApifyFSBO(
 
     logStep("FSBO run started", { runId });
 
-    // Poll for completion
-    const maxWaitMs = 45000;
+    // Poll for completion (extended timeout for exhaustive mode)
+    const maxWaitMs = (options?.maxListings || 60) > 100 ? 180000 : 45000; // 3 min if exhaustive, 45s normal
     const pollIntervalMs = 5000;
     const startTime = Date.now();
     let runStatus = "RUNNING";
@@ -386,12 +386,13 @@ async function scrapeWithApifyFSBO(
     const rejectionReasons: { [key: string]: number } = {};
     
     const BATCH_SIZE = 3; // Process 3 listings at a time
-    const DEEP_SCRAPE_TIMEOUT = 6000; // 6 seconds per listing
+    const DEEP_SCRAPE_TIMEOUT = (options?.maxListings || 60) > 100 ? 15000 : 6000; // 15s in exhaustive, 6s normal
     
     logStep("Starting parallel deep scraping with timeout protection", { 
       count: maxListings, 
       maxTimePerListing: `${DEEP_SCRAPE_TIMEOUT / 1000}s`, 
-      batchSize: BATCH_SIZE 
+      batchSize: BATCH_SIZE,
+      exhaustiveMode: (options?.maxListings || 60) > 100
     });
     
     for (let batchStart = 0; batchStart < maxListings; batchStart += BATCH_SIZE) {
@@ -527,7 +528,7 @@ serve(async (req) => {
   let orderId: string | undefined;
 
   try {
-    const { orderId: id } = await req.json();
+    const { orderId: id, exhaustive = false } = await req.json();
     orderId = id;
 
     if (!orderId) {
@@ -562,7 +563,8 @@ serve(async (req) => {
       tier: order.tier,
       city: order.primary_city,
       state: order.primary_state,
-      currentAttempt: order.scrape_attempts || 0
+      currentAttempt: order.scrape_attempts || 0,
+      exhaustiveMode: exhaustive
     });
 
     // Increment scrape attempts
@@ -626,8 +628,8 @@ serve(async (req) => {
       return true;
     };
     
-    // Check if max attempts exceeded
-    if (scrapeAttempts >= MAX_SCRAPE_ATTEMPTS) {
+    // Check if max attempts exceeded (SKIP in exhaustive mode)
+    if (!exhaustive && scrapeAttempts >= MAX_SCRAPE_ATTEMPTS) {
       const currentLeadCount = await getCurrentLeadCount();
       logStep("⚠️ MAX ATTEMPTS EXCEEDED - Forcing finalization", { 
         attempts: scrapeAttempts,
@@ -655,25 +657,47 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    } else if (exhaustive && scrapeAttempts >= MAX_SCRAPE_ATTEMPTS) {
+      logStep("🚀 EXHAUSTIVE MODE: Ignoring max attempts limit", { 
+        attempts: scrapeAttempts,
+        normalLimit: MAX_SCRAPE_ATTEMPTS
+      });
     }
 
-    // COST OPTIMIZATION: Apply tier-based city limits
-    const tierCityLimit = TIER_CITY_LIMITS[order.tier as keyof typeof TIER_CITY_LIMITS] || 2;
+    // COST OPTIMIZATION: Apply tier-based city limits (SKIP in exhaustive mode)
+    const tierCityLimit = exhaustive ? 999 : (TIER_CITY_LIMITS[order.tier as keyof typeof TIER_CITY_LIMITS] || 2);
     const isTestMode = Deno.env.get("TEST_MODE") === "true" || order.price_paid < 100;
     
-    logStep("Starting FSBO-only scrape", { 
+    // In exhaustive mode, progressively widen radius: 25 -> 50 -> 100 -> 150 -> 200
+    let radiusMiles = order.current_radius || order.search_radius || 25;
+    if (exhaustive && scrapeAttempts > 1) {
+      const radiusProgression = [25, 50, 100, 150, 200];
+      const nextRadiusIndex = radiusProgression.findIndex(r => r >= radiusMiles) + 1;
+      if (nextRadiusIndex < radiusProgression.length) {
+        radiusMiles = radiusProgression[nextRadiusIndex];
+        logStep("🌍 EXHAUSTIVE MODE: Widening search radius", { 
+          previousRadius: order.current_radius || order.search_radius || 25,
+          newRadius: radiusMiles,
+          attempt: scrapeAttempts
+        });
+        await supabase
+          .from("orders")
+          .update({ current_radius: radiusMiles })
+          .eq("id", orderId);
+      }
+    }
+    
+    logStep(`Starting ${exhaustive ? 'EXHAUSTIVE' : 'FSBO-only'} scrape`, { 
       city: order.primary_city,
       state: order.primary_state,
-      radius: order.search_radius || 25,
+      radius: radiusMiles,
       attempt: scrapeAttempts,
       targetLeads: `${tierQuota.min}-${tierQuota.max}`,
       tier: order.tier,
-      tierCityLimit,
-      isTestMode
+      tierCityLimit: exhaustive ? 'UNLIMITED' : tierCityLimit,
+      isTestMode,
+      exhaustiveMode: exhaustive
     });
-
-    // Get all cities within the search radius - DISCOVER ALL for comprehensive coverage
-    const radiusMiles = order.search_radius || 25;
     const citiesInRadius = await getCitiesWithinRadius(
       order.primary_city,
       order.primary_state,
@@ -689,8 +713,9 @@ serve(async (req) => {
     });
     
     // COST OPTIMIZATION: Apply tier-based city limits (cities are sorted by distance, so we scrape closest first)
+    // SKIP in exhaustive mode
     const originalCityCount = allCities.length;
-    if (allCities.length > tierCityLimit) {
+    if (!exhaustive && allCities.length > tierCityLimit) {
       logStep(`💰 COST OPTIMIZATION: Limiting to ${tierCityLimit} cities for ${order.tier} tier (found ${originalCityCount})`, {
         tier: order.tier,
         pricePoint: `$${order.price_paid}`,
@@ -699,6 +724,13 @@ serve(async (req) => {
         costSavings: `~$${((originalCityCount - tierCityLimit) * APIFY_COSTS.fsbo_per_city).toFixed(2)}`
       });
       allCities = allCities.slice(0, tierCityLimit);
+    } else if (exhaustive) {
+      logStep(`🚀 EXHAUSTIVE MODE: Scraping ALL ${allCities.length} cities within ${radiusMiles} miles`, {
+        tier: order.tier,
+        cities: allCities.length,
+        radius: radiusMiles,
+        targetLeads: tierQuota.min
+      });
     }
     
     logStep(`✅ Cities to scrape: ${allCities.length}`, { 
@@ -716,9 +748,9 @@ serve(async (req) => {
       })
       .eq("id", orderId);
     
-    // Track execution time to prevent timeout
+    // Track execution time to prevent timeout (extended in exhaustive mode)
     const executionStartTime = Date.now();
-    const MAX_EXECUTION_TIME_MS = 80000; // 80 seconds max (allows for Apify + deep scrape)
+    const MAX_EXECUTION_TIME_MS = exhaustive ? 1140000 : 80000; // 19 min in exhaustive, 80s normal
     
     const shouldExitDueToTimeout = (): boolean => {
       const elapsed = Date.now() - executionStartTime;
@@ -753,8 +785,9 @@ serve(async (req) => {
       }
       
       try {
+        const maxListings = exhaustive ? 200 : 10;
         const fsboLeads = await scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
-          { orderId, supabase, maxListings: 10, insertLeadIfUnique }
+          { orderId, supabase, maxListings, insertLeadIfUnique }
         );
         
         if (fsboLeads && fsboLeads.length > 0) {
@@ -792,16 +825,15 @@ serve(async (req) => {
 
     // Check if we've met the minimum quota
     const quotaMet = totalLeadsCollected >= tierQuota.min;
-    const canRetry = scrapeAttempts < MAX_SCRAPE_ATTEMPTS;
+    const canRetry = exhaustive ? true : scrapeAttempts < MAX_SCRAPE_ATTEMPTS;
 
     if (!quotaMet && canRetry) {
-      // Need more leads - try again
-      logStep("Quota not met - will retry", {
+      logStep(exhaustive ? "🔄 EXHAUSTIVE MODE: Auto-retrying until quota met" : "Quota not met - will retry", {
         current: totalLeadsCollected,
         required: tierQuota.min,
-        attempt: scrapeAttempts
+        attempt: scrapeAttempts,
+        exhaustive
       });
-
       await supabase
         .from("orders")
         .update({
@@ -811,7 +843,7 @@ serve(async (req) => {
         })
         .eq("id", orderId);
 
-      // Trigger another scrape
+      // Trigger another scrape with exhaustive mode preserved
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       await fetch(`${supabaseUrl}/functions/v1/scrape-leads`, {
         method: 'POST',
@@ -819,7 +851,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         },
-        body: JSON.stringify({ orderId })
+        body: JSON.stringify({ orderId, exhaustive })
       });
 
       return new Response(
