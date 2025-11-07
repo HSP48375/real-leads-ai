@@ -718,7 +718,7 @@ serve(async (req) => {
     
     // Track execution time to prevent timeout
     const executionStartTime = Date.now();
-    const MAX_EXECUTION_TIME_MS = 50000; // 50 seconds max
+    const MAX_EXECUTION_TIME_MS = 80000; // 80 seconds max (allows for Apify + deep scrape)
     
     const shouldExitDueToTimeout = (): boolean => {
       const elapsed = Date.now() - executionStartTime;
@@ -754,7 +754,7 @@ serve(async (req) => {
       
       try {
         const fsboLeads = await scrapeWithApifyFSBO(`${city}, ${order.primary_state}`, 
-          { orderId, supabase, maxListings: 20, insertLeadIfUnique }
+          { orderId, supabase, maxListings: 10, insertLeadIfUnique }
         );
         
         if (fsboLeads && fsboLeads.length > 0) {
