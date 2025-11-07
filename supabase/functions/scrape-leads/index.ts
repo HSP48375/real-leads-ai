@@ -217,79 +217,53 @@ interface Lead {
 
 async function deepScrapeListingPage(url: string, source: string, addressFallback: string, maxWaitMs: number = 10000): Promise<any> {
   try {
-    const apiKey = Deno.env.get("APIFY_API_KEY");
-    if (!apiKey) {
+    const olostepApiKey = Deno.env.get("OLOSTEP_API_KEY");
+    if (!olostepApiKey) {
       return null;
     }
 
-    // Use Apify's web scraper for deep scraping with FAST timeout
-    const actorInput = {
-      startUrls: [{ url }],
-      proxyConfiguration: { useApifyProxy: true },
-      maxRequestRetries: 1, // Reduced from 2
-      maxPagesPerCrawl: 1,
-      pageFunction: `
-        async function pageFunction(context) {
-          const { page } = context;
-          const phoneRegex = /\\(?([0-9]{3})\\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g;
-          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g;
-          
-          const text = await page.content();
-          const phones = text.match(phoneRegex) || [];
-          const emails = text.match(emailRegex) || [];
-          
-          return {
-            phone: phones[0] || '',
-            email: emails[0] || '',
-            address: '${addressFallback}'
-          };
-        }
-      `
-    };
-
-    const response = await fetch(
-      `https://api.apify.com/v2/acts/apify~web-scraper/runs?token=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(actorInput),
-      }
-    );
+    // Use Olostep for better extraction of contact info from listing pages
+    const response = await fetch("https://agent.olostep.com/olostep-p2p-incomingAPI", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${olostepApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        url: url,
+        timeout: Math.min(maxWaitMs, 15000), // Max 15s for Olostep
+        saveHtml: false,
+        saveMarkdown: false,
+        removeCSSselectors: "default",
+        htmlTransformer: "none",
+        removeImages: true,
+        fastLane: true // Use fast lane for quick extraction
+      })
+    });
 
     if (!response.ok) {
       return null;
     }
 
-    const runData = await response.json();
-    const runId = runData?.data?.id;
-    if (!runId) return null;
-
-    // Poll with FAST timeout (max 10 seconds instead of 60)
-    const startTime = Date.now();
-    while (Date.now() - startTime < maxWaitMs) {
-      await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
-      
-      const statusResp = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
-      );
-      const statusData = await statusResp.json();
-      const status = statusData?.data?.status;
-
-      if (status === "SUCCEEDED") {
-        const dataResp = await fetch(
-          `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
-        );
-        const results = await dataResp.json();
-        return results[0] || null;
-      }
-
-      if (["FAILED", "ABORTED"].includes(status)) {
-        return null;
-      }
-    }
-
-    // Timeout - return null
-    return null;
+    const data = await response.json();
+    const text = data.markdown_content || data.text_content || "";
+    
+    // Extract phone and email with regex
+    const phoneRegex = /\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g;
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    
+    const phones = text.match(phoneRegex) || [];
+    const emails = text.match(emailRegex) || [];
+    
+    const result = {
+      phone: phones[0] || '',
+      email: emails[0] || '',
+      address: addressFallback
+    };
+    
+    console.log(`[DEEP-SCRAPE] ${url} -> phone: ${result.phone ? '✓' : '✗'}, email: ${result.email ? '✓' : '✗'}`);
+    
+    return result;
   } catch (error) {
     return null;
   }
