@@ -231,22 +231,47 @@ serve(async (req) => {
       }
     }
 
-    // ENFORCE STRICT LEAD CAPS - Match exact tier maximums
-    const maxLeadLimits = {
-      starter: 25,
-      growth: 50,
-      pro: 130,
-      enterprise: 200,
+    // ENFORCE STRICT LEAD CAPS - Match exact tier minimums and maximums
+    const tierLimits = {
+      starter: { min: 20, max: 25 },
+      growth: { min: 40, max: 50 },
+      pro: { min: 110, max: 130 },
+      enterprise: { min: 150, max: 200 },
     };
     
-    const maxAllowed = maxLeadLimits[order.tier as keyof typeof maxLeadLimits] || 26;
-    const leads = uniqueLeads.slice(0, maxAllowed);
+    const limits = tierLimits[order.tier as keyof typeof tierLimits] || { min: 20, max: 26 };
     
-    console.log(`[FINALIZE] Enforcing lead cap: ${uniqueLeads.length} → ${leads.length} (max: ${maxAllowed})`);
+    // CHECK MINIMUM REQUIREMENT
+    if (uniqueLeads.length < limits.min) {
+      console.log(`[FINALIZE] INSUFFICIENT LEADS: ${uniqueLeads.length} < ${limits.min} (tier: ${order.tier})`);
+      
+      // Update order to failed status
+      await supabase
+        .from('orders')
+        .update({
+          status: 'failed',
+          error_message: `Only ${uniqueLeads.length} leads found. Minimum required: ${limits.min}`,
+        })
+        .eq('id', orderId);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Insufficient leads: ${uniqueLeads.length}/${limits.min} required`,
+          leadsFound: uniqueLeads.length,
+          minRequired: limits.min
+        }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const leads = uniqueLeads.slice(0, limits.max);
+    
+    console.log(`[FINALIZE] Lead validation: ${uniqueLeads.length} leads (min: ${limits.min}, max: ${limits.max}) → finalizing ${leads.length}`);
     
     // Delete excess leads beyond tier cap from database
-    if (uniqueLeads.length > maxAllowed) {
-      const excessLeads = uniqueLeads.slice(maxAllowed);
+    if (uniqueLeads.length > limits.max) {
+      const excessLeads = uniqueLeads.slice(limits.max);
       const excessIds = excessLeads.map(l => l.id);
       const { error: capErr } = await supabase.from('leads').delete().in('id', excessIds);
       if (capErr) {
