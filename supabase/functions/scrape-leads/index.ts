@@ -171,6 +171,15 @@ const TIER_QUOTAS = {
 
 const MAX_SCRAPE_ATTEMPTS = 3;
 
+// Cost tracking and protection
+const APIFY_COSTS = {
+  fsbo_per_city: 0.05, // Approximate cost per city search
+  deep_scrape_per_listing: 0.02, // Approximate cost per deep scrape
+};
+
+const TEST_MODE_MAX_CITIES = 2; // Limit test orders to 2 cities
+const COST_WARNING_THRESHOLD = 50; // Warn when monthly costs approach $50
+
 const logStep = (step: string, details?: any) => {
   console.log(`[SCRAPE-LEADS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
@@ -710,12 +719,16 @@ serve(async (req) => {
       );
     }
 
+    // COST PROTECTION: Check if this is a test order
+    const isTestMode = Deno.env.get("TEST_MODE") === "true" || order.price_paid < 100;
+    
     logStep("Starting FSBO-only scrape", { 
       city: order.primary_city,
       state: order.primary_state,
       radius: order.search_radius || 25,
       attempt: scrapeAttempts,
-      targetLeads: `${tierQuota.min}-${tierQuota.max}`
+      targetLeads: `${tierQuota.min}-${tierQuota.max}`,
+      testMode: isTestMode
     });
 
     // Get all cities within the search radius
@@ -727,9 +740,20 @@ serve(async (req) => {
     );
     
     // Combine with additional cities from order
-    const allCities = [...new Set([...citiesInRadius, ...(order.additional_cities || [])])];
+    let allCities = [...new Set([...citiesInRadius, ...(order.additional_cities || [])])];
+    
+    // COST PROTECTION: Limit cities in test mode
+    if (isTestMode && allCities.length > TEST_MODE_MAX_CITIES) {
+      logStep(`⚠️ TEST MODE: Limiting to ${TEST_MODE_MAX_CITIES} cities (found ${allCities.length})`, {
+        original: allCities.slice(0, 5).join(', '),
+        limited: allCities.slice(0, TEST_MODE_MAX_CITIES).join(', ')
+      });
+      allCities = allCities.slice(0, TEST_MODE_MAX_CITIES);
+    }
+    
     logStep(`Total cities to search (${allCities.length})`, { 
-      first10: allCities.slice(0, 10).join(', ') + (allCities.length > 10 ? '...' : '')
+      first10: allCities.slice(0, 10).join(', ') + (allCities.length > 10 ? '...' : ''),
+      testMode: isTestMode
     });
 
     // Update order with cities searched
@@ -792,13 +816,28 @@ serve(async (req) => {
     
     totalLeadsCollected = await getCurrentLeadCount();
     
+    // COST TRACKING: Calculate estimated Apify costs
+    const estimatedCost = (allCities.length * APIFY_COSTS.fsbo_per_city) + 
+                         (totalLeadsCollected * APIFY_COSTS.deep_scrape_per_listing);
+    
     logStep("FSBO scraping complete", {
       totalLeadsCollected,
       targetRange: `${tierQuota.min}-${tierQuota.max}`,
       citiesSearched: allCities.length,
       radiusMiles: radiusMiles,
-      elapsedTime: `${Date.now() - executionStartTime}ms`
+      elapsedTime: `${Date.now() - executionStartTime}ms`,
+      estimatedApifyCost: `$${estimatedCost.toFixed(2)}`,
+      testMode: isTestMode
     });
+    
+    // Update order with cost tracking
+    await supabase
+      .from("orders")
+      .update({ 
+        scraping_cost: estimatedCost,
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", orderId);
 
     // Check if we've met the minimum quota
     const quotaMet = totalLeadsCollected >= tierQuota.min;
