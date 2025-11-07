@@ -385,9 +385,14 @@ async function scrapeWithApifyFSBO(
     const seenPhones = new Set<string>();
     const rejectionReasons: { [key: string]: number } = {};
     
-    logStep("Starting parallel deep scraping with timeout protection", { count: maxListings, maxTimePerListing: "10s", batchSize: 5 });
-    
     const BATCH_SIZE = 3; // Process 3 listings at a time
+    const DEEP_SCRAPE_TIMEOUT = 6000; // 6 seconds per listing
+    
+    logStep("Starting parallel deep scraping with timeout protection", { 
+      count: maxListings, 
+      maxTimePerListing: `${DEEP_SCRAPE_TIMEOUT / 1000}s`, 
+      batchSize: BATCH_SIZE 
+    });
     
     for (let batchStart = 0; batchStart < maxListings; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, maxListings);
@@ -398,12 +403,12 @@ async function scrapeWithApifyFSBO(
         total: maxListings
       });
       
-      // Deep scrape batch in parallel with 6s timeout per listing
+      // Deep scrape batch in parallel
       const batchResults = await Promise.all(
         batchItems.map(async (item: any) => {
           const fallbackAddress = item.address || item.streetAddress || item.fullAddress || item.location || item.addressLine || item.address_line_1 || "";
           const contactInfo = item.url 
-            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, 6000)
+            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, DEEP_SCRAPE_TIMEOUT)
             : null;
           
           return {
