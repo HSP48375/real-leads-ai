@@ -237,8 +237,11 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
   try {
     const olostepApiKey = Deno.env.get("OLOSTEP_API_KEY");
     if (!olostepApiKey) {
+      logStep("❌ Olostep API key missing");
       return null;
     }
+
+    logStep(`🔍 Deep scraping: ${url.substring(0, 60)}...`);
 
     // Use Olostep for better extraction of contact info from listing pages
     const response = await fetch("https://agent.olostep.com/olostep-p2p-incomingAPI", {
@@ -260,11 +263,14 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
     });
 
     if (!response.ok) {
+      logStep(`❌ Olostep failed for ${url}`, { status: response.status });
       return null;
     }
 
     const data = await response.json();
     const text = data.markdown_content || data.text_content || "";
+    
+    logStep(`📄 Olostep returned ${text.length} chars for ${url.substring(0, 40)}...`);
     
     // Extract phone and email with regex
     const phoneRegex = /\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g;
@@ -272,6 +278,13 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
     
     const phones = text.match(phoneRegex) || [];
     const emails = text.match(emailRegex) || [];
+    
+    logStep(`📞 Extracted from ${url.substring(0, 40)}...`, { 
+      phones: phones.length,
+      emails: emails.length,
+      firstPhone: phones[0] || 'none',
+      firstEmail: emails[0] || 'none'
+    });
     
     const result = {
       phone: phones[0] || '',
@@ -283,6 +296,7 @@ async function deepScrapeListingPage(url: string, source: string, addressFallbac
     
     return result;
   } catch (error) {
+    logStep(`❌ Deep scrape error for ${url}`, { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
