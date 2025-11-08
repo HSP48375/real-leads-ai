@@ -388,6 +388,19 @@ async function scrapeWithApifyFSBO(
 
     const rawResults = await datasetResp.json();
     logStep("FSBO results", { count: Array.isArray(rawResults) ? rawResults.length : 0 });
+    
+    // Log sample of raw Apify data to see what fields are available
+    if (rawResults.length > 0) {
+      const sampleItem = rawResults[0];
+      logStep("📊 Sample raw Apify item fields", { 
+        hasPhone: !!sampleItem.phone || !!sampleItem.contactPhone,
+        hasEmail: !!sampleItem.email || !!sampleItem.contactEmail,
+        hasAddress: !!sampleItem.address || !!sampleItem.streetAddress,
+        allFields: Object.keys(sampleItem).join(', '),
+        phoneValue: sampleItem.phone || sampleItem.contactPhone || 'none',
+        emailValue: sampleItem.email || sampleItem.contactEmail || 'none'
+      });
+    }
 
     const leads: Lead[] = [];
     const itemsWithUrls = rawResults.filter((item: any) => item.url);
@@ -422,14 +435,32 @@ async function scrapeWithApifyFSBO(
       const batchResults = await Promise.all(
         batchItems.map(async (item: any) => {
           const fallbackAddress = item.address || item.streetAddress || item.fullAddress || item.location || item.addressLine || item.address_line_1 || "";
+          
+          logStep(`🏠 Raw Apify item data`, {
+            url: item.url?.substring(0, 50) + '...',
+            rawPhone: item.phone || item.contactPhone || 'none',
+            rawEmail: item.email || item.contactEmail || 'none',
+            rawAddress: fallbackAddress?.substring(0, 40) || 'none'
+          });
+          
           const contactInfo = item.url 
             ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, DEEP_SCRAPE_TIMEOUT)
             : null;
           
+          const finalPhone = normalizePhone(contactInfo?.phone || item.phone || item.contactPhone || "");
+          const finalEmail = contactInfo?.email || item.email || item.contactEmail || "";
+          
+          logStep(`✅ Final contact data`, {
+            url: item.url?.substring(0, 50) + '...',
+            phone: finalPhone || 'MISSING',
+            email: finalEmail || 'MISSING',
+            source: contactInfo?.phone ? 'olostep' : (item.phone || item.contactPhone ? 'apify' : 'none')
+          });
+          
           return {
             item,
-            phone: normalizePhone(contactInfo?.phone || item.phone || item.contactPhone || ""),
-            email: contactInfo?.email || item.email || item.contactEmail || "",
+            phone: finalPhone,
+            email: finalEmail,
             address: contactInfo?.address || fallbackAddress
           };
         })
