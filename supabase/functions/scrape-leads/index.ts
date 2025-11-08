@@ -434,34 +434,51 @@ async function scrapeWithApifyFSBO(
       // Deep scrape batch in parallel
       const batchResults = await Promise.all(
         batchItems.map(async (item: any) => {
-          const fallbackAddress = item.address || item.streetAddress || item.fullAddress || item.location || item.addressLine || item.address_line_1 || "";
+          // Build full address from Apify structured fields
+          const addressParts = [
+            item.address1 || item.address || item.streetAddress,
+            item.address2,
+            item.city,
+            item.state,
+            item.zipcode || item.zip
+          ].filter(Boolean);
+          const fullAddress = addressParts.join(', ') || item.fullAddress || item.location || item.addressLine || item.address_line_1 || "";
+          
+          // Check if Apify already has phone - skip Olostep if yes
+          const apifyPhone = item.phone || item.contactPhone || "";
+          const apifyEmail = item.email || item.contactEmail || "";
           
           logStep(`🏠 Raw Apify item data`, {
             url: item.url?.substring(0, 50) + '...',
-            rawPhone: item.phone || item.contactPhone || 'none',
-            rawEmail: item.email || item.contactEmail || 'none',
-            rawAddress: fallbackAddress?.substring(0, 40) || 'none'
+            rawPhone: apifyPhone || 'none',
+            rawEmail: apifyEmail || 'none',
+            rawAddress: fullAddress?.substring(0, 40) || 'none'
           });
           
-          const contactInfo = item.url 
-            ? await deepScrapeListingPage(item.url, "FSBO", fallbackAddress, DEEP_SCRAPE_TIMEOUT)
-            : null;
+          // Only deep scrape if Apify doesn't have phone
+          let contactInfo = null;
+          if (!apifyPhone && item.url) {
+            contactInfo = await deepScrapeListingPage(item.url, "FSBO", fullAddress, DEEP_SCRAPE_TIMEOUT);
+          } else if (apifyPhone) {
+            logStep(`⚡ Skipping Olostep - Apify has phone for ${item.url?.substring(0, 50)}...`);
+          }
           
-          const finalPhone = normalizePhone(contactInfo?.phone || item.phone || item.contactPhone || "");
-          const finalEmail = contactInfo?.email || item.email || item.contactEmail || "";
+          const finalPhone = normalizePhone(contactInfo?.phone || apifyPhone);
+          const finalEmail = contactInfo?.email || apifyEmail;
           
           logStep(`✅ Final contact data`, {
             url: item.url?.substring(0, 50) + '...',
             phone: finalPhone || 'MISSING',
-            email: finalEmail || 'MISSING',
-            source: contactInfo?.phone ? 'olostep' : (item.phone || item.contactPhone ? 'apify' : 'none')
+            email: finalEmail || 'missing',
+            address: fullAddress?.substring(0, 40) || 'MISSING',
+            source: contactInfo?.phone ? 'olostep' : (apifyPhone ? 'apify' : 'none')
           });
           
           return {
             item,
             phone: finalPhone,
             email: finalEmail,
-            address: contactInfo?.address || fallbackAddress
+            address: contactInfo?.address || fullAddress
           };
         })
       );
